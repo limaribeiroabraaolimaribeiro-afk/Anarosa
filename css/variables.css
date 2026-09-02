@@ -20,8 +20,9 @@
   --container-max: 1280px;
   --header-height: 64px;
   --topbar-height: 36px;
-  --radius-sm: 4px;
-  --radius-md: 10px;
+  --radius-sm: 6px;
+  --radius-md: 14px;
+  --radius-btn: 6px;
 
   /* Motion */
   --transition-fast: 0.18s ease;

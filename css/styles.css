@@ -69,6 +69,33 @@ main section[id] {
   color: var(--gold);
 }
 
+.section-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 52ch;
+  margin-top: -8px;
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.section-intro {
+  margin-bottom: 16px;
+}
+
+.eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+
+.section--alt {
+  background: var(--beige-light);
+}
+
 /* ---------------------------------------------------------
    Botões
    --------------------------------------------------------- */
@@ -78,14 +105,15 @@ main section[id] {
   justify-content: center;
   gap: 8px;
   padding: 13px 26px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-btn);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  transition: background var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+  transition: background var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
   cursor: pointer;
   white-space: nowrap;
+  border: 1px solid transparent;
 }
 
 .btn-primary {
@@ -95,21 +123,26 @@ main section[id] {
 
 .btn-primary:hover {
   background: var(--brown);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
 }
 
 .btn-primary:active {
   transform: scale(0.98);
+  box-shadow: none;
 }
 
 .btn-outline {
-  background: transparent;
+  background: var(--cream);
   color: var(--brown-dark);
-  border: 1px solid var(--brown-dark);
+  border-color: var(--brown-dark);
 }
 
 .btn-outline:hover {
   background: var(--brown-dark);
   color: var(--cream);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
 }
 
 /* =========================================================
@@ -491,11 +524,43 @@ body.no-scroll {
   max-width: 46ch;
 }
 
-.hero-content .btn {
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
   margin-top: 6px;
-  align-self: flex-start;
+}
+
+.hero-actions .btn {
   padding: 11px 18px;
   font-size: 11.5px;
+}
+
+.hero-perks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.hero-perk {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--brown-dark);
+  white-space: nowrap;
+}
+
+.hero-perk .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--gold);
+  flex-shrink: 0;
 }
 
 .hero-dots {
@@ -550,8 +615,14 @@ body.no-scroll {
   height: 68px;
   border-radius: 50%;
   overflow: hidden;
-  border: 1px solid var(--border-soft);
+  border: 2px solid var(--cream);
+  box-shadow: 0 0 0 1.5px var(--gold);
   background: var(--beige);
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.category-circle:active .avatar {
+  transform: scale(0.96);
 }
 
 .category-circle .avatar img {
@@ -595,10 +666,21 @@ body.no-scroll {
   color: var(--brown-dark);
 }
 
-.benefit-item .icon {
-  width: 20px;
-  height: 20px;
-  color: var(--brown);
+.icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--beige);
+  flex-shrink: 0;
+}
+
+.icon-badge .icon {
+  width: 17px;
+  height: 17px;
+  color: var(--brown-dark);
 }
 
 .benefit-item .benefit-text {
@@ -647,6 +729,31 @@ body.no-scroll {
   background: var(--beige-light);
   aspect-ratio: 4 / 5;
   transition: border-color var(--transition-fast);
+}
+
+.product-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 4px 9px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--cream);
+  background: var(--brown-dark);
+  box-shadow: 0 2px 6px rgba(42, 33, 28, 0.2);
+}
+
+.product-badge.badge-mais-vendido {
+  background: var(--gold);
+  color: var(--brown-dark);
+}
+
+.product-badge.badge-oferta {
+  background: var(--brown);
 }
 
 .quick-add {
@@ -709,15 +816,46 @@ body.no-scroll {
 }
 
 .product-price {
-  font-size: 14px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.price-now {
+  font-size: 16px;
   font-weight: 700;
   color: var(--brown-dark);
+}
+
+.price-old {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.price-off {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--brown);
 }
 
 .product-installment {
   font-size: 10.5px;
   color: var(--muted);
   margin-top: 2px;
+}
+
+.product-pix {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--brown);
+  margin-top: 3px;
+}
+
+.product-pix strong {
+  color: var(--brown-dark);
 }
 
 /* =========================================================
@@ -742,8 +880,125 @@ body.no-scroll {
   line-height: 1.25;
 }
 
+.promo-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: -6px;
+  max-width: 40ch;
+}
+
 .promo-perks {
   display: none;
+}
+
+/* =========================================================
+   MODA PARA TODA A FAMÍLIA
+   ========================================================= */
+.family-band {
+  position: relative;
+  background: var(--beige-light);
+  overflow: hidden;
+}
+
+.family-band::after {
+  content: 'A';
+  position: absolute;
+  right: -0.15em;
+  bottom: -0.35em;
+  font-family: var(--font-heading);
+  font-size: 320px;
+  line-height: 1;
+  color: var(--brown-dark);
+  opacity: 0.035;
+  pointer-events: none;
+}
+
+.family-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.family-copy h2 {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  color: var(--brown-dark);
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.family-copy p {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 50ch;
+  margin-bottom: 18px;
+}
+
+.family-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.family-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--cream);
+  color: var(--brown-dark);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.family-tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   PROVA SOCIAL / FAIXA DE CONFIANÇA
+   ========================================================= */
+.trust-bar {
+  background: var(--cream);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  padding-block: 28px;
+}
+
+.trust-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.trust-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.trust-item strong {
+  display: block;
+  font-size: 13.5px;
+  color: var(--brown-dark);
+  font-weight: 600;
+}
+
+.trust-item span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
 /* =========================================================
@@ -760,11 +1015,25 @@ body.no-scroll {
   color: var(--brown-dark);
 }
 
-.instagram-head a {
+.instagram-head .eyebrow {
+  justify-content: center;
+}
+
+.instagram-head p.section-subtitle {
+  margin-top: 6px;
+  margin-bottom: 0;
+  margin-inline: auto;
+}
+
+.instagram-head a.instagram-handle {
   display: inline-block;
   margin-top: 4px;
   color: var(--brown);
   font-size: 13px;
+}
+
+.instagram-follow {
+  margin-top: 16px;
 }
 
 .instagram-scroller {
@@ -809,6 +1078,7 @@ body.no-scroll {
   background: var(--brown-dark);
   color: var(--beige-light);
   margin-top: 24px;
+  border-top: 3px solid var(--gold);
 }
 
 .footer .container {

@@ -26,10 +26,14 @@ function makeProduct({
   slug,
   category,
   price,
+  promotionalPrice = null,
   image,
+  badge = null,
   featured = false,
   bestSeller = false,
+  weeklyPick = false,
 }) {
+  const activePrice = promotionalPrice ?? price;
   return {
     id,
     blingId: null,
@@ -41,8 +45,10 @@ function makeProduct({
     image,
     images: [image],
     price,
-    promotionalPrice: null,
-    installment: makeInstallment(price),
+    promotionalPrice,
+    installment: makeInstallment(activePrice),
+    pixPrice: activePrice * 0.95,
+    badge, // 'novo' | 'mais-vendido' | 'oferta' | null
     variants: {
       sizes: [],
       colors: [],
@@ -51,6 +57,7 @@ function makeProduct({
     active: true,
     featured,
     bestSeller,
+    weeklyPick,
   };
 }
 
@@ -64,6 +71,7 @@ const PRODUCTS = [
     price: 159.9,
     image: 'assets/products/calca-jeans-wide-leg.svg',
     featured: true,
+    badge: 'novo',
   }),
   makeProduct({
     id: 2,
@@ -74,6 +82,7 @@ const PRODUCTS = [
     price: 149.9,
     image: 'assets/products/macaquinho-jeans.svg',
     featured: true,
+    weeklyPick: true,
   }),
   makeProduct({
     id: 3,
@@ -84,6 +93,7 @@ const PRODUCTS = [
     price: 79.9,
     image: 'assets/products/conjunto-canelado-bebe.svg',
     featured: true,
+    badge: 'novo',
   }),
   makeProduct({
     id: 4,
@@ -94,6 +104,7 @@ const PRODUCTS = [
     price: 89.9,
     image: 'assets/products/camiseta-roadster.svg',
     featured: true,
+    weeklyPick: true,
   }),
   makeProduct({
     id: 5,
@@ -101,9 +112,11 @@ const PRODUCTS = [
     name: 'Conjunto Alfaiataria',
     slug: 'conjunto-alfaiataria',
     category: 'feminino',
-    price: 189.9,
+    price: 219.9,
+    promotionalPrice: 189.9,
     image: 'assets/products/conjunto-alfaiataria.svg',
     featured: true,
+    badge: 'oferta',
   }),
   makeProduct({
     id: 6,
@@ -124,6 +137,7 @@ const PRODUCTS = [
     price: 179.9,
     image: 'assets/products/vestido-plus-size-floral.svg',
     bestSeller: true,
+    badge: 'mais-vendido',
   }),
   makeProduct({
     id: 8,
@@ -134,6 +148,7 @@ const PRODUCTS = [
     price: 99.9,
     image: 'assets/products/polo-masculina-piquet.svg',
     bestSeller: true,
+    badge: 'mais-vendido',
   }),
   makeProduct({
     id: 9,
@@ -144,6 +159,7 @@ const PRODUCTS = [
     price: 59.9,
     image: 'assets/products/body-bebe-algodao.svg',
     bestSeller: true,
+    weeklyPick: true,
   }),
   makeProduct({
     id: 10,
@@ -151,9 +167,11 @@ const PRODUCTS = [
     name: 'Blusa Cropped Feminina',
     slug: 'blusa-cropped-feminina',
     category: 'feminino',
-    price: 69.9,
+    price: 89.9,
+    promotionalPrice: 69.9,
     image: 'assets/products/blusa-cropped-feminina.svg',
     bestSeller: true,
+    badge: 'oferta',
   }),
   makeProduct({
     id: 11,
@@ -164,6 +182,7 @@ const PRODUCTS = [
     price: 49.9,
     image: 'assets/products/cinto-couro-dourado.svg',
     bestSeller: true,
+    weeklyPick: true,
   }),
   makeProduct({
     id: 12,
@@ -174,6 +193,7 @@ const PRODUCTS = [
     price: 139.9,
     image: 'assets/products/bermuda-jeans-plus-size.svg',
     bestSeller: true,
+    badge: 'mais-vendido',
   }),
 ];
 
@@ -188,26 +208,30 @@ const CATEGORIES = [
 const HERO_SLIDES = [
   {
     image: 'assets/hero/hero-1.svg',
-    title: 'Moda para\ntodos os momentos',
+    title: 'Estilo Anarosa\npara todos os momentos',
     description:
-      'Feminina, infantil, plus size e masculina com estilo e conforto para você e sua família.',
-    cta: 'Comprar agora',
-    href: '#novidades',
+      'Peças novas toda semana, com preço justo, entrega para todo o Brasil e a elegância que só a Anarosa tem.',
   },
   {
     image: 'assets/hero/hero-2.svg',
-    title: 'Novidades toda\nsemana para você',
-    description: 'Peças novas chegando toda semana com o estilo que você já conhece da Anarosa.',
-    cta: 'Ver novidades',
-    href: '#novidades',
+    title: 'Novidades toda semana\npra você se apaixonar',
+    description: 'Coleções exclusivas chegando toda semana com a qualidade e o estilo Anarosa.',
   },
   {
     image: 'assets/hero/hero-3.svg',
     title: 'Condições especiais\npra toda a família',
     description: 'Parcelamento em até 6x sem juros e 5% de desconto exclusivo pagando no PIX.',
-    cta: 'Aproveitar ofertas',
-    href: '#mais-vendidos',
   },
+];
+
+const HERO_CTA_PRIMARY = { label: 'Comprar agora', href: '#mais-vendidos' };
+const HERO_CTA_SECONDARY = { label: 'Ver novidades', href: '#novidades' };
+
+const HERO_PERKS = [
+  { icon: 'tag', label: '5% OFF no Pix' },
+  { icon: 'card', label: '6x sem juros' },
+  { icon: 'truck', label: 'Envio p/ todo o Brasil' },
+  { icon: 'phone', label: 'Atendimento no WhatsApp' },
 ];
 
 const INSTAGRAM_POSTS = [1, 2, 3, 4, 5, 6].map((n) => ({
@@ -220,6 +244,9 @@ window.AnarosaData = {
   PRODUCTS,
   CATEGORIES,
   HERO_SLIDES,
+  HERO_CTA_PRIMARY,
+  HERO_CTA_SECONDARY,
+  HERO_PERKS,
   INSTAGRAM_POSTS,
   formatPrice,
 };

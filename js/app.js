@@ -4,12 +4,33 @@
  * renderizado a partir de js/products.js (nada de dado solto no HTML).
  */
 (function () {
-  const { PRODUCTS, CATEGORIES, HERO_SLIDES, INSTAGRAM_POSTS, formatPrice } = window.AnarosaData;
+  const {
+    PRODUCTS,
+    CATEGORIES,
+    HERO_SLIDES,
+    HERO_CTA_PRIMARY,
+    HERO_CTA_SECONDARY,
+    HERO_PERKS,
+    INSTAGRAM_POSTS,
+    formatPrice,
+  } = window.AnarosaData;
 
   const ICONS = {
     crown:
       '<svg class="icon" viewBox="0 0 24 24"><path d="M3 8l4 3 5-6 5 6 4-3-2 11H5L3 8z"/><path d="M5 19h14"/></svg>',
     plus: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+    tag: '<svg class="icon" viewBox="0 0 24 24"><path d="M20 12l-8 8-9-9V4h7z"/><circle cx="8.5" cy="8.5" r="1.4"/></svg>',
+    card: '<svg class="icon" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>',
+    truck:
+      '<svg class="icon" viewBox="0 0 24 24"><path d="M2 7h12v9H2z"/><path d="M14 11h4l4 3v2h-8z"/><circle cx="6.5" cy="18" r="1.7"/><circle cx="18" cy="18" r="1.7"/></svg>',
+    phone:
+      '<svg class="icon" viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.3 1.2.4 2.5.6 3.8.6.6 0 1.1.5 1.1 1.1v3.6c0 .6-.5 1.1-1.1 1.1C10.6 21.3 2.7 13.4 2.7 3.7c0-.6.5-1.1 1.1-1.1H7.4c.6 0 1.1.5 1.1 1.1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1L6.6 10.8z"/></svg>',
+  };
+
+  const BADGE_LABELS = {
+    novo: 'Novo',
+    'mais-vendido': 'Mais vendido',
+    oferta: 'Oferta',
   };
 
   /* -----------------------------------------------------------
@@ -81,9 +102,16 @@
      Produtos — cards
      ----------------------------------------------------------- */
   function productCardHTML(product) {
+    const badgeLabel = BADGE_LABELS[product.badge];
+    const onSale = product.promotionalPrice != null;
+    const priceHTML = onSale
+      ? `<span class="price-old">${formatPrice(product.price)}</span><span class="price-now">${formatPrice(product.promotionalPrice)}</span><span class="price-off">-${Math.round((1 - product.promotionalPrice / product.price) * 100)}%</span>`
+      : `<span class="price-now">${formatPrice(product.price)}</span>`;
+
     return `
       <div class="product-card" data-product-id="${product.id}">
         <figure>
+          ${badgeLabel ? `<span class="product-badge badge-${product.badge}">${badgeLabel}</span>` : ''}
           <img src="${product.image}" alt="${product.name}" loading="lazy" width="600" height="750">
           <button type="button" class="quick-add" data-add-to-cart="${product.id}" aria-label="Adicionar ${product.name} ao carrinho">
             ${ICONS.plus}
@@ -91,8 +119,9 @@
         </figure>
         <div class="product-info">
           <p class="product-name">${product.name}</p>
-          <p class="product-price">${formatPrice(product.price)}</p>
+          <p class="product-price">${priceHTML}</p>
           <p class="product-installment">${product.installment}</p>
+          <p class="product-pix">5% OFF no Pix: <strong>${formatPrice(product.pixPrice)}</strong></p>
         </div>
       </div>`;
   }
@@ -136,8 +165,13 @@
   const bestScroller = document.querySelector('[data-best-scroller]');
   const bestGrid = document.querySelector('[data-best-grid]');
 
+  const weeklyPickProducts = PRODUCTS.filter((p) => p.weeklyPick);
+  const weeklyScroller = document.querySelector('[data-weekly-scroller]');
+  const weeklyGrid = document.querySelector('[data-weekly-grid]');
+
   renderProducts(featuredProducts, novidadesScroller, novidadesGrid);
   renderProducts(bestSellerProducts, bestScroller, bestGrid);
+  renderProducts(weeklyPickProducts, weeklyScroller, weeklyGrid);
 
   function resetNovidades() {
     renderProducts(featuredProducts, novidadesScroller, novidadesGrid);
@@ -183,7 +217,7 @@
     return `
       <a class="category-card" href="#novidades" data-category="${cat.slug}">
         <figure><img src="${cat.image}" alt="Categoria ${cat.name}" loading="lazy" width="480" height="600"></figure>
-        <div class="category-label">${ICONS.crown}<span>${cat.name}</span></div>
+        <div class="category-label">${ICONS.crown}<span>${cat.name}</span><span class="category-arrow" aria-hidden="true">→</span></div>
       </a>`;
   }
 
@@ -225,10 +259,11 @@
   let heroTimer = null;
 
   function heroSlideHTML(slide, index) {
-    const titleHTML = slide.title
-      .split('\n')
-      .map((line) => line)
-      .join('<br>');
+    const titleHTML = slide.title.split('\n').join('<br>');
+    const perksHTML = HERO_PERKS.map(
+      (perk) => `<span class="hero-perk">${ICONS[perk.icon]}${perk.label}</span>`
+    ).join('');
+
     return `
       <div class="hero-slide" role="group" aria-roledescription="slide" aria-label="${index + 1} de ${HERO_SLIDES.length}">
         <div class="hero-media">
@@ -237,7 +272,11 @@
         <div class="hero-content">
           <h1 class="hero-title">${titleHTML}</h1>
           <p class="hero-desc">${slide.description}</p>
-          <a href="${slide.href}" class="btn btn-primary">${slide.cta}</a>
+          <div class="hero-actions">
+            <a href="${HERO_CTA_PRIMARY.href}" class="btn btn-primary">${HERO_CTA_PRIMARY.label}</a>
+            <a href="${HERO_CTA_SECONDARY.href}" class="btn btn-outline">${HERO_CTA_SECONDARY.label}</a>
+          </div>
+          <div class="hero-perks">${perksHTML}</div>
         </div>
       </div>`;
   }
