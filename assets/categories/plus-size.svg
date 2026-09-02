@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 600" width="480" height="600" role="img" aria-label="Plus Size">
+  <rect width="480" height="600" fill="#F3E9DE"/>
+  <rect x="1" y="1" width="478" height="598" fill="none" stroke="#A47A4A" stroke-opacity="0.18" stroke-width="1"/>
+  <circle cx="240" cy="264" r="144.6" fill="none" stroke="#A47A4A" stroke-width="1" opacity="0.10"/><circle cx="240" cy="264" r="186.7" fill="none" stroke="#A47A4A" stroke-width="1" opacity="0.08"/><circle cx="240" cy="264" r="225.6" fill="none" stroke="#A47A4A" stroke-width="1" opacity="0.05"/>
+  <circle cx="240" cy="264" r="76.8" fill="#A47A4A"/>
+  <text x="240" y="264" text-anchor="middle" dominant-baseline="central" font-family="'Playfair Display', Georgia, serif" font-size="88" fill="#FFFDFC">P</text>
+  <text x="240" y="421.43999999999994" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="26" fill="#5A3516">Plus Size</text>
+  <text x="240" y="443.58399999999995" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" letter-spacing="0.5" fill="#79512D" opacity="0.75">FOTO — SUBSTITUIR</text>
+</svg>

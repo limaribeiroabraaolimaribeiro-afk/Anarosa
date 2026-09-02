@@ -1,0 +1,1007 @@
+/* =========================================================
+   ANAROSA — estilos base (mobile-first)
+   Breakpoints e ajustes de layout maior ficam em responsive.css
+   ========================================================= */
+
+body {
+  font-family: var(--font-body);
+  background: var(--cream);
+  color: var(--text);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------------------------------------------------------
+   Section heading row ("Novidades" ... "Ver todas >")
+   --------------------------------------------------------- */
+.section {
+  padding-block: 32px;
+}
+
+main section[id] {
+  scroll-margin-top: calc(var(--topbar-height) + var(--header-height) + 12px);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  color: var(--brown-dark);
+  letter-spacing: 0.2px;
+}
+
+.section-link {
+  font-size: 13px;
+  color: var(--brown);
+  white-space: nowrap;
+  transition: color var(--transition-fast);
+}
+
+.section-link:hover {
+  color: var(--gold);
+}
+
+/* ---------------------------------------------------------
+   Botões
+   --------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 26px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  transition: background var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--brown-dark);
+  color: var(--cream);
+}
+
+.btn-primary:hover {
+  background: var(--brown);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--brown-dark);
+  border: 1px solid var(--brown-dark);
+}
+
+.btn-outline:hover {
+  background: var(--brown-dark);
+  color: var(--cream);
+}
+
+/* =========================================================
+   1. TOP BAR
+   ========================================================= */
+.topbar {
+  background: var(--brown-dark);
+  color: var(--beige-light);
+  min-height: var(--topbar-height);
+}
+
+.topbar .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: var(--topbar-height);
+}
+
+.topbar-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.topbar-item:first-child {
+  justify-content: flex-start;
+}
+
+.topbar-item:last-child {
+  justify-content: flex-end;
+}
+
+.topbar-item .icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.topbar-item .full {
+  display: none;
+}
+
+.topbar-item .short {
+  display: inline-block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   2 / 3. HEADER
+   ========================================================= */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.header .container {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  height: var(--header-height);
+  overflow: visible;
+}
+
+/* Logo — na referência a moldura ornamental "invade" visualmente a área
+   abaixo do header. Fazemos isso deixando a logo maior que a altura do
+   header e sobrepondo com z-index, sem quebrar o grid do header. */
+.logo-link {
+  position: relative;
+  z-index: 5;
+  display: block;
+  flex-shrink: 0;
+  grid-column: 2;
+  justify-self: center;
+}
+
+.logo-link img {
+  height: 68px;
+  width: auto;
+  position: relative;
+  top: 10px;
+}
+
+.header-nav {
+  display: none;
+}
+
+.header-actions {
+  grid-column: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-self: end;
+}
+
+.header-actions .icon-btn.account-btn {
+  display: none;
+}
+
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--brown-dark);
+  border-radius: 50%;
+  transition: background var(--transition-fast);
+}
+
+.icon-btn:hover {
+  background: var(--beige-light);
+}
+
+@keyframes cartPulse {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.icon-btn.pulse {
+  animation: cartPulse 0.4s ease;
+}
+
+.cart-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--brown-dark);
+  color: var(--cream);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.hamburger-btn {
+  grid-column: 1;
+  justify-self: start;
+}
+
+/* Busca expansível simples */
+.search-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 12px 16px;
+  display: none;
+  box-shadow: var(--shadow-soft);
+}
+
+.search-bar.is-open {
+  display: block;
+}
+
+.search-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-form {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--beige-light);
+  font-size: 14px;
+}
+
+.search-bar button {
+  color: var(--brown-dark);
+  display: inline-flex;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+/* ---- Mobile nav drawer ---- */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 33, 28, 0.45);
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-medium);
+}
+
+.drawer-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(82vw, 320px);
+  background: var(--cream);
+  z-index: 61;
+  transform: translateX(-100%);
+  transition: transform var(--transition-medium);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.drawer.is-open {
+  transform: translateX(0);
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.drawer-head img {
+  height: 54px;
+}
+
+.drawer-close {
+  color: var(--brown-dark);
+  padding: 6px;
+}
+
+.drawer-nav {
+  padding: 8px 8px 24px;
+}
+
+.drawer-nav li a {
+  display: block;
+  padding: 14px 16px;
+  font-size: 15px;
+  color: var(--text);
+  border-bottom: 1px solid var(--beige);
+}
+
+.drawer-nav li a.is-accent {
+  color: var(--brown);
+  font-weight: 600;
+}
+
+.drawer-contact {
+  margin-top: auto;
+  padding: 18px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-contact a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brown-dark);
+}
+
+body.no-scroll {
+  overflow: hidden;
+}
+
+/* =========================================================
+   4. HERO
+   ========================================================= */
+.hero {
+  position: relative;
+  background: var(--beige-light);
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/hero/ornament-pattern.svg');
+  background-size: 220px 220px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hero .container {
+  position: relative;
+  padding-block: 20px;
+}
+
+.hero-slider {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--beige);
+}
+
+.hero-track {
+  display: flex;
+  transition: transform var(--transition-medium);
+}
+
+.hero-slide {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: stretch;
+}
+
+.hero-media {
+  flex: 0 0 42%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.hero-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 16px;
+  min-width: 0;
+}
+
+.hero-title {
+  font-family: var(--font-heading);
+  color: var(--brown-dark);
+  font-size: clamp(22px, 6vw, 30px);
+  line-height: 1.15;
+}
+
+.hero-desc {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 46ch;
+}
+
+.hero-content .btn {
+  margin-top: 6px;
+  align-self: flex-start;
+  padding: 11px 18px;
+  font-size: 11.5px;
+}
+
+.hero-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 0 4px;
+}
+
+.hero-dots button {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-soft);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.hero-dots button.is-active {
+  background: var(--brown-dark);
+  transform: scale(1.15);
+}
+
+/* =========================================================
+   5. CATEGORIAS
+   ========================================================= */
+.categories-mobile {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding: 4px 16px 10px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.categories-mobile::-webkit-scrollbar {
+  display: none;
+}
+
+.category-circle {
+  flex: 0 0 auto;
+  width: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  scroll-snap-align: start;
+  text-align: center;
+}
+
+.category-circle .avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: var(--beige);
+}
+
+.category-circle .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.category-circle span {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.categories-desktop {
+  display: none;
+}
+
+/* =========================================================
+   6. BARRA DE BENEFÍCIOS
+   ========================================================= */
+.benefits {
+  background: var(--beige-light);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  padding-block: 14px;
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.benefit-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--brown-dark);
+}
+
+.benefit-item .icon {
+  width: 20px;
+  height: 20px;
+  color: var(--brown);
+}
+
+.benefit-item .benefit-text {
+  display: none;
+}
+
+.benefit-item .benefit-text-mobile {
+  display: block;
+  font-size: 9.5px;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+/* =========================================================
+   PRODUTOS — grid mobile em scroll horizontal
+   ========================================================= */
+.product-scroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 16px 10px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.product-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.product-grid {
+  display: none;
+}
+
+.product-card {
+  flex: 0 0 42%;
+  scroll-snap-align: start;
+  display: block;
+  color: var(--text);
+}
+
+.product-card figure {
+  position: relative;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--beige-light);
+  aspect-ratio: 4 / 5;
+  transition: border-color var(--transition-fast);
+}
+
+.quick-add {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--cream);
+  color: var(--brown-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(42, 33, 28, 0.18);
+  transition: transform var(--transition-fast), background var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.quick-add:hover {
+  background: var(--brown-dark);
+  color: var(--cream);
+}
+
+.quick-add:active {
+  transform: scale(0.9);
+}
+
+.quick-add .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.product-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-medium);
+}
+
+.product-card:hover figure {
+  border-color: var(--gold);
+}
+
+.product-card:hover img {
+  transform: scale(1.04);
+}
+
+.product-info {
+  padding-top: 8px;
+}
+
+.product-name {
+  font-size: 12.5px;
+  color: var(--text);
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brown-dark);
+}
+
+.product-installment {
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* =========================================================
+   BANNER PROMOCIONAL
+   ========================================================= */
+.promo-banner {
+  background: var(--beige);
+  border-radius: var(--radius-md);
+  margin-inline: 16px;
+  padding: 26px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.promo-title {
+  font-family: var(--font-heading);
+  font-size: 21px;
+  color: var(--brown-dark);
+  line-height: 1.25;
+}
+
+.promo-perks {
+  display: none;
+}
+
+/* =========================================================
+   INSTAGRAM
+   ========================================================= */
+.instagram-head {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.instagram-head h2 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  color: var(--brown-dark);
+}
+
+.instagram-head a {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--brown);
+  font-size: 13px;
+}
+
+.instagram-scroller {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 16px 4px;
+  scroll-snap-type: x proximity;
+}
+
+.instagram-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.instagram-grid {
+  display: none;
+}
+
+.instagram-item {
+  flex: 0 0 30%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  scroll-snap-align: start;
+}
+
+.instagram-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-medium);
+}
+
+.instagram-item:hover img {
+  transform: scale(1.05);
+}
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+.footer {
+  background: var(--brown-dark);
+  color: var(--beige-light);
+  margin-top: 24px;
+}
+
+.footer .container {
+  padding-block: 40px 20px;
+  display: grid;
+  gap: 32px;
+}
+
+.footer-brand img {
+  height: 60px;
+  width: 60px;
+  object-fit: contain;
+  background: var(--cream);
+  border-radius: 50%;
+  padding: 6px;
+  margin-bottom: 12px;
+}
+
+.footer-brand p {
+  font-size: 13px;
+  color: var(--beige);
+  line-height: 1.7;
+}
+
+.footer-brand .footer-contact {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.footer-contact a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--beige-light);
+  transition: color var(--transition-fast);
+}
+
+.footer-contact a:hover {
+  color: var(--gold);
+}
+
+.footer-col h3 {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  letter-spacing: 0.4px;
+  color: var(--gold);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.footer-col ul {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-col a {
+  font-size: 13px;
+  color: var(--beige-light);
+  opacity: 0.85;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.footer-col a:hover {
+  opacity: 1;
+  color: var(--gold);
+}
+
+.newsletter p.lead {
+  font-size: 13px;
+  color: var(--beige);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.newsletter-form {
+  display: flex;
+  gap: 8px;
+}
+
+.newsletter-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 253, 252, 0.08);
+  border: 1px solid rgba(250, 246, 241, 0.25);
+  color: var(--cream);
+  font-size: 13px;
+}
+
+.newsletter-form input::placeholder {
+  color: rgba(250, 246, 241, 0.55);
+}
+
+.newsletter-form button {
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--gold);
+  color: var(--brown-dark);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: background var(--transition-fast);
+}
+
+.newsletter-form button:hover {
+  background: var(--beige-light);
+}
+
+.newsletter-msg {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--gold);
+  min-height: 16px;
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(250, 246, 241, 0.15);
+  padding-block: 16px;
+  text-align: center;
+  font-size: 11.5px;
+  color: rgba(250, 246, 241, 0.6);
+}
+
+/* =========================================================
+   WhatsApp flutuante
+   ========================================================= */
+.whatsapp-float {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 45;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #3d8f5b;
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(42, 33, 28, 0.25);
+  transition: transform var(--transition-fast);
+}
+
+.whatsapp-float:hover {
+  transform: scale(1.06);
+}
+
+.whatsapp-float .icon {
+  width: 26px;
+  height: 26px;
+  stroke: none;
+  fill: currentColor;
+}
+
+/* =========================================================
+   Toast
+   ========================================================= */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 12px);
+  background: var(--brown-dark);
+  color: var(--cream);
+  padding: 11px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  box-shadow: var(--shadow-soft);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-medium), transform var(--transition-medium);
+  z-index: 80;
+  white-space: nowrap;
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* =========================================================
+   Estado vazio (busca)
+   ========================================================= */
+.empty-state {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}

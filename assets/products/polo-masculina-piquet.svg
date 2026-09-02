@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 750" width="600" height="750" role="img" aria-label="Polo Masculina Piquet">
+  <rect width="600" height="750" fill="#F3E9DE"/>
+  <rect x="1" y="1" width="598" height="748" fill="none" stroke="#79512D" stroke-opacity="0.18" stroke-width="1"/>
+  <circle cx="300" cy="330" r="176.0" fill="none" stroke="#79512D" stroke-width="1" opacity="0.10"/><circle cx="300" cy="330" r="226.1" fill="none" stroke="#79512D" stroke-width="1" opacity="0.08"/><circle cx="300" cy="330" r="279.4" fill="none" stroke="#79512D" stroke-width="1" opacity="0.05"/>
+  <circle cx="300" cy="330" r="96" fill="#79512D"/>
+  <text x="300" y="330" text-anchor="middle" dominant-baseline="central" font-family="'Playfair Display', Georgia, serif" font-size="110" fill="#FFFDFC">P</text>
+  <text x="300" y="526.8" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="30" fill="#5A3516">Polo Masculina Piquet</text>
+  <text x="300" y="550.5999999999999" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="0.5" fill="#79512D" opacity="0.75">FOTO DO PRODUTO — SUBSTITUIR</text>
+</svg>

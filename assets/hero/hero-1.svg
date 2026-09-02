@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1250" width="1000" height="1250" role="img" aria-label="Anarosa">
+  <rect width="1000" height="1250" fill="#FAF6F1"/>
+  <rect x="1" y="1" width="998" height="1248" fill="none" stroke="#79512D" stroke-opacity="0.18" stroke-width="1"/>
+  <circle cx="500" cy="550" r="294.3" fill="none" stroke="#79512D" stroke-width="1" opacity="0.10"/><circle cx="500" cy="550" r="376.3" fill="none" stroke="#79512D" stroke-width="1" opacity="0.08"/><circle cx="500" cy="550" r="468.7" fill="none" stroke="#79512D" stroke-width="1" opacity="0.05"/>
+  <circle cx="500" cy="550" r="160" fill="#79512D"/>
+  <text x="500" y="550" text-anchor="middle" dominant-baseline="central" font-family="'Playfair Display', Georgia, serif" font-size="184" fill="#FFFDFC">A</text>
+  <text x="500" y="878" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="30" fill="#5A3516">Anarosa</text>
+  <text x="500" y="901.8" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" letter-spacing="0.5" fill="#79512D" opacity="0.75">FOTO DA COLECAO — SUBSTITUIR</text>
+</svg>

@@ -1,0 +1,31 @@
+:root {
+  /* Brand palette */
+  --brown-dark: #5a3516;
+  --brown: #79512d;
+  --gold: #a47a4a;
+  --beige: #f3e9de;
+  --beige-light: #faf6f1;
+  --cream: #fffdfc;
+  --text: #2a211c;
+  --muted: #74675f;
+  --white: #ffffff;
+
+  --border-soft: #e7dbcb;
+
+  /* Typography */
+  --font-heading: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', 'Segoe UI', Arial, sans-serif;
+
+  /* Layout */
+  --container-max: 1280px;
+  --header-height: 64px;
+  --topbar-height: 36px;
+  --radius-sm: 4px;
+  --radius-md: 10px;
+
+  /* Motion */
+  --transition-fast: 0.18s ease;
+  --transition-medium: 0.35s ease;
+
+  --shadow-soft: 0 2px 14px rgba(90, 53, 22, 0.08);
+}

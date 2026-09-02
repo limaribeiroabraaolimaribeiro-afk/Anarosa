@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500" role="img" aria-label="@anarosatextil">
+  <rect width="500" height="500" fill="#F3E9DE"/>
+  <rect x="1" y="1" width="498" height="498" fill="none" stroke="#A47A4A" stroke-opacity="0.18" stroke-width="1"/>
+  <circle cx="250" cy="220" r="147.2" fill="none" stroke="#A47A4A" stroke-width="1" opacity="0.10"/><circle cx="250" cy="220" r="194.5" fill="none" stroke="#A47A4A" stroke-width="1" opacity="0.08"/><circle cx="250" cy="220" r="234.8" fill="none" stroke="#A47A4A" stroke-width="1" opacity="0.05"/>
+  <circle cx="250" cy="220" r="80" fill="#A47A4A"/>
+  <text x="250" y="220" text-anchor="middle" dominant-baseline="central" font-family="'Playfair Display', Georgia, serif" font-size="92" fill="#FFFDFC">@</text>
+  <text x="250" y="384" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="28" fill="#5A3516">@anarosatextil</text>
+  <text x="250" y="406.65" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="13" letter-spacing="0.5" fill="#79512D" opacity="0.75">POST — SUBSTITUIR</text>
+</svg>
