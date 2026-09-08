@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="750" viewBox="0 0 600 750" role="img" aria-label="Imagem indisponível">
+  <rect width="600" height="750" fill="#f3e9de"/>
+  <rect x="150" y="230" width="300" height="290" rx="18" fill="#faf6f1" stroke="#e7dbcb" stroke-width="4"/>
+  <path d="M200 470l70-90 55 65 40-45 65 70z" fill="#e7dbcb"/>
+  <circle cx="235" cy="310" r="24" fill="#a47a4a" opacity="0.5"/>
+  <text x="300" y="590" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#79512d">Anarosa</text>
+  <text x="300" y="625" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#74675f">imagem em breve</text>
+</svg>

@@ -1275,3 +1275,17 @@ body.no-scroll {
   color: var(--muted);
   font-size: 14px;
 }
+
+/* ---------------------------------------------------------
+   Integração Bling — estado "esgotado" (só aparece em modo real,
+   quando o estoque vem do Bling; o mock nunca aciona esta classe)
+   --------------------------------------------------------- */
+.product-card.is-soldout figure img {
+  opacity: 0.55;
+  filter: grayscale(0.35);
+}
+
+.product-badge.badge-esgotado {
+  background: var(--muted);
+  color: var(--white);
+}

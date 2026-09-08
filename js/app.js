@@ -5,7 +5,6 @@
  */
 (function () {
   const {
-    PRODUCTS,
     CATEGORIES,
     HERO_SLIDES,
     HERO_CTA_PRIMARY,
@@ -14,6 +13,13 @@
     INSTAGRAM_POSTS,
     formatPrice,
   } = window.AnarosaData;
+
+  /* -----------------------------------------------------------
+     Catálogo — via CatalogService (mock hoje, Supabase/Bling depois).
+     A origem dos produtos é decidida em js/config.js (catalogProvider).
+     ----------------------------------------------------------- */
+  const catalog = window.AnarosaCatalog.createCatalogService(window.ANAROSA_CONFIG);
+  let PRODUCTS = [];
 
   const ICONS = {
     crown:
@@ -108,14 +114,19 @@
       ? `<span class="price-old">${formatPrice(product.price)}</span><span class="price-now">${formatPrice(product.promotionalPrice)}</span><span class="price-off">-${Math.round((1 - product.promotionalPrice / product.price) * 100)}%</span>`
       : `<span class="price-now">${formatPrice(product.price)}</span>`;
 
+    // Em modo real, `available === false` vem do estoque do Bling.
+    // No mock, `available` é undefined → produto tratado como disponível.
+    const soldOut = product.available === false;
+
     return `
-      <div class="product-card" data-product-id="${product.id}">
+      <div class="product-card${soldOut ? ' is-soldout' : ''}" data-product-id="${product.id}">
         <figure>
           ${badgeLabel ? `<span class="product-badge badge-${product.badge}">${badgeLabel}</span>` : ''}
+          ${soldOut ? '<span class="product-badge badge-esgotado">Esgotado</span>' : ''}
           <img src="${product.image}" alt="${product.name}" loading="lazy" width="600" height="750">
-          <button type="button" class="quick-add" data-add-to-cart="${product.id}" aria-label="Adicionar ${product.name} ao carrinho">
+          ${soldOut ? '' : `<button type="button" class="quick-add" data-add-to-cart="${product.id}" aria-label="Adicionar ${product.name} ao carrinho">
             ${ICONS.plus}
-          </button>
+          </button>`}
         </figure>
         <div class="product-info">
           <p class="product-name">${product.name}</p>
@@ -131,9 +142,10 @@
     container.querySelectorAll('[data-add-to-cart]').forEach((btn) => {
       btn.addEventListener('click', (event) => {
         event.preventDefault();
-        const id = Number(btn.dataset.addToCart);
-        const product = PRODUCTS.find((p) => p.id === id);
-        if (product) addToCart(product);
+        // ids são numéricos no mock e UUID no modo real → comparar como string
+        const id = String(btn.dataset.addToCart);
+        const product = PRODUCTS.find((p) => String(p.id) === id);
+        if (product && product.available !== false) addToCart(product);
       });
     });
   }
@@ -152,8 +164,9 @@
     }
   }
 
-  const featuredProducts = PRODUCTS.filter((p) => p.featured);
-  const bestSellerProducts = PRODUCTS.filter((p) => p.bestSeller);
+  let featuredProducts = [];
+  let bestSellerProducts = [];
+  let weeklyPickProducts = [];
 
   const novidadesScroller = document.querySelector('[data-novidades-scroller]');
   const novidadesGrid = document.querySelector('[data-novidades-grid]');
@@ -165,13 +178,41 @@
   const bestScroller = document.querySelector('[data-best-scroller]');
   const bestGrid = document.querySelector('[data-best-grid]');
 
-  const weeklyPickProducts = PRODUCTS.filter((p) => p.weeklyPick);
   const weeklyScroller = document.querySelector('[data-weekly-scroller]');
   const weeklyGrid = document.querySelector('[data-weekly-grid]');
 
-  renderProducts(featuredProducts, novidadesScroller, novidadesGrid);
-  renderProducts(bestSellerProducts, bestScroller, bestGrid);
-  renderProducts(weeklyPickProducts, weeklyScroller, weeklyGrid);
+  const CATALOG_ERROR_MESSAGE =
+    'Não conseguimos carregar os produtos agora. Tente novamente em instantes ou fale conosco no WhatsApp.';
+
+  function renderCatalogError() {
+    // Modo real indisponível: mostra estado amigável. NUNCA cai no mock
+    // (um produto fictício jamais aparece como se fosse real).
+    renderProducts([], novidadesScroller, novidadesGrid, CATALOG_ERROR_MESSAGE);
+    renderProducts([], bestScroller, bestGrid, CATALOG_ERROR_MESSAGE);
+    renderProducts([], weeklyScroller, weeklyGrid, CATALOG_ERROR_MESSAGE);
+  }
+
+  function renderHomeSections() {
+    renderProducts(featuredProducts, novidadesScroller, novidadesGrid);
+    renderProducts(bestSellerProducts, bestScroller, bestGrid);
+    renderProducts(weeklyPickProducts, weeklyScroller, weeklyGrid);
+  }
+
+  async function initCatalog() {
+    try {
+      PRODUCTS = await catalog.getProducts();
+      const sections = catalog.getHomeSections(PRODUCTS);
+      featuredProducts = sections.featured;
+      bestSellerProducts = sections.bestSellers;
+      weeklyPickProducts = sections.weeklyPicks;
+      renderHomeSections();
+    } catch (err) {
+      console.error('[Anarosa] catálogo indisponível:', err);
+      renderCatalogError();
+    }
+  }
+
+  initCatalog();
 
   function resetNovidades() {
     renderProducts(featuredProducts, novidadesScroller, novidadesGrid);
@@ -183,11 +224,24 @@
     }
   }
 
-  function runSearch(rawQuery) {
+  async function runSearch(rawQuery) {
     const query = rawQuery.trim();
     if (!query) return;
-    const q = query.toLowerCase();
-    const results = PRODUCTS.filter((p) => p.name.toLowerCase().includes(q));
+
+    let results = [];
+    try {
+      results = await catalog.searchProducts(query);
+    } catch (err) {
+      console.error('[Anarosa] busca indisponível:', err);
+      renderProducts([], novidadesScroller, novidadesGrid, CATALOG_ERROR_MESSAGE);
+      closeSearch();
+      return;
+    }
+
+    // garante que o carrinho encontre os itens retornados pela busca
+    for (const p of results) {
+      if (!PRODUCTS.some((existing) => String(existing.id) === String(p.id))) PRODUCTS.push(p);
+    }
 
     renderProducts(
       results,
