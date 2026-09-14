@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------
+# Segredos / ambiente — NUNCA versionar
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.env
+*.secret
+*.secrets
+secrets/
+supabase/.env
+supabase/.env.*
+supabase/functions/.env
+supabase/functions/**/.env
+js/config.local.js
+
+# Estado local do Supabase CLI
+.supabase/
+supabase/.temp/
+supabase/.branches/
+
+# Dependências / cache
+node_modules/
+.deno/
+deno.lock
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Saídas temporárias
+*.log
+tmp/
+
+# Artefato local do build do GitHub Pages (gerado por
+# .github/workflows/deploy-pages.yml; nunca deve ser commitado)
+_site/

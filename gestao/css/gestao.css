@@ -1,0 +1,502 @@
+/* =========================================================
+   Gestão Anarosa — painel administrativo (/gestao/).
+   Reaproveita os tokens de marca de css/variables.css. Arquivo
+   isolado: não afeta a loja pública nem o checkout.
+   ========================================================= */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--beige-light);
+  color: var(--text);
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius-btn);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--brown-dark);
+  color: var(--white);
+}
+.btn-primary:hover { background: var(--brown); }
+.btn-primary[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.btn-outline {
+  background: var(--white);
+  border-color: var(--border-soft);
+  color: var(--brown-dark);
+}
+.btn-outline:hover { border-color: var(--gold); }
+.btn-outline[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------------------------------------------------------
+   Login
+   --------------------------------------------------------- */
+.gestao-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Regra de autor (.gestao-login) vence a regra de user-agent
+   ([hidden] { display: none }) por origem da cascata, independente de
+   especificidade — sem isto, a tela de login continuaria visível por
+   cima do painel mesmo depois do login. Mesmo cuidado abaixo em
+   .gestao-app. */
+.gestao-login[hidden] {
+  display: none;
+}
+
+.gestao-login-card {
+  background: var(--white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+
+.gestao-login-logo {
+  height: 56px;
+  margin-bottom: 10px;
+}
+
+.gestao-login-card h1 {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  color: var(--brown-dark);
+  margin-bottom: 4px;
+}
+
+.gestao-login-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.gestao-login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.gestao-login-card input {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  background: var(--beige-light);
+}
+
+.gestao-login-card .btn {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.gestao-error {
+  background: #fbe5e2;
+  color: #a1352b;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 12.5px;
+  margin-bottom: 10px;
+}
+
+/* ---------------------------------------------------------
+   App shell
+   --------------------------------------------------------- */
+.gestao-app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.gestao-app[hidden] {
+  display: none;
+}
+
+.gestao-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 33, 28, 0.45);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-medium);
+}
+.gestao-sidebar-overlay.is-open { opacity: 1; pointer-events: auto; }
+
+.gestao-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  background: var(--cream);
+  border-right: 1px solid var(--border-soft);
+  z-index: 41;
+  transform: translateX(-100%);
+  transition: transform var(--transition-medium);
+  display: flex;
+  flex-direction: column;
+}
+.gestao-sidebar.is-open { transform: translateX(0); }
+
+.gestao-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  font-family: var(--font-heading);
+  color: var(--brown-dark);
+  font-size: 15px;
+}
+.gestao-sidebar-head img { height: 34px; }
+
+.gestao-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 2px;
+  flex: 1;
+}
+.gestao-nav a {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  text-decoration: none;
+}
+.gestao-nav a:hover { background: var(--beige-light); }
+.gestao-nav a.is-active {
+  background: var(--brown-dark);
+  color: var(--white);
+}
+
+.gestao-sidebar-foot {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gestao-link-btn {
+  background: none;
+  border: none;
+  color: var(--brown);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.gestao-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.gestao-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.gestao-hamburger {
+  background: none;
+  border: none;
+  color: var(--brown-dark);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.gestao-topbar h1 {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--brown-dark);
+}
+
+.gestao-banner {
+  background: #fff1d6;
+  color: #6b4a00;
+  padding: 10px 20px;
+  font-size: 13px;
+}
+
+.gestao-view {
+  padding: 20px;
+}
+
+/* ---------------------------------------------------------
+   Estados (loading / vazio / erro)
+   --------------------------------------------------------- */
+.gestao-state-box {
+  padding: 32px 16px;
+  text-align: center;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+}
+.gestao-state-box.is-loading { color: var(--muted); background: var(--beige); }
+.gestao-state-box.is-empty { color: var(--muted); background: var(--white); border: 1px dashed var(--border-soft); }
+.gestao-state-box.is-error { color: #a1352b; background: #fbe5e2; }
+
+/* ---------------------------------------------------------
+   Dashboard
+   --------------------------------------------------------- */
+.gestao-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.gestao-stats[hidden] { display: none; }
+
+.gestao-stat-card {
+  background: var(--white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gestao-stat-card span { font-size: 12px; color: var(--muted); }
+.gestao-stat-card strong { font-family: var(--font-heading); font-size: 22px; color: var(--brown-dark); }
+
+.gestao-dash-grid {
+  display: grid;
+  gap: 16px;
+}
+.gestao-dash-grid[hidden] { display: none; }
+
+.gestao-card {
+  background: var(--white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.gestao-card h2 { font-family: var(--font-heading); font-size: 16px; color: var(--brown-dark); margin-bottom: 10px; }
+
+.gestao-mini-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.gestao-mini-list li { display: flex; justify-content: space-between; font-size: 13.5px; }
+.gestao-mini-list li span { color: var(--muted); }
+.gestao-mini-list--big li { padding: 6px 0; border-bottom: 1px solid var(--beige); }
+
+.gestao-note { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.gestao-actions { display: flex; gap: 10px; margin-top: 10px; }
+
+/* ---------------------------------------------------------
+   Filtros
+   --------------------------------------------------------- */
+.gestao-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.gestao-filters select,
+.gestao-filters input {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  background: var(--white);
+}
+.gestao-filters input[type="search"] { flex: 1; min-width: 160px; }
+
+/* ---------------------------------------------------------
+   Tabelas
+   --------------------------------------------------------- */
+.gestao-table-wrap { overflow-x: auto; background: var(--white); border-radius: var(--radius-md); border: 1px solid var(--border-soft); }
+.gestao-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+.gestao-table th { text-align: left; padding: 10px 12px; background: var(--beige-light); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.gestao-table td { padding: 10px 12px; border-top: 1px solid var(--beige); }
+.gestao-table tbody tr { cursor: pointer; }
+.gestao-table tbody tr:hover { background: var(--beige-light); }
+.gestao-table--compact { min-width: 0; }
+.gestao-table--compact th, .gestao-table--compact td { padding: 6px 8px; }
+
+.gestao-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.gestao-pagination[hidden] { display: none; }
+
+/* ---------------------------------------------------------
+   Badges de status
+   --------------------------------------------------------- */
+.gestao-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--beige);
+  color: var(--brown);
+}
+.gestao-badge--pending { background: #fff1d6; color: #8a5a00; }
+.gestao-badge--confirmed, .gestao-badge--paid, .gestao-badge--shipped { background: #e0eefc; color: #14507d; }
+.gestao-badge--delivered { background: #e4f4e8; color: #1f6b3a; }
+.gestao-badge--cancelled { background: #fbe5e2; color: #a1352b; }
+.gestao-badge--draft { background: var(--beige); color: var(--muted); }
+
+/* ---------------------------------------------------------
+   Produtos
+   --------------------------------------------------------- */
+.gestao-product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.gestao-product-grid[hidden] { display: none; }
+
+.gestao-product-card {
+  background: var(--white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.gestao-product-card figure {
+  aspect-ratio: 4 / 5;
+  background: var(--beige-light);
+  margin: 0;
+}
+.gestao-product-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gestao-product-info { padding: 10px 12px; }
+.gestao-product-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.gestao-product-meta { font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+.gestao-product-price { font-size: 13px; color: var(--brown-dark); font-weight: 600; margin-bottom: 4px; }
+.gestao-product-price s { color: var(--muted); font-weight: 400; margin-left: 4px; }
+
+.gestao-stock-pill {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--beige);
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.gestao-stock-pill.is-low { background: #fff1d6; color: #8a5a00; }
+.gestao-stock-pill.is-out { background: #fbe5e2; color: #a1352b; }
+
+/* ---------------------------------------------------------
+   Drawer de detalhe do pedido
+   --------------------------------------------------------- */
+.gestao-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 33, 28, 0.45);
+  z-index: 70;
+}
+.gestao-drawer-overlay[hidden] { display: none; }
+
+.gestao-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(94vw, 460px);
+  background: var(--cream);
+  z-index: 71;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -6px 0 24px rgba(42, 33, 28, 0.2);
+}
+.gestao-drawer[hidden] { display: none; }
+
+.gestao-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.gestao-drawer-head h2 { font-family: var(--font-heading); font-size: 17px; color: var(--brown-dark); }
+.drawer-close { background: none; border: none; color: var(--brown-dark); cursor: pointer; padding: 4px; }
+
+.gestao-drawer-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.gestao-drawer-body h3 { font-family: var(--font-heading); font-size: 14px; color: var(--brown-dark); margin: 14px 0 8px; }
+
+.gestao-detail-grid { display: grid; gap: 8px; margin-bottom: 10px; }
+.gestao-detail-grid div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px solid var(--beige); padding-bottom: 6px; }
+.gestao-detail-grid dt { color: var(--muted); }
+.gestao-detail-grid dd { text-align: right; }
+
+/* ---------------------------------------------------------
+   Toast (reaproveitado do site principal)
+   --------------------------------------------------------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 12px);
+  background: var(--brown-dark);
+  color: var(--white);
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-medium), transform var(--transition-medium);
+  z-index: 90;
+  max-width: 90vw;
+  text-align: center;
+}
+.toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------------------------------------------------------
+   Desktop
+   --------------------------------------------------------- */
+@media (min-width: 900px) {
+  .gestao-sidebar-overlay { display: none; }
+  .gestao-sidebar { position: sticky; top: 0; height: 100vh; transform: none; }
+  .gestao-hamburger { display: none; }
+  .gestao-stats { grid-template-columns: repeat(5, 1fr); }
+  .gestao-dash-grid { grid-template-columns: repeat(2, 1fr); }
+  .gestao-product-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 899px) {
+  .gestao-stats { grid-template-columns: repeat(2, 1fr); }
+}

@@ -1,0 +1,83 @@
+# Supabase CLI — configuração local do projeto ANAROSA.
+# Após `supabase link --project-ref <ref>` o CLI usa este arquivo.
+# Se preferir rodar `supabase init`, NÃO sobrescreva este arquivo:
+# apenas mantenha as seções [functions.*] abaixo.
+project_id = "anarosa"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+
+# ---------------------------------------------------------------------
+# Edge Functions
+# verify_jwt = false nas funções que recebem chamadas externas sem JWT
+# do Supabase (Bling → webhook, navegador → callback OAuth, vitrine
+# pública). A proteção dessas funções é feita dentro do código:
+#   - bling-webhook: HMAC X-Bling-Signature-256
+#   - bling-oauth-callback: state de uso único
+#   - bling-sync-*, bling-auth-start, bling-create-order,
+#     bling-webhook-process: INTEGRATION_ADMIN_SECRET
+#   - storefront-*, bling-status, integration-health: somente leitura
+#     de dados públicos / não sensíveis
+#   - storefront-checkout: pública por natureza (chamada pelo cliente
+#     final); preço/estoque/situação são sempre revalidados no backend
+#     (CatalogRepository.resolveOrderItems) — nunca confia no que o
+#     navegador envia. Nunca chama o Bling (ver comentário no arquivo).
+#
+# As funções admin-* (painel /gestao/) NÃO entram nesta lista —
+# ficam com verify_jwt = true (padrão): o navegador envia a sessão real
+# do Supabase Auth do usuário logado, e a plataforma já rejeita
+# qualquer chamada sem um JWT validamente assinado antes de a função
+# rodar. Dentro do código, requireAdminUser() ainda confere se esse
+# usuário está na allowlist store_admins — sessão válida não basta.
+# ---------------------------------------------------------------------
+[functions.bling-auth-start]
+verify_jwt = false
+
+[functions.bling-oauth-callback]
+verify_jwt = false
+
+[functions.bling-status]
+verify_jwt = false
+
+[functions.bling-sync-products]
+verify_jwt = false
+
+[functions.bling-sync-product]
+verify_jwt = false
+
+[functions.bling-webhook]
+verify_jwt = false
+
+[functions.bling-webhook-process]
+verify_jwt = false
+
+[functions.storefront-products]
+verify_jwt = false
+
+[functions.storefront-product]
+verify_jwt = false
+
+[functions.storefront-checkout]
+verify_jwt = false
+
+[functions.bling-create-order]
+verify_jwt = false
+
+[functions.integration-health]
+verify_jwt = false

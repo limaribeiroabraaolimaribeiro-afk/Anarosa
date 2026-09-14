@@ -1,0 +1,224 @@
+name: Deploy storefront to GitHub Pages
+
+# Publica SOMENTE o storefront público (loja + painel Gestão Anarosa)
+# em www.lojaanarosa.com.br. O repositório continua versionando backend
+# (supabase/), documentação (docs/) e scripts internos (scripts/) —
+# nada disso é publicado. O artefato do Pages é montado copiando um a
+# um, de forma explícita, apenas os arquivos permitidos (nunca
+# `cp -r . _site` nem qualquer cópia ampla do repositório).
+#
+# integration-status.html / css/integration-status.css /
+# js/integration-status.js ficam de fora de propósito: é a ferramenta
+# interna de diagnóstico da integração Bling, não deve virar pública.
+#
+# checkout.html / css/checkout.css / js/checkout.js /
+# js/services/cart-service.js ficam de fora NESTA VERSÃO de propósito:
+# a integração de pagamento (InfinitePay) ainda não foi feita. Nem
+# copiados nem exigidos — e ativamente barrados abaixo, para que uma
+# reintrodução futura da linha de cópia sem reativar o checkout de
+# verdade não vaze essas telas por engano.
+#
+# /gestao/ (login + painel administrativo da cliente) É publicado: a
+# tela de login pode ficar pública, como o login de qualquer painel —
+# os dados atrás dela são protegidos por Supabase Auth real + allowlist
+# store_admins nas Edge Functions, não por a página estar escondida.
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Evita duas publicações rodando ao mesmo tempo; não cancela um deploy
+# já em andamento (padrão recomendado pelo GitHub para Pages).
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------
+      # Monta o artefato público (_site) copiando EXPLICITAMENTE só o
+      # que a loja/checkout precisam. Cada arquivo é citado pelo nome —
+      # de propósito, para que adicionar um novo arquivo interno ao
+      # repositório nunca vaze para o site sem uma decisão consciente
+      # aqui.
+      # ---------------------------------------------------------------
+      - name: Montar artefato público (_site)
+        run: |
+          set -euo pipefail
+
+          rm -rf _site
+          mkdir -p _site/css
+          mkdir -p _site/js/services
+
+          # ---- HTML público ------------------------------------------------
+          # checkout.html fica de fora nesta versão (ver comentário no topo
+          # do arquivo) — pagamento (InfinitePay) ainda não integrado.
+          cp index.html    _site/index.html
+
+          # ---- CSS necessário à loja -----------------------------------------
+          cp css/reset.css      _site/css/reset.css
+          cp css/variables.css  _site/css/variables.css
+          cp css/styles.css     _site/css/styles.css
+          cp css/responsive.css _site/css/responsive.css
+
+          # ---- JS necessário à loja -------------------------------------------
+          cp js/config.js                  _site/js/config.js
+          cp js/products.js                _site/js/products.js
+          cp js/app.js                      _site/js/app.js
+          cp js/services/catalog-service.js _site/js/services/catalog-service.js
+
+          # ---- assets (logo, hero, categorias, produtos, instagram) ---------
+          cp -r assets _site/assets
+
+          # ---- painel Gestão Anarosa (login + app; auth real protege os dados) ----
+          cp -r gestao _site/gestao
+
+          # ---- domínio customizado + desativa processamento Jekyll ----------
+          # Domínio já configurado hoje em Settings → Pages; mantido aqui só
+          # para o artefato baseado em Actions preservar o mesmo CNAME.
+          echo "www.lojaanarosa.com.br" > _site/CNAME
+          touch _site/.nojekyll
+
+          echo "Conteúdo final de _site:"
+          find _site -type f | sort
+
+      # ---------------------------------------------------------------
+      # Barreira de segurança: se qualquer arquivo/pasta interno (admin,
+      # backend, docs, scripts, segredos) aparecer no artefato — hoje ou
+      # numa mudança futura deste workflow — o build FALHA em vez de
+      # publicar por engano.
+      # ---------------------------------------------------------------
+      - name: "Verificar: nenhum arquivo interno no artefato"
+        run: |
+          set -euo pipefail
+
+          FORBIDDEN_PATHS=(
+            "_site/integration-status.html"
+            "_site/css/integration-status.css"
+            "_site/js/integration-status.js"
+            "_site/checkout.html"
+            "_site/css/checkout.css"
+            "_site/js/checkout.js"
+            "_site/js/services/cart-service.js"
+            "_site/supabase"
+            "_site/docs"
+            "_site/scripts"
+            "_site/.env"
+            "_site/package.json"
+            "_site/package-lock.json"
+            "_site/README.md"
+            "_site/.git"
+            "_site/.github"
+          )
+
+          # /gestao/ é publicado (login real), mas NENHUM arquivo de
+          # backend/segredo pode vir junto dentro dele.
+          FORBIDDEN_IN_GESTAO=(
+            "_site/gestao/supabase"
+            "_site/gestao/.env"
+          )
+
+          FAILED=0
+
+          for path in "${FORBIDDEN_PATHS[@]}"; do
+            if [ -e "$path" ]; then
+              echo "::error::Encontrado no artefato público (não deveria estar lá): $path"
+              FAILED=1
+            fi
+          done
+
+          for path in "${FORBIDDEN_IN_GESTAO[@]}"; do
+            if [ -e "$path" ]; then
+              echo "::error::Encontrado dentro de /gestao/ no artefato público: $path"
+              FAILED=1
+            fi
+          done
+
+          # .env / .env.* em qualquer variante, em qualquer nível do artefato
+          if find _site -iname ".env*" | grep -q .; then
+            echo "::error::Arquivo .env* encontrado dentro do artefato público:"
+            find _site -iname ".env*"
+            FAILED=1
+          fi
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "::error::Build abortado — o artefato público contém arquivo(s) interno(s)/sensível(is)."
+            exit 1
+          fi
+
+          echo "OK — nenhum arquivo interno/sensível encontrado em _site."
+
+      # ---------------------------------------------------------------
+      # Segunda barreira (sentido inverso): garante que o essencial da
+      # loja realmente foi copiado — evita publicar um site quebrado
+      # por falha silenciosa nesta etapa.
+      # ---------------------------------------------------------------
+      - name: "Verificar: arquivos públicos essenciais estão presentes"
+        run: |
+          set -euo pipefail
+
+          REQUIRED_PATHS=(
+            "_site/index.html"
+            "_site/css/reset.css"
+            "_site/css/variables.css"
+            "_site/css/styles.css"
+            "_site/css/responsive.css"
+            "_site/js/config.js"
+            "_site/js/products.js"
+            "_site/js/app.js"
+            "_site/js/services/catalog-service.js"
+            "_site/assets"
+            "_site/gestao/index.html"
+            "_site/gestao/css/gestao.css"
+            "_site/gestao/js/gestao-auth.js"
+            "_site/gestao/js/gestao-api.js"
+            "_site/gestao/js/gestao.js"
+            "_site/CNAME"
+            "_site/.nojekyll"
+          )
+
+          FAILED=0
+
+          for path in "${REQUIRED_PATHS[@]}"; do
+            if [ ! -e "$path" ]; then
+              echo "::error::Arquivo público esperado NÃO encontrado no artefato: $path"
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "::error::Build abortado — faltam arquivos essenciais da loja no artefato."
+            exit 1
+          fi
+
+          echo "OK — todos os arquivos públicos essenciais estão presentes em _site."
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Enviar artefato do Pages (_site)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

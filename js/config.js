@@ -15,7 +15,7 @@ window.ANAROSA_CONFIG = Object.assign(
 
     supabaseUrl: 'https://gpmbkptimjipqsayrvce.supabase.co',
 
-    supabaseAnonKey: '',
+    supabaseAnonKey: 'sb_publishable_l4oAXfH8gV_3gU3hIUHtBA_wDlm5SDv',
 
     functionsBaseUrl: '',
 

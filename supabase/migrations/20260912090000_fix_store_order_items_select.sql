@@ -1,0 +1,26 @@
+-- =====================================================================
+-- ANAROSA — corrige SELECT faltante em store_order_items p/ service_role
+-- ---------------------------------------------------------------------
+-- Causa raiz: a migration 20260904140000_fix_service_role_permissions.sql
+-- concedeu só INSERT em store_order_items, pois na época nenhum código
+-- lia essa tabela (só bling-create-order/storefront-checkout inseriam
+-- itens de pedido). O painel /gestao/ (admin-orders) passou a LER
+-- store_order_items de duas formas:
+--   1. AdminRepository.listOrders() — embedded resource do PostgREST
+--      (`store_order_items(count)`), que é um JOIN: o Postgres exige
+--      SELECT em TODAS as tabelas referenciadas na query, mesmo que
+--      store_orders esteja vazia (0 linhas) — a checagem de privilégio
+--      independe do resultado.
+--   2. AdminRepository.getOrderDetail() — SELECT direto em
+--      store_order_items para montar os itens do pedido.
+--
+-- Sem o SELECT abaixo, admin-orders falha mesmo com store_orders vazia.
+--
+-- Escopo mínimo, sem alterar o que já funciona:
+--   * NÃO edita a migration anterior (só soma um GRANT novo);
+--   * concede SOMENTE SELECT (não GRANT ALL);
+--   * NÃO altera anon/authenticated (já não têm acesso — revogado antes);
+--   * NÃO altera RLS nem cria policy nova.
+-- =====================================================================
+
+grant select on table public.store_order_items to service_role;

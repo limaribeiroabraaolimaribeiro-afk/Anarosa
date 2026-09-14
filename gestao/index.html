@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Gestão Anarosa</title>
+  <meta name="theme-color" content="#5a3516">
+  <link rel="icon" type="image/jpeg" href="../assets/logo/logo-anarosa.jpg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="../css/reset.css">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="css/gestao.css">
+</head>
+<body>
+
+  <!-- =========================================================
+       TELA DE LOGIN
+       ========================================================= -->
+  <main class="gestao-login" data-view="login" hidden>
+    <form class="gestao-login-card" data-login-form novalidate>
+      <img src="../assets/logo/logo-anarosa.jpg" alt="Anarosa" class="gestao-login-logo">
+      <h1>Gestão Anarosa</h1>
+      <p class="gestao-login-sub">Painel administrativo — acesso restrito.</p>
+
+      <label>E-mail
+        <input type="email" name="email" autocomplete="username" required>
+      </label>
+      <label>Senha
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+
+      <p class="gestao-error" data-login-error hidden></p>
+
+      <button type="submit" class="btn btn-primary" data-login-submit>Entrar</button>
+    </form>
+  </main>
+
+  <!-- =========================================================
+       APP (sidebar + conteúdo)
+       ========================================================= -->
+  <div class="gestao-app" data-view="app" hidden>
+
+    <!-- overlay do menu mobile -->
+    <div class="gestao-sidebar-overlay" data-sidebar-overlay></div>
+
+    <aside class="gestao-sidebar" data-sidebar>
+      <div class="gestao-sidebar-head">
+        <img src="../assets/logo/logo-anarosa.jpg" alt="Anarosa">
+        <span>Gestão Anarosa</span>
+      </div>
+      <nav class="gestao-nav" aria-label="Navegação do painel">
+        <a href="#/dashboard" data-nav="dashboard">Visão geral</a>
+        <a href="#/pedidos" data-nav="pedidos">Pedidos</a>
+        <a href="#/produtos" data-nav="produtos">Produtos</a>
+        <a href="#/clientes" data-nav="clientes">Clientes</a>
+        <a href="#/integracao" data-nav="integracao">Integração</a>
+        <a href="#/configuracoes" data-nav="configuracoes">Configurações</a>
+      </nav>
+      <div class="gestao-sidebar-foot">
+        <span data-current-user-email>—</span>
+        <button type="button" class="gestao-link-btn" data-logout>Sair</button>
+      </div>
+    </aside>
+
+    <div class="gestao-main">
+      <header class="gestao-topbar">
+        <button type="button" class="gestao-hamburger" data-hamburger aria-label="Abrir menu">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
+        </button>
+        <h1 data-page-title>Visão geral</h1>
+      </header>
+
+      <div class="gestao-banner" data-session-banner hidden></div>
+
+      <!-- ---------------- DASHBOARD ---------------- -->
+      <section class="gestao-view" data-page="dashboard">
+        <div class="gestao-state" data-state="dashboard"></div>
+        <div class="gestao-stats" data-dashboard-stats hidden></div>
+        <div class="gestao-dash-grid" data-dashboard-extra hidden>
+          <div class="gestao-card">
+            <h2>Estoque</h2>
+            <ul class="gestao-mini-list">
+              <li><span>Estoque baixo</span><strong data-stat="lowStockProducts">0</strong></li>
+              <li><span>Esgotados</span><strong data-stat="outOfStockProducts">0</strong></li>
+              <li><span>Produtos ativos</span><strong data-stat="activeProducts">0</strong></li>
+            </ul>
+          </div>
+          <div class="gestao-card">
+            <h2>Integração Bling</h2>
+            <ul class="gestao-mini-list">
+              <li><span>Status</span><strong data-stat="blingConnectedLabel">—</strong></li>
+              <li><span>Última sincronização</span><strong data-stat="lastSyncAtLabel">—</strong></li>
+              <li><span>Último webhook</span><strong data-stat="lastWebhookAtLabel">—</strong></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------------- PEDIDOS ---------------- -->
+      <section class="gestao-view" data-page="pedidos" hidden>
+        <div class="gestao-filters">
+          <select data-orders-status>
+            <option value="">Todos os status</option>
+            <option value="novos">Novos</option>
+            <option value="processando">Em processamento</option>
+            <option value="concluidos">Concluídos</option>
+            <option value="cancelados">Cancelados</option>
+          </select>
+          <input type="date" data-orders-from aria-label="De">
+          <input type="date" data-orders-to aria-label="Até">
+          <input type="search" data-orders-search placeholder="Buscar por cliente ou telefone…">
+          <button type="button" class="btn btn-outline" data-orders-filter>Filtrar</button>
+        </div>
+        <div class="gestao-state" data-state="pedidos"></div>
+        <div class="gestao-table-wrap" data-orders-table-wrap hidden>
+          <table class="gestao-table">
+            <thead>
+              <tr>
+                <th>Pedido</th><th>Data</th><th>Cliente</th><th>Telefone</th>
+                <th>Itens</th><th>Total</th><th>Entrega</th><th>Pagamento</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody data-orders-tbody></tbody>
+          </table>
+        </div>
+        <div class="gestao-pagination" data-orders-pagination hidden></div>
+      </section>
+
+      <!-- ---------------- PRODUTOS ---------------- -->
+      <section class="gestao-view" data-page="produtos" hidden>
+        <div class="gestao-filters">
+          <select data-products-active>
+            <option value="">Ativos e inativos</option>
+            <option value="true">Só ativos</option>
+            <option value="false">Só inativos</option>
+          </select>
+          <select data-products-stock>
+            <option value="">Qualquer estoque</option>
+            <option value="baixo">Estoque baixo</option>
+            <option value="esgotado">Esgotados</option>
+          </select>
+          <input type="search" data-products-search placeholder="Buscar por nome ou SKU…">
+          <button type="button" class="btn btn-outline" data-products-filter>Filtrar</button>
+        </div>
+        <div class="gestao-state" data-state="produtos"></div>
+        <div class="gestao-product-grid" data-products-grid hidden></div>
+        <div class="gestao-pagination" data-products-pagination hidden></div>
+      </section>
+
+      <!-- ---------------- CLIENTES ---------------- -->
+      <section class="gestao-view" data-page="clientes" hidden>
+        <div class="gestao-filters">
+          <input type="search" data-customers-search placeholder="Buscar cliente…">
+          <button type="button" class="btn btn-outline" data-customers-filter>Filtrar</button>
+        </div>
+        <div class="gestao-state" data-state="clientes"></div>
+        <div class="gestao-table-wrap" data-customers-table-wrap hidden>
+          <table class="gestao-table">
+            <thead><tr><th>Cliente</th><th>Telefone</th><th>E-mail</th><th>Pedidos</th><th>Total comprado</th><th>Última compra</th></tr></thead>
+            <tbody data-customers-tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ---------------- INTEGRAÇÃO ---------------- -->
+      <section class="gestao-view" data-page="integracao" hidden>
+        <div class="gestao-state" data-state="integracao"></div>
+        <div class="gestao-card" data-integration-card hidden>
+          <h2>Status da integração com o Bling</h2>
+          <ul class="gestao-mini-list gestao-mini-list--big">
+            <li><span>Conexão</span><strong data-int="connected">—</strong></li>
+            <li><span>Última sincronização</span><strong data-int="lastSyncAt">—</strong></li>
+            <li><span>Último webhook recebido</span><strong data-int="lastWebhookAt">—</strong></li>
+            <li><span>Eventos com falha</span><strong data-int="failedWebhookEvents">—</strong></li>
+            <li><span>Produtos no cache</span><strong data-int="cachedProducts">—</strong></li>
+            <li><span>Criação de pedidos no Bling</span><strong data-int="orderSyncEnabled">—</strong></li>
+          </ul>
+          <p class="gestao-note">Esta tela mostra só informações de acompanhamento. Configurações técnicas da integração são feitas pela equipe de desenvolvimento.</p>
+        </div>
+      </section>
+
+      <!-- ---------------- CONFIGURAÇÕES ---------------- -->
+      <section class="gestao-view" data-page="configuracoes" hidden>
+        <div class="gestao-card">
+          <h2>Sua conta</h2>
+          <p><strong>E-mail:</strong> <span data-settings-email>—</span></p>
+          <div class="gestao-actions">
+            <button type="button" class="btn btn-outline" data-logout-settings>Sair da conta</button>
+          </div>
+        </div>
+        <div class="gestao-card">
+          <h2>Sobre este painel</h2>
+          <p class="gestao-note">Gestão Anarosa reúne pedidos, produtos, clientes e o status da integração com o Bling num só lugar. Mais opções chegam em versões futuras.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       DRAWER DE DETALHE DO PEDIDO
+       ========================================================= -->
+  <div class="gestao-drawer-overlay" data-order-drawer-overlay hidden></div>
+  <aside class="gestao-drawer" data-order-drawer hidden aria-label="Detalhe do pedido">
+    <div class="gestao-drawer-head">
+      <h2>Detalhe do pedido</h2>
+      <button type="button" class="drawer-close" data-order-drawer-close aria-label="Fechar">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="gestao-drawer-body" data-order-drawer-body></div>
+  </aside>
+
+  <div class="toast" data-toast role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="js/gestao-auth.js"></script>
+  <script src="js/gestao-api.js"></script>
+  <script src="js/gestao.js"></script>
+</body>
+</html>
