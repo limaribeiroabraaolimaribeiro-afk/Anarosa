@@ -1,0 +1,124 @@
+/* =========================================================
+   ANAROSA — pedido-confirmado.html
+   Arquivo isolado: reaproveita os tokens/variables e a base de
+   checkout.css (.checkout-header, --beige, --brown-dark etc.), sem
+   afetar a Home nem o restante do checkout.
+   ========================================================= */
+
+.order-status {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+
+.order-status-card {
+  background: var(--white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  padding: 28px 22px;
+  text-align: center;
+}
+
+.order-status-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  background: var(--beige);
+  color: var(--brown-dark);
+}
+
+.order-status-card[data-state="confirmado"] .order-status-icon {
+  background: #e4f4e8;
+  color: #1f6b3a;
+}
+
+.order-status-card[data-state="necessita_atencao"] .order-status-icon,
+.order-status-card[data-state="nao_foi_possivel_consultar"] .order-status-icon,
+.order-status-card[data-state="erro"] .order-status-icon {
+  background: #fbe5e2;
+  color: #a1352b;
+}
+
+.order-status-card[data-state="cancelado"] .order-status-icon {
+  background: #f1f1f1;
+  color: var(--muted);
+}
+
+.order-status-card h1 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  color: var(--brown-dark);
+  margin-bottom: 8px;
+}
+
+.order-status-card > p {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
+.order-status-details {
+  text-align: left;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+  margin-bottom: 18px;
+}
+
+.order-status-details > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.order-status-details > div[hidden] {
+  display: none;
+}
+
+.order-status-details dt {
+  color: var(--muted);
+}
+
+.order-status-details dd {
+  color: var(--brown-dark);
+  font-weight: 600;
+}
+
+.order-status a[data-order-receipt] {
+  display: inline-block;
+  margin-bottom: 14px;
+}
+
+/* .btn (display:inline-flex) e ".order-status a[data-order-receipt]"
+   (acima) têm especificidade maior que a regra [hidden] do user-agent
+   — sem este reforço, o elemento fica visível mesmo com o atributo
+   hidden definido via JS (mesma classe de bug já vista em
+   variant-modal-overlay e nos painéis da Gestão). A especificidade do
+   override precisa IGUALAR OU SUPERAR a da regra mais específica que
+   define display para o mesmo elemento. */
+[data-order-retry][hidden] {
+  display: none;
+}
+.order-status a[data-order-receipt][hidden] {
+  display: none;
+}
+
+.order-status .checkout-actions {
+  flex-direction: column;
+}
+
+.order-status .checkout-actions .btn {
+  width: 100%;
+}
+
+@media (min-width: 480px) {
+  .order-status .checkout-actions {
+    flex-direction: row;
+  }
+}

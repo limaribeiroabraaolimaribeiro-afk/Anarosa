@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Anarosa | Diagnóstico da integração Bling (interno)</title>
+  <link rel="icon" type="image/jpeg" href="assets/logo/logo-anarosa.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/integration-status.css">
+</head>
+<body>
+  <main class="diag">
+    <a class="diag-back" href="index.html">← Voltar para a loja</a>
+    <h1>Integração Bling — diagnóstico</h1>
+    <p class="diag-sub">
+      Página interna de desenvolvimento (não linkada no menu, <code>noindex</code>).
+      Nenhum dado de conexão é buscado no backend até o segredo administrativo ser
+      validado abaixo — antes disso a página não faz nenhuma chamada de status.
+    </p>
+
+    <div class="diag-card diag-warning">
+      <strong>Não é um painel público.</strong> Esta página é uma ferramenta de
+      desenvolvimento/configuração, não uma tela protegida por login. O segredo
+      administrativo é validado pelo backend a cada ação, mas o arquivo HTML/JS em si
+      é público como qualquer outro arquivo estático do site. <strong>Não publique este
+      caminho abertamente em produção</strong>: mantenha-o fora do deploy público, restrinja
+      por Basic Auth / allowlist de IP na hospedagem, ou sirva-o só num ambiente
+      interno/staging. Ver <code>docs/BLING_SETUP_MANUAL.md</code>.
+    </div>
+
+    <section class="diag-card">
+      <h2>Ambiente</h2>
+      <p class="diag-note">Estas informações vêm só da configuração local (<code>js/config.js</code>), já pública em qualquer página do site — nenhuma chamada ao backend acontece aqui.</p>
+      <dl class="diag-grid">
+        <div><dt>Backend</dt><dd><span class="diag-pill" data-env-pill>…</span></dd></div>
+        <div><dt>Provider do catálogo</dt><dd data-provider>—</dd></div>
+        <div><dt>Edge Functions</dt><dd data-functions-url>—</dd></div>
+        <div><dt>URL de callback (Bling → "Link de redirecionamento")</dt><dd data-callback-url>—</dd></div>
+        <div><dt>URL de webhook (Bling → aba Webhooks)</dt><dd data-webhook-url>—</dd></div>
+      </dl>
+    </section>
+
+    <section class="diag-card" data-lock-gate>
+      <h2>Entrar</h2>
+      <p class="diag-note">
+        Informe o <code>INTEGRATION_ADMIN_SECRET</code> configurado no backend. Ele fica
+        somente em <code>sessionStorage</code> deste navegador (limpo ao fechar a aba) e é
+        enviado no header <code>x-integration-admin-secret</code>; nunca é gravado em arquivo
+        publicado. Um segredo incorreto é rejeitado pelo backend (HTTP 401) — nada é exibido
+        sem uma validação bem-sucedida.
+      </p>
+      <div class="diag-field">
+        <label for="admin-secret">Segredo administrativo</label>
+        <input id="admin-secret" type="password" autocomplete="off" data-secret-input placeholder="cole o segredo aqui">
+      </div>
+      <div class="diag-actions">
+        <button type="button" class="btn btn-primary" data-secret-save disabled>Entrar</button>
+      </div>
+      <p class="diag-note" data-lock-error hidden></p>
+    </section>
+
+    <div data-dashboard hidden>
+      <section class="diag-card">
+        <h2>Bling</h2>
+        <dl class="diag-grid">
+          <div><dt>Conexão</dt><dd><span class="diag-pill" data-bling-pill>…</span></dd></div>
+          <div><dt>Status</dt><dd data-bling-status>—</dd></div>
+          <div><dt>Credenciais configuradas no backend</dt><dd data-configured>—</dd></div>
+          <div><dt>Company ID</dt><dd data-company>—</dd></div>
+          <div><dt>Token expira em</dt><dd data-expires>—</dd></div>
+          <div><dt>Última sincronização</dt><dd data-last-sync>—</dd></div>
+          <div><dt>Último webhook</dt><dd data-last-webhook>—</dd></div>
+          <div><dt>Produtos cacheados</dt><dd data-products>—</dd></div>
+          <div><dt>Eventos de webhook</dt><dd data-webhooks>—</dd></div>
+          <div><dt>Criação de pedidos no Bling</dt><dd data-orders>—</dd></div>
+        </dl>
+        <div class="diag-actions">
+          <button type="button" class="btn btn-outline" data-btn-status>Testar status</button>
+          <button type="button" class="btn btn-outline" data-btn-health>Health check</button>
+        </div>
+      </section>
+
+      <section class="diag-card">
+        <h2>Ações administrativas (desenvolvimento)</h2>
+        <div class="diag-actions">
+          <button type="button" class="btn btn-primary" data-btn-connect>Conectar Bling</button>
+          <button type="button" class="btn btn-outline" data-btn-sync>Sincronizar produtos</button>
+          <button type="button" class="btn btn-outline" data-btn-process>Processar fila de webhooks</button>
+        </div>
+        <p class="diag-note">
+          Todas as ações são somente leitura no Bling (a sincronização nunca altera produtos,
+          estoque ou pedidos). A criação de pedidos permanece desativada por flag
+          (<code>BLING_ORDER_SYNC_ENABLED=false</code>) independente desta página.
+        </p>
+        <div class="diag-actions">
+          <button type="button" class="btn btn-outline" data-secret-clear>Sair (bloquear novamente)</button>
+        </div>
+      </section>
+
+      <section class="diag-card">
+        <h2>Erros recentes (sanitizados)</h2>
+        <ul class="diag-errors" data-errors><li>—</li></ul>
+      </section>
+    </div>
+
+    <section class="diag-card">
+      <h2>Log desta sessão</h2>
+      <pre class="diag-log" data-log></pre>
+    </section>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/integration-status.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Confirmação do pedido | Anarosa</title>
+  <meta name="theme-color" content="#5a3516">
+  <link rel="canonical" href="https://www.lojaanarosa.com.br/pedido-confirmado.html">
+  <link rel="icon" type="image/jpeg" href="assets/logo/logo-anarosa.jpg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/checkout.css">
+  <link rel="stylesheet" href="css/pedido-confirmado.css">
+</head>
+<body>
+  <header class="checkout-header">
+    <a href="index.html" class="checkout-logo">
+      <img src="assets/logo/logo-anarosa.jpg" alt="Anarosa">
+    </a>
+    <p class="checkout-header-title">Seu pedido</p>
+  </header>
+
+  <main class="order-status" data-order-status>
+    <section class="order-status-card" data-state="loading">
+      <div class="order-status-icon" data-order-icon aria-hidden="true">⏳</div>
+      <h1 data-order-title>Consultando seu pedido…</h1>
+      <p data-order-message>Aguarde um instante enquanto confirmamos o status do pagamento.</p>
+
+      <dl class="order-status-details" data-order-details hidden>
+        <div>
+          <dt>Total</dt>
+          <dd data-order-total>—</dd>
+        </div>
+        <div>
+          <dt>Entrega</dt>
+          <dd data-order-delivery>—</dd>
+        </div>
+        <div data-order-payment-row hidden>
+          <dt>Pagamento</dt>
+          <dd data-order-payment>—</dd>
+        </div>
+      </dl>
+
+      <a href="#" class="btn btn-outline" data-order-receipt hidden target="_blank" rel="noopener noreferrer">Ver comprovante</a>
+
+      <div class="checkout-actions">
+        <button type="button" class="btn btn-outline" data-order-retry hidden>Consultar novamente</button>
+        <a href="index.html" class="btn btn-primary">Voltar para a loja</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/pedido-confirmado.js"></script>
+</body>
+</html>

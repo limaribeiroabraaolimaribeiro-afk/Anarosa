@@ -162,6 +162,7 @@ Deno.test('AdminRepository.getDashboardSummary: mapeia a RPC e nunca inventa val
     newOrders: 0, ordersToday: 0, revenueToday: 0, revenueMonth: 0,
     activeProducts: 0, lowStockProducts: 0, outOfStockProducts: 0, customers: 0,
     lastWebhookAt: null, lastSyncAt: null, blingStatus: 'disconnected', blingConnected: false,
+    pendingPayments: 0, paidToday: 0, blingSyncFailed: 0,
   });
 });
 

@@ -38,6 +38,14 @@ policy = "per_worker"
 #     final); preço/estoque/situação são sempre revalidados no backend
 #     (CatalogRepository.resolveOrderItems) — nunca confia no que o
 #     navegador envia. Nunca chama o Bling (ver comentário no arquivo).
+#   - infinitepay-create-payment: pública (checkout do cliente); recalcula
+#     tudo a partir do pedido já validado, nunca aceita preço do navegador.
+#   - infinitepay-webhook: pública (chamada pela InfinitePay); a
+#     documentação oficial não define assinatura — a proteção real é
+#     reconciliar via payment_check antes de qualquer mudança de estado
+#     (payment-reconcile.ts), nunca confiar só no payload recebido.
+#   - storefront-order-status: pública; só aceita public_token aleatório
+#     (nunca o id interno do pedido).
 #
 # As funções admin-* (painel /gestao/) NÃO entram nesta lista —
 # ficam com verify_jwt = true (padrão): o navegador envia a sessão real
@@ -80,4 +88,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.integration-health]
+verify_jwt = false
+
+[functions.infinitepay-create-payment]
+verify_jwt = false
+
+[functions.infinitepay-webhook]
+verify_jwt = false
+
+[functions.infinitepay-webhook-process]
+verify_jwt = false
+
+[functions.storefront-order-status]
 verify_jwt = false

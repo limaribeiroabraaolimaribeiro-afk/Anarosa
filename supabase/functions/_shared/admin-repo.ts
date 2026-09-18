@@ -35,6 +35,9 @@ export interface DashboardSummary {
   lastSyncAt: string | null;
   blingStatus: string;
   blingConnected: boolean;
+  pendingPayments: number;
+  paidToday: number;
+  blingSyncFailed: number;
 }
 
 export interface AdminOrderListItem {
@@ -48,6 +51,11 @@ export interface AdminOrderListItem {
   shippingMethod: string | null;
   paymentMethod: string | null;
   status: string;
+  origin: string;
+  paymentStatus: string;
+  paymentProvider: string | null;
+  paymentCaptureMethod: string | null;
+  blingSyncStatus: string;
 }
 
 export interface AdminOrderDetail extends AdminOrderListItem {
@@ -58,9 +66,17 @@ export interface AdminOrderDetail extends AdminOrderListItem {
   subtotal: number;
   discount: number;
   shippingCost: number;
-  blingSyncStatus: string;
   notes: string | null;
   items: Array<{ name: string; sku: string | null; quantity: number; unitPrice: number; total: number }>;
+  externalOrderId: string | null;
+  blingId: string | null;
+  blingSyncError: string | null;
+  blingSyncAttempts: number;
+  paymentTransactionNsu: string | null;
+  paymentInstallments: number | null;
+  paymentPaidAt: string | null;
+  paymentReceiptUrl: string | null;
+  paymentFailureReason: string | null;
 }
 
 export interface ListOrdersOptions {
@@ -94,8 +110,19 @@ function toItem(row: Row): AdminOrderListItem {
     shippingMethod: shipping.method ?? null,
     paymentMethod: payment.method ?? null,
     status: row.status,
+    origin: row.origin ?? 'site',
+    paymentStatus: row.payment_status ?? 'pending',
+    paymentProvider: row.payment_provider ?? null,
+    paymentCaptureMethod: row.payment_capture_method ?? null,
+    blingSyncStatus: row.bling_sync_status,
   };
 }
+
+const ORDER_LIST_COLUMNS = [
+  'id', 'order_number', 'created_at', 'customer_data', 'shipping_data', 'payment_data', 'total', 'status',
+  'origin', 'payment_status', 'payment_provider', 'payment_capture_method', 'bling_sync_status',
+  'store_order_items(count)',
+].join(', ');
 
 export class AdminRepository {
   constructor(private readonly db: Db) {}
@@ -119,6 +146,9 @@ export class AdminRepository {
       lastSyncAt: d.lastSyncAt ?? null,
       blingStatus: d.blingStatus ?? 'disconnected',
       blingConnected: d.blingConnected === true,
+      pendingPayments: Number(d.pendingPayments ?? 0),
+      paidToday: Number(d.paidToday ?? 0),
+      blingSyncFailed: Number(d.blingSyncFailed ?? 0),
     };
   }
 
@@ -128,7 +158,7 @@ export class AdminRepository {
 
     let query = this.db
       .from('store_orders')
-      .select('id, order_number, created_at, customer_data, shipping_data, payment_data, total, status, store_order_items(count)', { count: 'exact' })
+      .select(ORDER_LIST_COLUMNS, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -185,7 +215,6 @@ export class AdminRepository {
       subtotal: Number(order.subtotal ?? 0),
       discount: Number(order.discount ?? 0),
       shippingCost: Number(order.shipping ?? 0),
-      blingSyncStatus: order.bling_sync_status,
       notes: (order.metadata ?? {}).notes ?? null,
       items: (items ?? []).map((it: Row) => ({
         name: it.name,
@@ -194,6 +223,17 @@ export class AdminRepository {
         unitPrice: Number(it.unit_price),
         total: Number(it.total),
       })),
+      externalOrderId: order.external_order_id ?? null,
+      blingId: order.bling_id ?? null,
+      blingSyncError: order.bling_sync_error ?? null,
+      blingSyncAttempts: Number(order.bling_sync_attempts ?? 0),
+      paymentTransactionNsu: order.payment_transaction_nsu ?? null,
+      paymentInstallments: order.payment_installments != null ? Number(order.payment_installments) : null,
+      paymentPaidAt: order.payment_paid_at ?? null,
+      paymentReceiptUrl: order.payment_status === 'paid' ? (order.payment_receipt_url ?? null) : null,
+      paymentFailureReason: order.payment_status === 'failed'
+        ? ((order.payment_raw_status ?? {}).failure_reason ?? 'motivo não especificado')
+        : null,
     };
   }
 

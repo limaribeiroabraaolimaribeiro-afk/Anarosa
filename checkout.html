@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, follow">
+  <title>Finalizar compra | Anarosa</title>
+  <meta name="theme-color" content="#5a3516">
+  <link rel="canonical" href="https://www.lojaanarosa.com.br/checkout.html">
+  <link rel="icon" type="image/jpeg" href="assets/logo/logo-anarosa.jpg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/checkout.css">
+</head>
+<body>
+  <header class="checkout-header">
+    <a href="index.html" class="checkout-logo">
+      <img src="assets/logo/logo-anarosa.jpg" alt="Anarosa">
+    </a>
+    <p class="checkout-header-title">Finalizar compra</p>
+  </header>
+
+  <main class="checkout">
+    <ol class="checkout-steps" data-checkout-steps aria-label="Etapas da compra">
+      <li data-step-indicator="cart">Carrinho</li>
+      <li data-step-indicator="customer">Seus dados</li>
+      <li data-step-indicator="delivery">Entrega</li>
+      <li data-step-indicator="payment">Pagamento</li>
+      <li data-step-indicator="review">Revisão</li>
+    </ol>
+
+    <div class="checkout-banner" data-checkout-banner hidden></div>
+
+    <!-- ETAPA 1 — Carrinho -->
+    <section class="checkout-panel" data-panel="cart">
+      <h2>Seu carrinho</h2>
+      <div class="checkout-cart-items" data-checkout-cart-items></div>
+      <div class="checkout-actions">
+        <a href="index.html#novidades" class="btn btn-outline">Continuar comprando</a>
+        <button type="button" class="btn btn-primary" data-next="cart">Continuar</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 2 — Dados do cliente -->
+    <section class="checkout-panel" data-panel="customer" hidden>
+      <h2>Seus dados</h2>
+      <form class="checkout-form" data-form-customer novalidate>
+        <label>Nome completo *
+          <input type="text" name="name" required autocomplete="name">
+        </label>
+        <label>WhatsApp / telefone *
+          <input type="tel" name="phone" required autocomplete="tel" placeholder="(47) 99999-9999">
+        </label>
+        <label>E-mail (opcional)
+          <input type="email" name="email" autocomplete="email">
+        </label>
+        <label>CPF (opcional)
+          <input type="text" name="document" inputmode="numeric" placeholder="000.000.000-00">
+        </label>
+        <p class="checkout-form-error" data-form-error="customer" hidden></p>
+      </form>
+      <div class="checkout-actions">
+        <button type="button" class="btn btn-outline" data-back="customer">Voltar</button>
+        <button type="button" class="btn btn-primary" data-next="customer">Continuar</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 3 — Entrega / retirada -->
+    <section class="checkout-panel" data-panel="delivery" hidden>
+      <h2>Entrega</h2>
+      <div class="checkout-option-group" data-shipping-method>
+        <label class="checkout-option">
+          <input type="radio" name="shippingMethod" value="pickup" checked>
+          <span><strong>Retirar na loja</strong><br>Anarosa Textil — Luiz Alves - SC</span>
+        </label>
+        <label class="checkout-option">
+          <input type="radio" name="shippingMethod" value="delivery">
+          <span><strong>Enviar por transportadora/Correios</strong><br>Frete a combinar após confirmação do endereço</span>
+        </label>
+      </div>
+      <form class="checkout-form" data-form-address hidden novalidate>
+        <label>CEP *
+          <input type="text" name="zip" inputmode="numeric" placeholder="00000-000">
+        </label>
+        <label>Endereço *
+          <input type="text" name="street">
+        </label>
+        <label>Número *
+          <input type="text" name="number">
+        </label>
+        <label>Complemento
+          <input type="text" name="complement">
+        </label>
+        <label>Bairro *
+          <input type="text" name="district">
+        </label>
+        <label>Cidade *
+          <input type="text" name="city">
+        </label>
+        <label>Estado (UF) *
+          <input type="text" name="state" maxlength="2" placeholder="SC">
+        </label>
+        <p class="checkout-form-error" data-form-error="delivery" hidden></p>
+      </form>
+      <p class="checkout-note">O frete de entrega ainda não é calculado automaticamente — nossa equipe informa o valor pelo WhatsApp antes de confirmar.</p>
+      <div class="checkout-actions">
+        <button type="button" class="btn btn-outline" data-back="delivery">Voltar</button>
+        <button type="button" class="btn btn-primary" data-next="delivery">Continuar</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 4 — Pagamento -->
+    <section class="checkout-panel" data-panel="payment" hidden>
+      <h2>Forma de pagamento</h2>
+      <p class="checkout-note">Escolha sua preferência — o pagamento é combinado diretamente com a equipe Anarosa (Pix, cartão na retirada ou pelo WhatsApp). Nenhum dado de cartão é coletado neste site.</p>
+      <div class="checkout-option-group" data-payment-method>
+        <label class="checkout-option">
+          <input type="radio" name="paymentMethod" value="pix" checked>
+          <span><strong>Pix</strong><br>Chave enviada após a confirmação do pedido</span>
+        </label>
+        <label class="checkout-option">
+          <input type="radio" name="paymentMethod" value="card_on_pickup">
+          <span><strong>Cartão na retirada/entrega</strong><br>Débito ou crédito na maquininha</span>
+        </label>
+        <label class="checkout-option">
+          <input type="radio" name="paymentMethod" value="whatsapp">
+          <span><strong>Combinar pelo WhatsApp</strong><br>Nossa equipe fala com você para fechar o pagamento</span>
+        </label>
+      </div>
+      <div class="checkout-actions">
+        <button type="button" class="btn btn-outline" data-back="payment">Voltar</button>
+        <button type="button" class="btn btn-primary" data-next="payment">Continuar</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 5 — Revisão -->
+    <section class="checkout-panel" data-panel="review" hidden>
+      <h2>Revisão do pedido</h2>
+      <p class="checkout-note" data-review-loading>Confirmando preço e estoque atuais…</p>
+      <div class="checkout-review-warnings" data-review-warnings hidden></div>
+      <div class="checkout-review-block">
+        <h3>Itens</h3>
+        <div data-review-items></div>
+      </div>
+      <div class="checkout-review-block">
+        <h3>Cliente</h3>
+        <p data-review-customer></p>
+      </div>
+      <div class="checkout-review-block">
+        <h3>Entrega</h3>
+        <p data-review-delivery></p>
+      </div>
+      <div class="checkout-review-block">
+        <h3>Pagamento</h3>
+        <p data-review-payment></p>
+      </div>
+      <div class="checkout-review-total">
+        <span>Total</span>
+        <strong data-review-total>R$ 0,00</strong>
+      </div>
+      <p class="checkout-form-error" data-form-error="review" hidden></p>
+      <div class="checkout-actions">
+        <button type="button" class="btn btn-outline" data-back="review">Voltar</button>
+        <button type="button" class="btn btn-primary" data-confirm-order disabled>Confirmar pedido</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 6 — Confirmação -->
+    <section class="checkout-panel checkout-confirmation" data-panel="confirmation" hidden>
+      <div class="checkout-confirmation-icon">✓</div>
+      <h2>Pedido registrado!</h2>
+      <p data-confirmation-message>Nossa equipe vai confirmar os detalhes com você pelo WhatsApp.</p>
+      <p class="checkout-order-ref">Referência: <strong data-confirmation-order-id>—</strong></p>
+      <div class="checkout-actions">
+        <a href="#" class="btn btn-primary" data-whatsapp-link target="_blank" rel="noopener noreferrer">Falar no WhatsApp agora</a>
+        <a href="index.html" class="btn btn-outline">Voltar para a loja</a>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" data-toast role="status" aria-live="polite"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/services/cart-service.js"></script>
+  <script src="js/checkout.js"></script>
+</body>
+</html>

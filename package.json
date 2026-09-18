@@ -1,0 +1,13 @@
+{
+  "name": "anarosa-loja",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Loja virtual ANAROSA — frontend estático + integração Bling via Supabase Edge Functions",
+  "scripts": {
+    "dev": "python -m http.server 5500 --bind 127.0.0.1",
+    "test": "cd supabase/functions && npx -y deno@2 test --allow-env --allow-read _tests/",
+    "check": "cd supabase/functions && npx -y deno@2 task check",
+    "lint:js": "node --check js/config.js && node --check js/products.js && node --check js/services/catalog-service.js && node --check js/services/cart-service.js && node --check js/app.js && node --check js/integration-status.js && node --check js/checkout.js && node --check js/pedido-confirmado.js && node --check gestao/js/gestao-auth.js && node --check gestao/js/gestao-api.js && node --check gestao/js/gestao.js",
+    "secrets:scan": "node scripts/secrets-scan.js"
+  }
+}

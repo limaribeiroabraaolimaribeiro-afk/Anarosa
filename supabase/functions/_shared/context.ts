@@ -5,8 +5,16 @@
 import { AdminRepository } from './admin-repo.ts';
 import { BlingClient } from './bling-client.ts';
 import { CatalogRepository } from './catalog-repo.ts';
-import { getAppConfig, getBlingConfig, type AppConfig, type BlingConfig } from './config.ts';
+import {
+  getAppConfig,
+  getBlingConfig,
+  getInfinitePayConfig,
+  type AppConfig,
+  type BlingConfig,
+  type InfinitePayConfig,
+} from './config.ts';
 import { handlePreflight } from './cors.ts';
+import { InfinitePayClient } from './infinitepay-client.ts';
 import { createLogger, type Logger } from './logger.ts';
 import { errorResponse } from './responses.ts';
 import { dbLogSink, getServiceClient, type Db } from './supabase.ts';
@@ -20,7 +28,9 @@ export interface AppContext {
   adminRepo: AdminRepository;
   blingConfig: BlingConfig;
   appConfig: AppConfig;
+  infinitePayConfig: InfinitePayConfig;
   client: () => BlingClient;
+  paymentClient: () => InfinitePayClient;
 }
 
 export function createContext(): AppContext {
@@ -31,7 +41,9 @@ export function createContext(): AppContext {
   const adminRepo = new AdminRepository(db);
   const blingConfig = getBlingConfig();
   const appConfig = getAppConfig();
+  const infinitePayConfig = getInfinitePayConfig();
   let client: BlingClient | null = null;
+  let paymentClient: InfinitePayClient | null = null;
   return {
     db,
     logger,
@@ -40,9 +52,14 @@ export function createContext(): AppContext {
     adminRepo,
     blingConfig,
     appConfig,
+    infinitePayConfig,
     client: () => {
       if (!client) client = new BlingClient({ config: blingConfig, tokenStore, logger });
       return client;
+    },
+    paymentClient: () => {
+      if (!paymentClient) paymentClient = new InfinitePayClient({ config: infinitePayConfig, logger });
+      return paymentClient;
     },
   };
 }

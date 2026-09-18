@@ -1,0 +1,189 @@
+/* =========================================================
+   ANAROSA — página interna de diagnóstico da integração Bling.
+   Arquivo isolado: não afeta a Home nem os componentes públicos.
+   ========================================================= */
+
+.diag {
+  max-width: 880px;
+  margin: 24px auto 64px;
+  padding-inline: 16px;
+}
+
+.diag h1 {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  color: var(--brown-dark);
+  margin-bottom: 4px;
+}
+
+.diag .diag-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.diag-card {
+  background: var(--white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.diag-card h2 {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--brown-dark);
+  margin-bottom: 12px;
+}
+
+.diag-warning {
+  background: #fff1d6;
+  border-color: #f0d8a0;
+  color: #6b4a00;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.diag-warning strong {
+  color: #4a3200;
+}
+
+.diag-warning code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+[data-lock-gate] .diag-field {
+  max-width: 420px;
+}
+
+.diag-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px 16px;
+  font-size: 14px;
+}
+
+.diag-grid dt {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.diag-grid dd {
+  color: var(--text);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.diag-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--beige);
+  color: var(--brown);
+}
+
+.diag-pill.is-ok {
+  background: #e4f4e8;
+  color: #1f6b3a;
+}
+
+.diag-pill.is-bad {
+  background: #fbe5e2;
+  color: #a1352b;
+}
+
+.diag-pill.is-warn {
+  background: #fff1d6;
+  color: #8a5a00;
+}
+
+.diag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.diag-actions .btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.diag-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.diag-field input {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  background: var(--beige-light);
+}
+
+.diag-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.diag-log {
+  background: #2a211c;
+  color: #f3e9de;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diag-errors {
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.diag-errors li {
+  border-left: 3px solid #a1352b;
+  padding: 6px 10px;
+  background: var(--beige-light);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.diag-errors li small {
+  display: block;
+  color: var(--muted);
+}
+
+.diag-back {
+  display: inline-block;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--brown);
+}
+
+@media (min-width: 640px) {
+  .diag-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

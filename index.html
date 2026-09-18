@@ -3,8 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#5a3516">
   <title>Anarosa | Moda para todos os momentos</title>
   <meta name="description" content="Anarosa — moda feminina, bebê, plus size, masculina e acessórios. Frete para todo o Brasil, parcelamento em até 6x sem juros e 5% OFF no PIX.">
+  <link rel="canonical" href="https://www.lojaanarosa.com.br/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Anarosa">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:url" content="https://www.lojaanarosa.com.br/">
+  <meta property="og:title" content="Anarosa | Moda para todos os momentos">
+  <meta property="og:description" content="Moda feminina, bebê, plus size, masculina e acessórios. Frete para todo o Brasil, parcelamento em até 6x sem juros e 5% OFF no PIX.">
+  <meta property="og:image" content="https://www.lojaanarosa.com.br/assets/logo/logo-anarosa.jpg">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Anarosa | Moda para todos os momentos">
+  <meta name="twitter:description" content="Moda feminina, bebê, plus size, masculina e acessórios. Frete para todo o Brasil, parcelamento em até 6x sem juros e 5% OFF no PIX.">
+  <meta name="twitter:image" content="https://www.lojaanarosa.com.br/assets/logo/logo-anarosa.jpg">
 
   <link rel="icon" type="image/jpeg" href="assets/logo/logo-anarosa.jpg">
 
@@ -410,9 +425,30 @@
 
   <div class="toast" data-toast role="status" aria-live="polite"></div>
 
+  <!-- Carrinho (drawer lateral) -->
+  <div class="cart-overlay" data-cart-overlay></div>
+  <aside class="cart-drawer" data-cart-drawer aria-label="Carrinho de compras">
+    <div class="cart-drawer-head">
+      <h2>Seu carrinho</h2>
+      <button type="button" class="drawer-close" data-cart-close aria-label="Fechar carrinho">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="cart-items" data-cart-items></div>
+    <div class="cart-drawer-summary">
+      <div class="cart-subtotal-row"><span>Subtotal estimado</span><strong data-cart-subtotal>R$ 0,00</strong></div>
+      <p class="cart-estimate-note">Valor estimado. Preço e estoque finais são confirmados na revisão do pedido.</p>
+      <a href="checkout.html" class="btn btn-primary" data-cart-checkout-link>Finalizar compra</a>
+    </div>
+  </aside>
+
+  <!-- Seletor de variação (preenchido dinamicamente) -->
+  <div class="variant-modal-overlay" data-variant-modal-overlay hidden></div>
+
   <script src="js/config.js"></script>
   <script src="js/products.js"></script>
   <script src="js/services/catalog-service.js"></script>
+  <script src="js/services/cart-service.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

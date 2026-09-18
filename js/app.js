@@ -67,41 +67,167 @@
   }
 
   /* -----------------------------------------------------------
-     Carrinho (contador local, sem checkout)
+     Carrinho — CartService real (linhas com produto/variação/
+     quantidade, persistido em localStorage). O preço aqui é só para
+     exibição: o checkout revalida preço/estoque no backend antes de
+     confirmar qualquer pedido.
      ----------------------------------------------------------- */
-  const CART_KEY = 'anarosa_cart_count';
+  function escapeHtml(v) {
+    return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  }
+
+  const placeholderImage = (window.ANAROSA_CONFIG && window.ANAROSA_CONFIG.placeholderImage) || '';
+  const cart = window.AnarosaCart.createCartService();
   const cartBadge = document.querySelector('[data-cart-badge]');
-  let cartCount = Number(localStorage.getItem(CART_KEY) || 0) || 0;
+  const cartOverlay = document.querySelector('[data-cart-overlay]');
+  const cartDrawer = document.querySelector('[data-cart-drawer]');
+  const cartItemsEl = document.querySelector('[data-cart-items]');
+  const cartSubtotalEl = document.querySelector('[data-cart-subtotal]');
+  const variantModalOverlay = document.querySelector('[data-variant-modal-overlay]');
 
   function updateCartBadge() {
-    if (cartBadge) cartBadge.textContent = String(cartCount);
+    if (cartBadge) cartBadge.textContent = String(cart.getCount());
   }
-  updateCartBadge();
 
-  function addToCart(product) {
-    cartCount += 1;
-    localStorage.setItem(CART_KEY, String(cartCount));
-    updateCartBadge();
-    showToast(`"${product.name}" adicionado ao carrinho`);
+  function cartItemHTML(item) {
+    const attrs = [item.size, item.color].filter(Boolean).join(' · ');
+    return `
+      <div class="cart-item" data-cart-item="${item.key}">
+        <img src="${escapeHtml(item.image || placeholderImage)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(placeholderImage)}';">
+        <div>
+          <p class="cart-item-name">${escapeHtml(item.name)}</p>
+          ${attrs ? `<p class="cart-item-attrs">${escapeHtml(attrs)}</p>` : ''}
+          <div class="cart-qty">
+            <button type="button" data-cart-decrement="${item.key}" aria-label="Diminuir quantidade">−</button>
+            <span>${item.quantity}</span>
+            <button type="button" data-cart-increment="${item.key}" aria-label="Aumentar quantidade">+</button>
+          </div>
+          <button type="button" class="cart-item-remove" data-cart-remove="${item.key}">Remover</button>
+        </div>
+        <p class="cart-item-price">${formatPrice(item.unitPrice * item.quantity)}</p>
+      </div>`;
+  }
 
-    const wrapper = cartBadge ? cartBadge.closest('.icon-btn') : null;
-    if (wrapper) {
-      wrapper.classList.remove('pulse');
-      void wrapper.offsetWidth; // reinicia a animação
-      wrapper.classList.add('pulse');
+  function bindCartItemActions() {
+    if (!cartItemsEl) return;
+    cartItemsEl.querySelectorAll('[data-cart-increment]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = cart.getItems().find((i) => i.key === btn.dataset.cartIncrement);
+        if (!item) return;
+        const result = cart.updateQuantity(item.key, item.quantity + 1);
+        if (result.clamped) showToast(`Estoque disponível: ${result.maxQuantity} unidade(s).`);
+      });
+    });
+    cartItemsEl.querySelectorAll('[data-cart-decrement]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = cart.getItems().find((i) => i.key === btn.dataset.cartDecrement);
+        if (item) cart.updateQuantity(item.key, item.quantity - 1);
+      });
+    });
+    cartItemsEl.querySelectorAll('[data-cart-remove]').forEach((btn) => {
+      btn.addEventListener('click', () => cart.removeItem(btn.dataset.cartRemove));
+    });
+  }
+
+  function renderCartDrawer() {
+    const items = cart.getItems();
+    if (cartItemsEl) {
+      cartItemsEl.innerHTML = items.length
+        ? items.map(cartItemHTML).join('')
+        : '<p class="cart-empty">Seu carrinho está vazio.</p>';
+      bindCartItemActions();
     }
+    if (cartSubtotalEl) cartSubtotalEl.textContent = formatPrice(cart.getSubtotal());
+    updateCartBadge();
   }
 
-  document.querySelector('[data-cart-toggle]')?.addEventListener('click', () => {
-    showToast(
-      cartCount > 0
-        ? `Você tem ${cartCount} ${cartCount === 1 ? 'item' : 'itens'} no carrinho.`
-        : 'Seu carrinho está vazio.'
-    );
-  });
+  cart.onChange(renderCartDrawer);
+  renderCartDrawer();
+
+  function pulseCartBadge() {
+    const wrapper = cartBadge ? cartBadge.closest('.icon-btn') : null;
+    if (!wrapper) return;
+    wrapper.classList.remove('pulse');
+    void wrapper.offsetWidth; // reinicia a animação
+    wrapper.classList.add('pulse');
+  }
+
+  function addProductToCart(product, variant, quantity) {
+    const result = cart.addItem(product, variant, quantity || 1);
+    const name = variant && variant.name ? `${product.name} — ${variant.name}` : product.name;
+    showToast(result.clamped
+      ? `"${name}" adicionado — estoque disponível: ${result.maxQuantity} unidade(s).`
+      : `"${name}" adicionado ao carrinho`);
+    pulseCartBadge();
+  }
+
+  function openCartDrawer() {
+    renderCartDrawer();
+    cartDrawer?.classList.add('is-open');
+    cartOverlay?.classList.add('is-open');
+    document.body.classList.add('no-scroll');
+  }
+
+  function closeCartDrawer() {
+    cartDrawer?.classList.remove('is-open');
+    cartOverlay?.classList.remove('is-open');
+    document.body.classList.remove('no-scroll');
+  }
+
+  document.querySelector('[data-cart-toggle]')?.addEventListener('click', openCartDrawer);
+  document.querySelector('[data-cart-close]')?.addEventListener('click', closeCartDrawer);
+  cartOverlay?.addEventListener('click', closeCartDrawer);
 
   document.querySelector('[data-account-toggle]')?.addEventListener('click', () => {
     showToast('Área da conta em breve.');
+  });
+
+  /* -----------------------------------------------------------
+     Seletor de variação — abre quando o produto tem variantes
+     reais (cor/tamanho) vindas do catálogo; nunca inventa opção.
+     ----------------------------------------------------------- */
+  function variantOptionHTML(variant) {
+    const soldOut = variant.available === false || (variant.stock != null && variant.stock <= 0);
+    const label = [variant.size, variant.color].filter(Boolean).join(' / ') || variant.name || 'Opção';
+    const price = variant.promotionalPrice != null ? variant.promotionalPrice : variant.price;
+    return `
+      <button type="button" class="variant-option" data-variant-option="${variant.id}" ${soldOut ? 'disabled' : ''}>
+        <span>${escapeHtml(label)}</span>
+        <span class="variant-option-stock">${soldOut ? 'Esgotado' : (price != null ? formatPrice(price) : '')}</span>
+      </button>`;
+  }
+
+  function closeVariantModal() {
+    if (!variantModalOverlay) return;
+    variantModalOverlay.hidden = true;
+    variantModalOverlay.innerHTML = '';
+  }
+
+  function openVariantModal(product) {
+    if (!variantModalOverlay) return;
+    const variants = (product.variants && product.variants.items) || [];
+    variantModalOverlay.innerHTML = `
+      <div class="variant-modal" role="dialog" aria-modal="true" aria-label="Escolher variação de ${escapeHtml(product.name)}">
+        <h3>${escapeHtml(product.name)}</h3>
+        <p class="variant-modal-sub">Escolha a variação:</p>
+        <div class="variant-option-list">${variants.map(variantOptionHTML).join('')}</div>
+        <button type="button" class="btn btn-outline variant-modal-close" data-variant-modal-close>Cancelar</button>
+      </div>`;
+    variantModalOverlay.hidden = false;
+    variantModalOverlay.querySelectorAll('[data-variant-option]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const variant = variants.find((v) => String(v.id) === btn.dataset.variantOption);
+        if (variant) {
+          addProductToCart(product, variant, 1);
+          closeVariantModal();
+        }
+      });
+    });
+    variantModalOverlay.querySelector('[data-variant-modal-close]')?.addEventListener('click', closeVariantModal);
+  }
+
+  variantModalOverlay?.addEventListener('click', (event) => {
+    if (event.target === variantModalOverlay) closeVariantModal();
   });
 
   /* -----------------------------------------------------------
@@ -118,20 +244,23 @@
     // No mock, `available` é undefined → produto tratado como disponível.
     const soldOut = product.available === false;
 
+    const safeName = escapeHtml(product.name);
+    const safeImage = escapeHtml(product.image || placeholderImage);
+
     return `
-      <div class="product-card${soldOut ? ' is-soldout' : ''}" data-product-id="${product.id}">
+      <div class="product-card${soldOut ? ' is-soldout' : ''}" data-product-id="${escapeHtml(product.id)}">
         <figure>
           ${badgeLabel ? `<span class="product-badge badge-${product.badge}">${badgeLabel}</span>` : ''}
           ${soldOut ? '<span class="product-badge badge-esgotado">Esgotado</span>' : ''}
-          <img src="${product.image}" alt="${product.name}" loading="lazy" width="600" height="750">
-          ${soldOut ? '' : `<button type="button" class="quick-add" data-add-to-cart="${product.id}" aria-label="Adicionar ${product.name} ao carrinho">
+          <img src="${safeImage}" alt="${safeName}" loading="lazy" width="600" height="750" onerror="this.onerror=null;this.src='${escapeHtml(placeholderImage)}';">
+          ${soldOut ? '' : `<button type="button" class="quick-add" data-add-to-cart="${escapeHtml(product.id)}" aria-label="Adicionar ${safeName} ao carrinho">
             ${ICONS.plus}
           </button>`}
         </figure>
         <div class="product-info">
-          <p class="product-name">${product.name}</p>
+          <p class="product-name">${safeName}</p>
           <p class="product-price">${priceHTML}</p>
-          <p class="product-installment">${product.installment}</p>
+          <p class="product-installment">${escapeHtml(product.installment)}</p>
           <p class="product-pix">5% OFF no Pix: <strong>${formatPrice(product.pixPrice)}</strong></p>
         </div>
       </div>`;
@@ -145,7 +274,13 @@
         // ids são numéricos no mock e UUID no modo real → comparar como string
         const id = String(btn.dataset.addToCart);
         const product = PRODUCTS.find((p) => String(p.id) === id);
-        if (product && product.available !== false) addToCart(product);
+        if (!product || product.available === false) return;
+        const variantItems = (product.variants && product.variants.items) || [];
+        if (variantItems.length > 0) {
+          openVariantModal(product);
+        } else {
+          addProductToCart(product, null, 1);
+        }
       });
     });
   }
@@ -183,6 +318,13 @@
 
   const CATALOG_ERROR_MESSAGE =
     'Não conseguimos carregar os produtos agora. Tente novamente em instantes ou fale conosco no WhatsApp.';
+  const CATALOG_LOADING_MESSAGE = 'Carregando produtos…';
+
+  function renderCatalogLoading() {
+    renderProducts([], novidadesScroller, novidadesGrid, CATALOG_LOADING_MESSAGE);
+    renderProducts([], bestScroller, bestGrid, CATALOG_LOADING_MESSAGE);
+    renderProducts([], weeklyScroller, weeklyGrid, CATALOG_LOADING_MESSAGE);
+  }
 
   function renderCatalogError() {
     // Modo real indisponível: mostra estado amigável. NUNCA cai no mock
@@ -199,6 +341,7 @@
   }
 
   async function initCatalog() {
+    renderCatalogLoading();
     try {
       PRODUCTS = await catalog.getProducts();
       const sections = catalog.getHomeSections(PRODUCTS);
