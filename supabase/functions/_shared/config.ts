@@ -109,9 +109,13 @@ export function getAppConfig(): AppConfig {
     supabaseServiceRoleKey: envOr('SUPABASE_SERVICE_ROLE_KEY', ''),
     storefrontUrl,
     integrationAdminSecret: envOr('INTEGRATION_ADMIN_SECRET', ''),
+    // Padrão aponta para a tela "Integração" dentro do próprio painel
+    // Gestão (rota já existente no router de gestao/js/gestao.js) — não
+    // para integration-status.html, que é uma ferramenta interna e
+    // nunca é publicada (ver .github/workflows/deploy-pages.yml).
     oauthSuccessRedirectUrl: envOr(
       'OAUTH_SUCCESS_REDIRECT_URL',
-      `${storefrontUrl}/integration-status.html`,
+      `${storefrontUrl}/gestao/#/integracao`,
     ),
   };
 }

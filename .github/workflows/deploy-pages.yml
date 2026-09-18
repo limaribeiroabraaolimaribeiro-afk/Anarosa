@@ -12,11 +12,14 @@ name: Deploy storefront to GitHub Pages
 # interna de diagnóstico da integração Bling, não deve virar pública.
 #
 # checkout.html / css/checkout.css / js/checkout.js /
-# js/services/cart-service.js ficam de fora NESTA VERSÃO de propósito:
-# a integração de pagamento (InfinitePay) ainda não foi feita. Nem
-# copiados nem exigidos — e ativamente barrados abaixo, para que uma
-# reintrodução futura da linha de cópia sem reativar o checkout de
-# verdade não vaze essas telas por engano.
+# js/services/cart-service.js / pedido-confirmado.html /
+# css/pedido-confirmado.css / js/pedido-confirmado.js SÃO publicados —
+# fluxo real (carrinho → pedido → cobrança InfinitePay) validado em
+# 2026-09-18 com pedido e cobrança reais. A confirmação de pagamento
+# (webhook → payment_check → pago) NÃO foi validada com uma transação
+# real — pendência aceita conscientemente pelo proprietário, publicado
+# mesmo assim. Continuam ativamente barrados: integration-status.html
+# (ferramenta interna) e tudo mais fora desta lista de cópia explícita.
 #
 # /gestao/ (login + painel administrativo da cliente) É publicado: a
 # tela de login pode ficar pública, como o login de qualquer painel —
@@ -62,21 +65,26 @@ jobs:
           mkdir -p _site/js/services
 
           # ---- HTML público ------------------------------------------------
-          # checkout.html fica de fora nesta versão (ver comentário no topo
-          # do arquivo) — pagamento (InfinitePay) ainda não integrado.
-          cp index.html    _site/index.html
+          cp index.html               _site/index.html
+          cp checkout.html            _site/checkout.html
+          cp pedido-confirmado.html   _site/pedido-confirmado.html
 
           # ---- CSS necessário à loja -----------------------------------------
-          cp css/reset.css      _site/css/reset.css
-          cp css/variables.css  _site/css/variables.css
-          cp css/styles.css     _site/css/styles.css
-          cp css/responsive.css _site/css/responsive.css
+          cp css/reset.css              _site/css/reset.css
+          cp css/variables.css          _site/css/variables.css
+          cp css/styles.css             _site/css/styles.css
+          cp css/responsive.css         _site/css/responsive.css
+          cp css/checkout.css           _site/css/checkout.css
+          cp css/pedido-confirmado.css  _site/css/pedido-confirmado.css
 
           # ---- JS necessário à loja -------------------------------------------
           cp js/config.js                  _site/js/config.js
           cp js/products.js                _site/js/products.js
           cp js/app.js                      _site/js/app.js
+          cp js/checkout.js                 _site/js/checkout.js
+          cp js/pedido-confirmado.js        _site/js/pedido-confirmado.js
           cp js/services/catalog-service.js _site/js/services/catalog-service.js
+          cp js/services/cart-service.js    _site/js/services/cart-service.js
 
           # ---- assets (logo, hero, categorias, produtos, instagram) ---------
           cp -r assets _site/assets
@@ -107,10 +115,6 @@ jobs:
             "_site/integration-status.html"
             "_site/css/integration-status.css"
             "_site/js/integration-status.js"
-            "_site/checkout.html"
-            "_site/css/checkout.css"
-            "_site/js/checkout.js"
-            "_site/js/services/cart-service.js"
             "_site/supabase"
             "_site/docs"
             "_site/scripts"
@@ -170,14 +174,21 @@ jobs:
 
           REQUIRED_PATHS=(
             "_site/index.html"
+            "_site/checkout.html"
+            "_site/pedido-confirmado.html"
             "_site/css/reset.css"
             "_site/css/variables.css"
             "_site/css/styles.css"
             "_site/css/responsive.css"
+            "_site/css/checkout.css"
+            "_site/css/pedido-confirmado.css"
             "_site/js/config.js"
             "_site/js/products.js"
             "_site/js/app.js"
+            "_site/js/checkout.js"
+            "_site/js/pedido-confirmado.js"
             "_site/js/services/catalog-service.js"
+            "_site/js/services/cart-service.js"
             "_site/assets"
             "_site/gestao/index.html"
             "_site/gestao/css/gestao.css"
