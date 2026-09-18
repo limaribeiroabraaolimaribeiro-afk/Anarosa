@@ -22,7 +22,7 @@
     }
   }
 
-  async function call(path, { params, method } = {}) {
+  async function call(path, { params, method, body } = {}) {
     if (!baseUrl) throw new GestaoApiError('Backend não configurado (js/config.js).', 0, null);
     const session = await window.GestaoAuth.getSession();
     if (!session) throw new GestaoApiError('Sessão administrativa ausente.', 401, null);
@@ -34,10 +34,15 @@
 
     const headers = { Accept: 'application/json', Authorization: `Bearer ${session.access_token}` };
     if (cfg.supabaseAnonKey) headers.apikey = cfg.supabaseAnonKey;
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
 
     let res;
     try {
-      res = await fetch(url.toString(), { method: method || 'GET', headers });
+      res = await fetch(url.toString(), {
+        method: method || (body !== undefined ? 'POST' : 'GET'),
+        headers,
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
     } catch (err) {
       throw new GestaoApiError('Falha de rede ao contatar o painel.', 0, null);
     }
@@ -56,5 +61,10 @@
     listProducts: (params) => call('admin-products', { params }),
     listCustomers: (params) => call('admin-customers', { params }),
     getIntegrationStatus: () => call('admin-integration-status'),
+    createProduct: (body) => call('admin-product-create', { body }),
+    updateProduct: (body) => call('admin-product-update', { body }),
+    changeProductSituation: (body) => call('admin-product-situacao', { body }),
+    adjustStock: (body) => call('admin-stock-adjust', { body }),
+    listDeposits: () => call('admin-deposits'),
   };
 })();

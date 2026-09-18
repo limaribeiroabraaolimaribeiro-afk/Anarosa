@@ -380,6 +380,21 @@ body {
 .gestao-badge--cancelled { background: #fbe5e2; color: #a1352b; }
 .gestao-badge--draft { background: var(--beige); color: var(--muted); }
 
+/* Origem do pedido (site/marketplace/Bling) */
+.gestao-badge--origin-site { background: #e0eefc; color: #14507d; }
+.gestao-badge--origin-shopee { background: #ffe0e8; color: #b8285a; }
+.gestao-badge--origin-mercado_livre { background: #fff6cf; color: #8a6d00; }
+.gestao-badge--origin-bling_import { background: var(--beige); color: var(--brown); }
+.gestao-badge--origin-manual, .gestao-badge--origin-other { background: #f1f1f1; color: var(--muted); }
+
+/* Status do pagamento (InfinitePay) */
+.gestao-badge--pay-pending { background: #fff1d6; color: #8a5a00; }
+.gestao-badge--pay-paid { background: #e4f4e8; color: #1f6b3a; }
+.gestao-badge--pay-failed { background: #fbe5e2; color: #a1352b; }
+.gestao-badge--pay-cancelled { background: #f1f1f1; color: var(--muted); }
+
+.gestao-text-danger { color: #a1352b; }
+
 /* ---------------------------------------------------------
    Produtos
    --------------------------------------------------------- */
@@ -457,6 +472,68 @@ body {
 
 .gestao-drawer-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
 .gestao-drawer-body h3 { font-family: var(--font-heading); font-size: 14px; color: var(--brown-dark); margin: 14px 0 8px; }
+
+/* ---------------------------------------------------------
+   Formulários dos drawers (produto / ajuste de estoque)
+   --------------------------------------------------------- */
+.gestao-drawer-body form { display: flex; flex-direction: column; gap: 12px; }
+.gestao-drawer-body form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--brown-dark);
+  font-weight: 600;
+}
+.gestao-drawer-body form input,
+.gestao-drawer-body form select,
+.gestao-drawer-body form textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text);
+  padding: 9px 11px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+.gestao-drawer-body form textarea { resize: vertical; }
+.gestao-checkbox-label { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.gestao-checkbox-label input { width: auto; padding: 0; }
+
+.gestao-form-error {
+  background: #fbe5e2;
+  color: #a1352b;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.gestao-form-error[hidden] { display: none; }
+
+.gestao-drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.gestao-note {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 6px 0 12px;
+}
+.gestao-note[hidden] { display: none; }
+
+.gestao-product-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.gestao-product-actions .btn {
+  padding: 6px 10px;
+  font-size: 12px;
+}
 
 .gestao-detail-grid { display: grid; gap: 8px; margin-bottom: 10px; }
 .gestao-detail-grid div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px solid var(--beige); padding-bottom: 6px; }

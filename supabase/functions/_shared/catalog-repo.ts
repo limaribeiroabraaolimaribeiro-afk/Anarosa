@@ -288,6 +288,24 @@ export class CatalogRepository {
     return data ?? null;
   }
 
+  /**
+   * true se o produto (id interno) tem alguma variação cadastrada no
+   * cache. Usado para bloquear edição de nome/preço/categoria via
+   * admin-product-update: um PUT /produtos/{id} sem o array
+   * `variacoes` arrisca a própria API do Bling apagar as variações
+   * existentes (ver docs/BLING_PRODUCT_MANAGEMENT.md) — nesta primeira
+   * versão, produtos com variação só são editáveis direto no Bling.
+   */
+  async productHasVariants(productId: string): Promise<boolean> {
+    const { data, error } = await this.db
+      .from('store_product_variants')
+      .select('id')
+      .eq('product_id', productId)
+      .limit(1);
+    if (error) fail('product_has_variants_check_failed', error);
+    return Array.isArray(data) && data.length > 0;
+  }
+
   /** Soft-disable: nunca apaga histórico. */
   async deactivateByBlingId(blingId: string): Promise<'product' | 'variant' | 'none'> {
     const now = new Date().toISOString();

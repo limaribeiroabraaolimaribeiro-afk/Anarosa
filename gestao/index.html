@@ -91,6 +91,14 @@
             </ul>
           </div>
           <div class="gestao-card">
+            <h2>Pagamentos (InfinitePay)</h2>
+            <ul class="gestao-mini-list">
+              <li><span>Aguardando pagamento</span><strong data-stat="pendingPayments">0</strong></li>
+              <li><span>Pagos hoje</span><strong data-stat="paidToday">0</strong></li>
+              <li><span>Falhas de sincronização Bling</span><strong data-stat="blingSyncFailed">0</strong></li>
+            </ul>
+          </div>
+          <div class="gestao-card">
             <h2>Integração Bling</h2>
             <ul class="gestao-mini-list">
               <li><span>Status</span><strong data-stat="blingConnectedLabel">—</strong></li>
@@ -121,7 +129,7 @@
           <table class="gestao-table">
             <thead>
               <tr>
-                <th>Pedido</th><th>Data</th><th>Cliente</th><th>Telefone</th>
+                <th>Pedido</th><th>Data</th><th>Origem</th><th>Cliente</th><th>Telefone</th>
                 <th>Itens</th><th>Total</th><th>Entrega</th><th>Pagamento</th><th>Status</th>
               </tr>
             </thead>
@@ -146,7 +154,9 @@
           </select>
           <input type="search" data-products-search placeholder="Buscar por nome ou SKU…">
           <button type="button" class="btn btn-outline" data-products-filter>Filtrar</button>
+          <button type="button" class="btn btn-primary" data-product-new style="margin-left:auto">+ Novo produto</button>
         </div>
+        <p class="gestao-note">O Bling é a fonte de verdade: toda alteração feita aqui é enviada para o Bling primeiro; a tela só atualiza depois de o Bling confirmar.</p>
         <div class="gestao-state" data-state="produtos"></div>
         <div class="gestao-product-grid" data-products-grid hidden></div>
         <div class="gestao-pagination" data-products-pagination hidden></div>
@@ -213,6 +223,72 @@
       </button>
     </div>
     <div class="gestao-drawer-body" data-order-drawer-body></div>
+  </aside>
+
+  <!-- =========================================================
+       DRAWER — CRIAR/EDITAR PRODUTO (grava no Bling, nunca direto no Supabase)
+       ========================================================= -->
+  <div class="gestao-drawer-overlay" data-product-drawer-overlay hidden></div>
+  <aside class="gestao-drawer" data-product-drawer hidden aria-label="Produto">
+    <div class="gestao-drawer-head">
+      <h2 data-product-drawer-title>Novo produto</h2>
+      <button type="button" class="drawer-close" data-product-drawer-close aria-label="Fechar">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="gestao-drawer-body">
+      <p class="gestao-note" data-product-form-variant-note hidden>Este produto tem variações — nesta versão, produtos com variação só podem ter nome/preço/categoria/situação alterados direto no Bling. Aqui você ainda pode ativar/desativar e ajustar estoque normalmente.</p>
+      <form data-product-form>
+        <label>Nome *<input type="text" name="nome" required maxlength="120"></label>
+        <label>SKU (código)<input type="text" name="sku" maxlength="60" placeholder="Opcional"></label>
+        <label>Preço (R$) *<input type="number" name="preco" required min="0" step="0.01"></label>
+        <label>ID da categoria no Bling<input type="text" name="categoriaId" inputmode="numeric" placeholder="Opcional — deixe em branco para nenhuma"></label>
+        <label>Marca<input type="text" name="marca" maxlength="100" placeholder="Opcional"></label>
+        <label>Descrição curta<textarea name="descricaoCurta" maxlength="500" rows="3" placeholder="Opcional"></textarea></label>
+        <label class="gestao-checkbox-label"><input type="checkbox" name="ativo" checked> Produto ativo</label>
+        <p class="gestao-form-error" data-product-form-error hidden></p>
+        <div class="gestao-drawer-actions">
+          <button type="button" class="btn btn-outline" data-product-drawer-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-product-form-submit>Salvar no Bling</button>
+        </div>
+      </form>
+    </div>
+  </aside>
+
+  <!-- =========================================================
+       DRAWER — AJUSTAR ESTOQUE (lança movimento no Bling)
+       ========================================================= -->
+  <div class="gestao-drawer-overlay" data-stock-drawer-overlay hidden></div>
+  <aside class="gestao-drawer" data-stock-drawer hidden aria-label="Ajustar estoque">
+    <div class="gestao-drawer-head">
+      <h2>Ajustar estoque — <span data-stock-drawer-product-name></span></h2>
+      <button type="button" class="drawer-close" data-stock-drawer-close aria-label="Fechar">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="gestao-drawer-body">
+      <form data-stock-form>
+        <label>Depósito *
+          <select name="depositoId" required data-stock-deposit-select>
+            <option value="">Carregando depósitos…</option>
+          </select>
+        </label>
+        <label>Tipo de operação *
+          <select name="operacao" required>
+            <option value="entrada">Entrada — SOMA a quantidade ao saldo atual</option>
+            <option value="saida">Saída — SUBTRAI a quantidade do saldo atual</option>
+            <option value="balanco">Balanço — a quantidade PASSA A SER o saldo atual</option>
+          </select>
+        </label>
+        <label>Quantidade *<input type="number" name="quantidade" required min="0.001" step="0.001"></label>
+        <label>Observações<input type="text" name="observacoes" maxlength="500" placeholder="Opcional"></label>
+        <p class="gestao-form-error" data-stock-form-error hidden></p>
+        <div class="gestao-drawer-actions">
+          <button type="button" class="btn btn-outline" data-stock-drawer-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary" data-stock-form-submit>Confirmar ajuste no Bling</button>
+        </div>
+      </form>
+    </div>
   </aside>
 
   <div class="toast" data-toast role="status" aria-live="polite"></div>
