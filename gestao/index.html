@@ -242,10 +242,22 @@
         <label>Nome *<input type="text" name="nome" required maxlength="120"></label>
         <label>SKU (código)<input type="text" name="sku" maxlength="60" placeholder="Opcional"></label>
         <label>Preço (R$) *<input type="number" name="preco" required min="0" step="0.01"></label>
-        <label>ID da categoria no Bling<input type="text" name="categoriaId" inputmode="numeric" placeholder="Opcional — deixe em branco para nenhuma"></label>
+        <label>Categoria
+          <select name="categoriaId" data-product-category-select>
+            <option value="">Sem categoria</option>
+          </select>
+        </label>
         <label>Marca<input type="text" name="marca" maxlength="100" placeholder="Opcional"></label>
         <label>Descrição curta<textarea name="descricaoCurta" maxlength="500" rows="3" placeholder="Opcional"></textarea></label>
         <label class="gestao-checkbox-label"><input type="checkbox" name="ativo" checked> Produto ativo</label>
+
+        <div class="gestao-field-group">
+          <label class="gestao-disabled-label">Imagem do produto
+            <input type="file" accept="image/*" disabled>
+          </label>
+          <p class="gestao-note">Envio de imagem ainda não disponível — requer um novo escopo do Bling ("Salvar imagens dos Produtos") que esta conexão ainda não tem. Por enquanto, cadastre a foto direto no Bling.</p>
+        </div>
+
         <p class="gestao-form-error" data-product-form-error hidden></p>
         <div class="gestao-drawer-actions">
           <button type="button" class="btn btn-outline" data-product-drawer-close>Cancelar</button>
@@ -268,24 +280,35 @@
     </div>
     <div class="gestao-drawer-body">
       <form data-stock-form>
+        <p class="gestao-note" data-stock-mode-hint>Informe quantas unidades existem atualmente no estoque.</p>
+        <label><span data-stock-quantidade-label>Estoque atual (quantidade)</span> *
+          <input type="number" name="quantidade" required min="0" step="1">
+        </label>
         <label>Depósito *
           <select name="depositoId" required data-stock-deposit-select>
             <option value="">Carregando depósitos…</option>
           </select>
         </label>
-        <label>Tipo de operação *
-          <select name="operacao" required>
-            <option value="entrada">Entrada — SOMA a quantidade ao saldo atual</option>
-            <option value="saida">Saída — SUBTRAI a quantidade do saldo atual</option>
-            <option value="balanco">Balanço — a quantidade PASSA A SER o saldo atual</option>
-          </select>
-        </label>
-        <label>Quantidade *<input type="number" name="quantidade" required min="0.001" step="0.001"></label>
+
+        <details class="gestao-advanced">
+          <summary>Opções avançadas</summary>
+          <div class="gestao-advanced-body">
+            <label>Tipo de ajuste
+              <select data-stock-operacao-avancada>
+                <option value="">Definir estoque atual (padrão)</option>
+                <option value="entrada">Adicionar unidades (entrada)</option>
+                <option value="saida">Remover unidades (saída)</option>
+              </select>
+            </label>
+            <p class="gestao-note">Use "Adicionar"/"Remover" só quando quiser somar ou subtrair uma quantidade — para o dia a dia, "Definir estoque atual" já resolve.</p>
+          </div>
+        </details>
+
         <label>Observações<input type="text" name="observacoes" maxlength="500" placeholder="Opcional"></label>
         <p class="gestao-form-error" data-stock-form-error hidden></p>
         <div class="gestao-drawer-actions">
           <button type="button" class="btn btn-outline" data-stock-drawer-close>Cancelar</button>
-          <button type="submit" class="btn btn-primary" data-stock-form-submit>Confirmar ajuste no Bling</button>
+          <button type="submit" class="btn btn-primary" data-stock-form-submit>Salvar estoque</button>
         </div>
       </form>
     </div>

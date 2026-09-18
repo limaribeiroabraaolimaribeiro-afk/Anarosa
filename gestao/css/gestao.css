@@ -535,6 +535,43 @@ body {
   font-size: 12px;
 }
 
+/* ---------------------------------------------------------
+   "Opções avançadas" (Entrada/Saída de estoque) — discreto,
+   fechado por padrão. Balanço/"Definir estoque atual" é o fluxo
+   principal (FASE A / A1).
+   --------------------------------------------------------- */
+.gestao-advanced {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  background: var(--beige-light);
+}
+.gestao-advanced summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brown);
+  list-style: none;
+}
+.gestao-advanced summary::-webkit-details-marker { display: none; }
+.gestao-advanced summary::before { content: "▸ "; }
+.gestao-advanced[open] summary::before { content: "▾ "; }
+.gestao-advanced-body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+
+.gestao-field-group {
+  border-top: 1px dashed var(--border-soft);
+  padding-top: 12px;
+  margin-top: 2px;
+}
+
+.gestao-disabled-label {
+  opacity: 0.6;
+}
+.gestao-disabled-label input[disabled] {
+  cursor: not-allowed;
+  background: var(--beige-light);
+}
+
 .gestao-detail-grid { display: grid; gap: 8px; margin-bottom: 10px; }
 .gestao-detail-grid div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px solid var(--beige); padding-bottom: 6px; }
 .gestao-detail-grid dt { color: var(--muted); }

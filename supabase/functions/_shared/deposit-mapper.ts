@@ -49,3 +49,17 @@ export function mapBlingDeposits(raw: BlingRawDeposit[] | null | undefined): Adm
     }))
     .filter((d): d is AdminDeposit => d.id != null && d.ativo);
 }
+
+/**
+ * Escolhe qual depósito pré-selecionar no formulário — a cliente não
+ * deve precisar escolher "Geral" toda vez. Regra (FASE A / A2):
+ *   - exatamente 1 depósito ativo → esse;
+ *   - senão, o primeiro com padrao=true;
+ *   - senão (vários, nenhum marcado como padrão) → null, a cliente
+ *     escolhe manualmente (nunca adivinhamos entre vários iguais).
+ */
+export function pickDefaultDepositId(deposits: AdminDeposit[]): string | null {
+  if (deposits.length === 1) return deposits[0].id;
+  const padrao = deposits.find((d) => d.padrao);
+  return padrao ? padrao.id : null;
+}

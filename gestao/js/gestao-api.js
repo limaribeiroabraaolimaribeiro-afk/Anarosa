@@ -66,5 +66,6 @@
     changeProductSituation: (body) => call('admin-product-situacao', { body }),
     adjustStock: (body) => call('admin-stock-adjust', { body }),
     listDeposits: () => call('admin-deposits'),
+    listCategories: () => call('admin-categories'),
   };
 })();

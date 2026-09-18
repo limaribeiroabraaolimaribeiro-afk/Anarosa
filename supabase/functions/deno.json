@@ -12,6 +12,6 @@
   },
   "tasks": {
     "test": "deno test --allow-env --allow-read _tests/",
-    "check": "deno check _shared/*.ts bling-auth-start/index.ts bling-oauth-callback/index.ts bling-status/index.ts bling-sync-products/index.ts bling-sync-product/index.ts bling-webhook/index.ts bling-webhook-process/index.ts storefront-products/index.ts storefront-product/index.ts storefront-checkout/index.ts bling-create-order/index.ts integration-health/index.ts admin-dashboard-summary/index.ts admin-orders/index.ts admin-products/index.ts admin-customers/index.ts admin-integration-status/index.ts"
+    "check": "deno check _shared/*.ts bling-auth-start/index.ts bling-oauth-callback/index.ts bling-status/index.ts bling-sync-products/index.ts bling-sync-product/index.ts bling-webhook/index.ts bling-webhook-process/index.ts storefront-products/index.ts storefront-product/index.ts storefront-checkout/index.ts bling-create-order/index.ts integration-health/index.ts admin-dashboard-summary/index.ts admin-orders/index.ts admin-products/index.ts admin-customers/index.ts admin-integration-status/index.ts admin-product-create/index.ts admin-product-update/index.ts admin-product-situacao/index.ts admin-stock-adjust/index.ts admin-deposits/index.ts admin-categories/index.ts"
   }
 }

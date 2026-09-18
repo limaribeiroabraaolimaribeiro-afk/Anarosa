@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mapBlingDeposits } from '../_shared/deposit-mapper.ts';
+import { mapBlingDeposits, pickDefaultDepositId } from '../_shared/deposit-mapper.ts';
 
 // Exemplo real fornecido pelo usuário (conta com 1 depósito "Geral", padrão).
 const GERAL_DEPOSIT_RESPONSE = [
@@ -65,4 +65,33 @@ Deno.test('mapBlingDeposits: preserva padrao e desconsiderarSaldo exatamente com
   const items = mapBlingDeposits([{ id: 1, descricao: 'X', situacao: 1, padrao: true, desconsiderarSaldo: true }]);
   assert.equal(items[0].padrao, true);
   assert.equal(items[0].desconsiderarSaldo, true);
+});
+
+// ---------------------------------------------------------------------
+// pickDefaultDepositId (FASE A / A2 — depósito padrão pré-selecionado)
+// ---------------------------------------------------------------------
+Deno.test('pickDefaultDepositId: um único depósito ativo → pré-seleciona sozinho', () => {
+  const items = mapBlingDeposits([{ id: 123, descricao: 'Geral', situacao: 1, padrao: false, desconsiderarSaldo: false }]);
+  assert.equal(pickDefaultDepositId(items), '123');
+});
+
+Deno.test('pickDefaultDepositId: vários depósitos, um marcado padrao=true → esse é escolhido', () => {
+  const items = mapBlingDeposits([
+    { id: 1, descricao: 'Loja física', situacao: 1, padrao: false, desconsiderarSaldo: false },
+    { id: 2, descricao: 'Geral', situacao: 1, padrao: true, desconsiderarSaldo: false },
+    { id: 3, descricao: 'Depósito B', situacao: 1, padrao: false, desconsiderarSaldo: false },
+  ]);
+  assert.equal(pickDefaultDepositId(items), '2');
+});
+
+Deno.test('pickDefaultDepositId: vários depósitos, nenhum padrao → null (cliente escolhe manualmente)', () => {
+  const items = mapBlingDeposits([
+    { id: 1, descricao: 'A', situacao: 1, padrao: false, desconsiderarSaldo: false },
+    { id: 2, descricao: 'B', situacao: 1, padrao: false, desconsiderarSaldo: false },
+  ]);
+  assert.equal(pickDefaultDepositId(items), null);
+});
+
+Deno.test('pickDefaultDepositId: nenhum depósito → null (não inventa)', () => {
+  assert.equal(pickDefaultDepositId([]), null);
 });

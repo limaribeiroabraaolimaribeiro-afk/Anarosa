@@ -174,6 +174,23 @@ export class CatalogRepository {
     return data?.id ?? null;
   }
 
+  /**
+   * Categorias ativas do cache (já sincronizado do Bling via
+   * GET /categorias/produtos — mesmo escopo já usado pela sincronização
+   * de catálogo, nenhuma chamada nova ao Bling é necessária). Usado
+   * pelo seletor de categoria da Gestão (admin-categories) — nunca
+   * pede para o usuário digitar o id numérico do Bling.
+   */
+  async listActiveCategories(): Promise<Array<{ blingId: string; name: string }>> {
+    const { data, error } = await this.db
+      .from('store_categories')
+      .select('bling_id, name')
+      .eq('active', true)
+      .order('name', { ascending: true });
+    if (error) fail('list_active_categories_failed', error);
+    return (data ?? []).map((r: Row) => ({ blingId: String(r.bling_id), name: String(r.name) }));
+  }
+
   // -------------------------------------------------------------------
   // Slug estável e único
   // -------------------------------------------------------------------

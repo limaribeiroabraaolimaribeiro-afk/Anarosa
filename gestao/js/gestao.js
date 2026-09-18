@@ -34,6 +34,31 @@
     setTimeout(() => toastEl.classList.remove('is-visible'), 2600);
   }
 
+  /**
+   * Traduz um erro da API para uma mensagem amigável (FASE A / A6) —
+   * nunca mostra nome de operação técnica ("products.update"), código
+   * HTTP cru ou texto vindo direto do Bling. O detalhe técnico vai
+   * SEMPRE para o console (sanitizado — a API nunca devolve segredo em
+   * mensagem de erro), nunca para a tela.
+   */
+  function friendlyErrorMessage(err, fallback) {
+    console.error('[Gestao]', err);
+    if (err && err.name === 'GestaoApiError') {
+      if (err.status === 400 && err.payload && err.payload.error === 'validation_error') {
+        const fieldErrors = err.payload.details && Array.isArray(err.payload.details.errors)
+          ? err.payload.details.errors
+          : null;
+        if (fieldErrors && fieldErrors.length) return fieldErrors.join(' ');
+        if (typeof err.payload.message === 'string' && err.payload.message) return err.payload.message;
+      }
+      if (err.status === 404) return 'Não encontrado — pode já ter sido alterado. Atualize a lista e tente de novo.';
+      if (err.status === 401 || err.status === 403) return 'Sessão expirada ou sem permissão. Faça login novamente.';
+      if (err.status === 429) return 'Muitas tentativas em seguida. Aguarde um instante e tente de novo.';
+      if (err.status === 0) return 'Falha de conexão. Verifique sua internet e tente novamente.';
+    }
+    return fallback;
+  }
+
   // ---------------------------------------------------------------
   // Estados (loading / vazio / erro) — reutilizado por toda tela
   // ---------------------------------------------------------------
@@ -433,6 +458,7 @@
   const productDrawerOverlay = $('[data-product-drawer-overlay]');
   const productForm = $('[data-product-form]');
   let editingBlingId = null;
+  let categoriesCache = null;
 
   function closeProductDrawer() {
     productDrawer.hidden = true;
@@ -440,6 +466,31 @@
   }
   $$('[data-product-drawer-close]').forEach((el) => el.addEventListener('click', closeProductDrawer));
   productDrawerOverlay?.addEventListener('click', closeProductDrawer);
+
+  async function loadCategoryOptions(selectedName) {
+    const select = $('[data-product-category-select]');
+    select.innerHTML = '<option value="">Carregando categorias…</option>';
+    try {
+      if (!categoriesCache) {
+        const { items } = await window.GestaoApi.listCategories();
+        categoriesCache = items;
+      }
+      const options = ['<option value="">Sem categoria</option>']
+        .concat(categoriesCache.map((c) => `<option value="${escapeHtml(c.blingId)}">${escapeHtml(c.name)}</option>`));
+      select.innerHTML = options.join('');
+      // A listagem de produtos só traz o NOME da categoria (já resolvido),
+      // não o id do Bling — casamos pelo nome para pré-selecionar ao
+      // editar; sem correspondência, fica em "Sem categoria" (o backend
+      // preserva a categoria atual quando o campo vem vazio).
+      if (selectedName) {
+        const match = categoriesCache.find((c) => c.name === selectedName);
+        if (match) select.value = match.blingId;
+      }
+    } catch (err) {
+      console.error('[Gestao] falha ao carregar categorias:', err);
+      select.innerHTML = '<option value="">Sem categoria</option>';
+    }
+  }
 
   function openProductDrawer(mode, product) {
     editingBlingId = mode === 'edit' ? product.blingId : null;
@@ -452,11 +503,11 @@
       productForm.sku.value = product.sku || '';
       productForm.preco.value = product.promotionalPrice ?? product.price ?? 0;
       productForm.ativo.checked = product.active !== false;
-      // categoriaId/marca/descricaoCurta não vêm da listagem administrativa
-      // (só a categoria já RESOLVIDA por nome) — ficam em branco; o backend
-      // preserva o valor atual no Bling quando o campo não é preenchido
-      // (ver buildBlingProductUpdatePayload).
+      // marca/descricaoCurta não vêm da listagem administrativa — ficam em
+      // branco; o backend preserva o valor atual no Bling quando o campo
+      // não é preenchido (ver buildBlingProductUpdatePayload).
     }
+    loadCategoryOptions(mode === 'edit' && product ? product.category : null);
     const submitBtn = $('[data-product-form-submit]');
     submitBtn.disabled = mode === 'edit' && product.variants.length > 0;
     productDrawer.hidden = false;
@@ -464,14 +515,17 @@
   }
   $('[data-product-new]')?.addEventListener('click', () => openProductDrawer('create', null));
 
+  let productSubmitInFlight = false;
   productForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (productSubmitInFlight) return; // bloqueia duplo clique
+    productSubmitInFlight = true;
     const errEl = $('[data-product-form-error]');
     const submitBtn = $('[data-product-form-submit]');
     errEl.hidden = true;
     submitBtn.disabled = true;
     const originalLabel = submitBtn.textContent;
-    submitBtn.textContent = 'Salvando no Bling...';
+    submitBtn.textContent = 'Salvando...';
     try {
       const fd = new FormData(productForm);
       const body = {
@@ -485,31 +539,50 @@
       };
       if (editingBlingId) {
         await window.GestaoApi.updateProduct({ ...body, blingId: editingBlingId });
-        showToast('Produto atualizado no Bling.');
+        showToast('Produto salvo no Bling.');
       } else {
         await window.GestaoApi.createProduct(body);
-        showToast('Produto criado no Bling.');
+        showToast('Produto salvo no Bling.');
       }
       closeProductDrawer();
       loadProducts(false);
     } catch (err) {
       if (err.status === 401) { closeProductDrawer(); return handleSessionExpired('produtos'); }
-      errEl.textContent = (err.payload && err.payload.errors && err.payload.errors.join(' ')) || err.message || 'Não foi possível salvar no Bling.';
+      errEl.textContent = friendlyErrorMessage(err, 'Não foi possível salvar o produto agora. Tente novamente em instantes.');
       errEl.hidden = false;
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalLabel;
+      productSubmitInFlight = false;
     }
   });
 
   // ---------------------------------------------------------------
-  // Drawer: ajustar estoque (lança movimento no Bling)
+  // Drawer: estoque — fluxo principal é "Definir estoque atual"
+  // (balanço no Bling); Entrada/Saída ficam em "Opções avançadas"
+  // (FASE A / A1). Por baixo, os 3 continuam usando a mesma
+  // admin-stock-adjust / operação oficial B/E/S do Bling — só a
+  // apresentação muda.
   // ---------------------------------------------------------------
   const stockDrawer = $('[data-stock-drawer]');
   const stockDrawerOverlay = $('[data-stock-drawer-overlay]');
   const stockForm = $('[data-stock-form]');
   let stockAdjustBlingId = null;
   let depositsCache = null;
+
+  const STOCK_MODES = {
+    '': { label: 'Estoque atual (quantidade)', hint: 'Informe quantas unidades existem atualmente no estoque.', submit: 'Salvar estoque', operacao: 'balanco' },
+    entrada: { label: 'Quantidade a adicionar', hint: 'Essas unidades serão SOMADAS ao estoque atual.', submit: 'Adicionar ao estoque', operacao: 'entrada' },
+    saida: { label: 'Quantidade a remover', hint: 'Essas unidades serão RETIRADAS do estoque atual.', submit: 'Remover do estoque', operacao: 'saida' },
+  };
+
+  function applyStockMode(mode) {
+    const cfg = STOCK_MODES[mode] || STOCK_MODES[''];
+    $('[data-stock-quantidade-label]').textContent = cfg.label;
+    $('[data-stock-mode-hint]').textContent = cfg.hint;
+    $('[data-stock-form-submit]').textContent = cfg.submit;
+  }
+  $('[data-stock-operacao-avancada]')?.addEventListener('change', (e) => applyStockMode(e.target.value));
 
   function closeStockDrawer() {
     stockDrawer.hidden = true;
@@ -523,55 +596,72 @@
     $('[data-stock-drawer-product-name]').textContent = product.name;
     $('[data-stock-form-error]').hidden = true;
     stockForm.reset();
+    applyStockMode(''); // sempre reabre no modo padrão (definir estoque atual)
     stockDrawer.hidden = false;
     stockDrawerOverlay.hidden = false;
 
     const select = $('[data-stock-deposit-select]');
     select.innerHTML = '<option value="">Carregando depósitos…</option>';
     try {
-      if (!depositsCache) {
-        const { items } = await window.GestaoApi.listDeposits();
-        depositsCache = items;
+      let deposits = depositsCache;
+      let defaultDepositId = null;
+      if (!deposits) {
+        const res = await window.GestaoApi.listDeposits();
+        deposits = res.items;
+        defaultDepositId = res.defaultDepositId;
+        depositsCache = deposits;
+        depositsCache.__defaultId = defaultDepositId; // cache simples junto da lista
+      } else {
+        defaultDepositId = depositsCache.__defaultId ?? null;
       }
-      const ativos = depositsCache.filter((d) => d.ativo);
-      if (ativos.length === 0) {
+      if (deposits.length === 0) {
         select.innerHTML = '<option value="">Nenhum depósito ativo encontrado no Bling</option>';
         return;
       }
-      select.innerHTML = ativos.map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.descricao)}${d.padrao ? ' (padrão)' : ''}</option>`).join('');
+      // Depósito padrão (FASE A / A2): 1 único depósito, ou um com
+      // padrao=true, já vem pré-selecionado — a cliente não precisa
+      // escolher "Geral" toda vez, mas ainda pode trocar se houver mais de um.
+      select.innerHTML = deposits.map((d) => `<option value="${escapeHtml(d.id)}"${d.id === defaultDepositId ? ' selected' : ''}>${escapeHtml(d.descricao)}${d.padrao ? ' (padrão)' : ''}</option>`).join('');
     } catch (err) {
       if (err.status === 401) { closeStockDrawer(); return handleSessionExpired('produtos'); }
-      select.innerHTML = '<option value="">Falha ao carregar depósitos</option>';
+      console.error('[Gestao] falha ao carregar depósitos:', err);
+      select.innerHTML = '<option value="">Não foi possível carregar os depósitos agora</option>';
     }
   }
 
+  let stockSubmitInFlight = false;
   stockForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (stockSubmitInFlight) return; // bloqueia duplo clique
+    stockSubmitInFlight = true;
     const errEl = $('[data-stock-form-error]');
     const submitBtn = $('[data-stock-form-submit]');
     errEl.hidden = true;
     submitBtn.disabled = true;
     const originalLabel = submitBtn.textContent;
-    submitBtn.textContent = 'Enviando ao Bling...';
+    submitBtn.textContent = 'Salvando...';
     try {
       const fd = new FormData(stockForm);
+      const modeKey = $('[data-stock-operacao-avancada]').value;
+      const operacao = (STOCK_MODES[modeKey] || STOCK_MODES['']).operacao;
       await window.GestaoApi.adjustStock({
         blingProductId: stockAdjustBlingId,
         depositoId: String(fd.get('depositoId') || ''),
-        operacao: String(fd.get('operacao') || ''),
+        operacao,
         quantidade: Number(fd.get('quantidade')),
         observacoes: String(fd.get('observacoes') || '').trim() || undefined,
       });
-      showToast('Estoque ajustado no Bling.');
+      showToast('Estoque atualizado.');
       closeStockDrawer();
       loadProducts(false);
     } catch (err) {
       if (err.status === 401) { closeStockDrawer(); return handleSessionExpired('produtos'); }
-      errEl.textContent = (err.payload && err.payload.errors && err.payload.errors.join(' ')) || err.message || 'Não foi possível ajustar o estoque no Bling.';
+      errEl.textContent = friendlyErrorMessage(err, 'Não foi possível salvar o estoque agora. Tente novamente em instantes.');
       errEl.hidden = false;
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalLabel;
+      stockSubmitInFlight = false;
     }
   });
 
@@ -588,11 +678,11 @@
     btn.textContent = 'Enviando...';
     try {
       await window.GestaoApi.changeProductSituation({ blingId: product.blingId, ativo: next });
-      showToast(`Produto ${next ? 'ativado' : 'desativado'} no Bling.`);
+      showToast(`Produto ${next ? 'ativado' : 'desativado'}.`);
       loadProducts(false);
     } catch (err) {
       if (err.status === 401) return handleSessionExpired('produtos');
-      showToast(err.message || 'Não foi possível alterar a situação no Bling.');
+      showToast(friendlyErrorMessage(err, 'Não foi possível alterar a situação agora. Tente novamente em instantes.'));
       btn.disabled = false;
       btn.textContent = originalLabel;
     }
