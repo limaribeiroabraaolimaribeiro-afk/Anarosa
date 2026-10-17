@@ -43,177 +43,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  quality:
+    uses: ./.github/workflows/quality.yml
   build:
+    needs: quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---------------------------------------------------------------
-      # Monta o artefato público (_site) copiando EXPLICITAMENTE só o
-      # que a loja/checkout precisam. Cada arquivo é citado pelo nome —
-      # de propósito, para que adicionar um novo arquivo interno ao
-      # repositório nunca vaze para o site sem uma decisão consciente
-      # aqui.
-      # ---------------------------------------------------------------
-      - name: Montar artefato público (_site)
-        run: |
-          set -euo pipefail
-
-          rm -rf _site
-          mkdir -p _site/css
-          mkdir -p _site/js/services
-
-          # ---- HTML público ------------------------------------------------
-          cp index.html               _site/index.html
-          cp checkout.html            _site/checkout.html
-          cp pedido-confirmado.html   _site/pedido-confirmado.html
-
-          # ---- CSS necessário à loja -----------------------------------------
-          cp css/reset.css              _site/css/reset.css
-          cp css/variables.css          _site/css/variables.css
-          cp css/styles.css             _site/css/styles.css
-          cp css/responsive.css         _site/css/responsive.css
-          cp css/checkout.css           _site/css/checkout.css
-          cp css/pedido-confirmado.css  _site/css/pedido-confirmado.css
-
-          # ---- JS necessário à loja -------------------------------------------
-          cp js/config.js                  _site/js/config.js
-          cp js/products.js                _site/js/products.js
-          cp js/app.js                      _site/js/app.js
-          cp js/checkout.js                 _site/js/checkout.js
-          cp js/pedido-confirmado.js        _site/js/pedido-confirmado.js
-          cp js/services/catalog-service.js _site/js/services/catalog-service.js
-          cp js/services/cart-service.js    _site/js/services/cart-service.js
-
-          # ---- assets (logo, hero, categorias, produtos, instagram) ---------
-          cp -r assets _site/assets
-
-          # ---- painel Gestão Anarosa (login + app; auth real protege os dados) ----
-          cp -r gestao _site/gestao
-
-          # ---- domínio customizado + desativa processamento Jekyll ----------
-          # Domínio já configurado hoje em Settings → Pages; mantido aqui só
-          # para o artefato baseado em Actions preservar o mesmo CNAME.
-          echo "www.lojaanarosa.com.br" > _site/CNAME
-          touch _site/.nojekyll
-
-          echo "Conteúdo final de _site:"
-          find _site -type f | sort
-
-      # ---------------------------------------------------------------
-      # Barreira de segurança: se qualquer arquivo/pasta interno (admin,
-      # backend, docs, scripts, segredos) aparecer no artefato — hoje ou
-      # numa mudança futura deste workflow — o build FALHA em vez de
-      # publicar por engano.
-      # ---------------------------------------------------------------
-      - name: "Verificar: nenhum arquivo interno no artefato"
-        run: |
-          set -euo pipefail
-
-          FORBIDDEN_PATHS=(
-            "_site/integration-status.html"
-            "_site/css/integration-status.css"
-            "_site/js/integration-status.js"
-            "_site/supabase"
-            "_site/docs"
-            "_site/scripts"
-            "_site/.env"
-            "_site/package.json"
-            "_site/package-lock.json"
-            "_site/README.md"
-            "_site/.git"
-            "_site/.github"
-          )
-
-          # /gestao/ é publicado (login real), mas NENHUM arquivo de
-          # backend/segredo pode vir junto dentro dele.
-          FORBIDDEN_IN_GESTAO=(
-            "_site/gestao/supabase"
-            "_site/gestao/.env"
-          )
-
-          FAILED=0
-
-          for path in "${FORBIDDEN_PATHS[@]}"; do
-            if [ -e "$path" ]; then
-              echo "::error::Encontrado no artefato público (não deveria estar lá): $path"
-              FAILED=1
-            fi
-          done
-
-          for path in "${FORBIDDEN_IN_GESTAO[@]}"; do
-            if [ -e "$path" ]; then
-              echo "::error::Encontrado dentro de /gestao/ no artefato público: $path"
-              FAILED=1
-            fi
-          done
-
-          # .env / .env.* em qualquer variante, em qualquer nível do artefato
-          if find _site -iname ".env*" | grep -q .; then
-            echo "::error::Arquivo .env* encontrado dentro do artefato público:"
-            find _site -iname ".env*"
-            FAILED=1
-          fi
-
-          if [ "$FAILED" -ne 0 ]; then
-            echo "::error::Build abortado — o artefato público contém arquivo(s) interno(s)/sensível(is)."
-            exit 1
-          fi
-
-          echo "OK — nenhum arquivo interno/sensível encontrado em _site."
-
-      # ---------------------------------------------------------------
-      # Segunda barreira (sentido inverso): garante que o essencial da
-      # loja realmente foi copiado — evita publicar um site quebrado
-      # por falha silenciosa nesta etapa.
-      # ---------------------------------------------------------------
-      - name: "Verificar: arquivos públicos essenciais estão presentes"
-        run: |
-          set -euo pipefail
-
-          REQUIRED_PATHS=(
-            "_site/index.html"
-            "_site/checkout.html"
-            "_site/pedido-confirmado.html"
-            "_site/css/reset.css"
-            "_site/css/variables.css"
-            "_site/css/styles.css"
-            "_site/css/responsive.css"
-            "_site/css/checkout.css"
-            "_site/css/pedido-confirmado.css"
-            "_site/js/config.js"
-            "_site/js/products.js"
-            "_site/js/app.js"
-            "_site/js/checkout.js"
-            "_site/js/pedido-confirmado.js"
-            "_site/js/services/catalog-service.js"
-            "_site/js/services/cart-service.js"
-            "_site/assets"
-            "_site/gestao/index.html"
-            "_site/gestao/css/gestao.css"
-            "_site/gestao/js/gestao-auth.js"
-            "_site/gestao/js/gestao-api.js"
-            "_site/gestao/js/gestao.js"
-            "_site/CNAME"
-            "_site/.nojekyll"
-          )
-
-          FAILED=0
-
-          for path in "${REQUIRED_PATHS[@]}"; do
-            if [ ! -e "$path" ]; then
-              echo "::error::Arquivo público esperado NÃO encontrado no artefato: $path"
-              FAILED=1
-            fi
-          done
-
-          if [ "$FAILED" -ne 0 ]; then
-            echo "::error::Build abortado — faltam arquivos essenciais da loja no artefato."
-            exit 1
-          fi
-
-          echo "OK — todos os arquivos públicos essenciais estão presentes em _site."
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Montar e verificar artefato público
+        run: node scripts/build-public.cjs
 
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5

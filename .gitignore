@@ -23,6 +23,7 @@ supabase/.branches/
 node_modules/
 .deno/
 deno.lock
+!supabase/functions/deno.lock
 
 # Sistema / editor
 .DS_Store
@@ -35,6 +36,8 @@ desktop.ini
 # Saídas temporárias
 *.log
 tmp/
+test-results/
+playwright-report/
 
 # Artefato local do build do GitHub Pages (gerado por
 # .github/workflows/deploy-pages.yml; nunca deve ser commitado)

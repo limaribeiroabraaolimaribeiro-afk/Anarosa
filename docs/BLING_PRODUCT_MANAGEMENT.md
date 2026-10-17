@@ -1,5 +1,9 @@
 # Gestão de produtos e estoque via Bling (Gestão Anarosa)
 
+> Documento histórico da implementação inicial. Para o editor com variações,
+> PATCH parcial, imagens por URL condicionadas à permissão e comandos duráveis,
+> consulte [a entrega de 17/10/2026](ENTREGA_2026-10-17.md).
+
 O Bling é a ÚNICA fonte de verdade para produto/estoque. A Gestão Anarosa
 nunca escreve em `store_products`/`store_product_variants`/`store_inventory`
 diretamente a partir de uma ação do usuário — toda ação primeiro grava no

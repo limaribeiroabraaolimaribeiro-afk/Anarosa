@@ -14,8 +14,10 @@ size, masculina e acessórios.
 npm run dev          # http://127.0.0.1:5500
 ```
 
-Por padrão o catálogo vem do mock (`js/products.js`). Para ler o cache real
-edite `js/config.js` (`catalogProvider: 'supabase'`, `supabaseUrl`).
+Instale as dependências com `npm ci`. O catálogo padrão vem do Supabase
+configurado em `js/config.js`; falhas não exibem produtos fictícios.
+Consulte a [entrega técnica de 17/10/2026](docs/ENTREGA_2026-10-17.md) para
+resultados dos testes, preparação do backend e dependências de produção.
 
 ## Estrutura
 
@@ -41,7 +43,7 @@ docs/                              documentação
 ## Comandos
 
 ```bash
-npm test               # 63 testes Deno (sem rede, sem banco)
+npm test               # testes Deno com integrações simuladas
 npm run check          # deno check de todas as Edge Functions
 npm run lint:js        # sintaxe do JS do frontend
 npm run secrets:scan   # procura segredos versionados por engano
