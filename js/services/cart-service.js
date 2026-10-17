@@ -42,7 +42,7 @@
     constructor() {
       // migra da versão antiga (só contador): nada a preservar, apenas remove.
       try { localStorage.removeItem(OLD_COUNTER_KEY); } catch { /* ignore */ }
-      this._items = readStorage();
+      this._items = readStorage().filter(i=>i&&typeof i.slug==='string'&&Number.isInteger(i.quantity)&&i.quantity>0&&i.quantity<=20&&Number.isFinite(i.unitPrice)&&i.unitPrice>=0);
       this._listeners = [];
     }
 
@@ -86,10 +86,13 @@
      * `clamped` no retorno indica se a quantidade pedida foi reduzida.
      */
     addItem(product, variant, quantity) {
+      const variants=product.variants?.items||[];
+      if(product.available===false||(variants.length&&(!variant||!variants.some(v=>String(v.id)===String(variant.id))))||variant?.available===false)return {items:this.getItems(),clamped:true,maxQuantity:0};
       const requested = Math.max(1, Math.round(Number(quantity) || 1));
       const knownStock = variant && variant.stock != null ? Number(variant.stock) : (product.stock != null ? Number(product.stock) : null);
       const ceiling = knownStock != null && Number.isFinite(knownStock) ? Math.max(0, Math.floor(knownStock)) : 20;
       const cap = Math.min(20, ceiling);
+      if(cap===0)return {items:this.getItems(),clamped:true,maxQuantity:0};
       const variantId = variant ? variant.id : null;
       const variantBlingId = variant ? variant.blingId : null;
       const unitPrice = variant && variant.promotionalPrice != null
@@ -144,6 +147,7 @@
         cap = Math.min(20, ceiling);
         item.quantity = Math.min(cap, q);
         clamped = item.quantity < q;
+        if (cap === 0) this._items = this._items.filter((i) => i.key !== key);
       }
       this._emit();
       return { items: this.getItems(), clamped, maxQuantity: cap };

@@ -42,15 +42,7 @@
   /* -----------------------------------------------------------
      WhatsApp
      ----------------------------------------------------------- */
-  const WHATSAPP_NUMBER = '554730911041';
-  const WHATSAPP_TEXT = encodeURIComponent(
-    'Olá! Vim do site da Anarosa e gostaria de mais informações.'
-  );
-  const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_TEXT}`;
-
-  document.querySelectorAll('[data-whatsapp-link]').forEach((el) => {
-    el.setAttribute('href', WHATSAPP_LINK);
-  });
+  // Links comerciais são aplicados pelo serviço de configurações.
 
   /* -----------------------------------------------------------
      Toast
@@ -205,25 +197,14 @@
 
   function openVariantModal(product) {
     if (!variantModalOverlay) return;
-    const variants = (product.variants && product.variants.items) || [];
-    variantModalOverlay.innerHTML = `
-      <div class="variant-modal" role="dialog" aria-modal="true" aria-label="Escolher variação de ${escapeHtml(product.name)}">
-        <h3>${escapeHtml(product.name)}</h3>
-        <p class="variant-modal-sub">Escolha a variação:</p>
-        <div class="variant-option-list">${variants.map(variantOptionHTML).join('')}</div>
-        <button type="button" class="btn btn-outline variant-modal-close" data-variant-modal-close>Cancelar</button>
-      </div>`;
-    variantModalOverlay.hidden = false;
-    variantModalOverlay.querySelectorAll('[data-variant-option]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const variant = variants.find((v) => String(v.id) === btn.dataset.variantOption);
-        if (variant) {
-          addProductToCart(product, variant, 1);
-          closeVariantModal();
-        }
-      });
-    });
-    variantModalOverlay.querySelector('[data-variant-modal-close]')?.addEventListener('click', closeVariantModal);
+    const variants=product.variants?.items||[];let selected=null;
+    const images=product.images?.length?product.images:[product.image||placeholderImage];
+    variantModalOverlay.innerHTML=`<div class="variant-modal product-detail-modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(product.name)}"><button type="button" class="btn btn-outline variant-modal-close" data-variant-modal-close>Fechar</button><div class="product-detail-grid"><div><img class="product-detail-main" data-detail-image src="${escapeHtml(images[0])}" alt="${escapeHtml(product.name)}"><div class="product-thumbnails">${images.map((url,i)=>`<button type="button" data-image-index="${i}" aria-label="Foto ${i+1}"><img src="${escapeHtml(url)}" alt="" loading="lazy"></button>`).join('')}</div></div><div><h2>${escapeHtml(product.name)}</h2><p class="price-now" data-detail-price>${formatPrice(product.promotionalPrice??product.price)}</p><p>${variants.length?'Escolha tamanho e cor:':'Produto único'}</p><div class="variant-option-list">${variants.map(variantOptionHTML).join('')}</div><p data-detail-stock role="status">${product.available===false?'Indisponível no momento':variants.length?'Selecione uma opção para conferir o saldo':`${product.stock} unidade(s) disponíveis`}</p><button type="button" class="btn btn-primary" data-detail-add ${variants.length||product.available===false?'disabled':''}>Adicionar ao carrinho</button><h3>Descrição e medidas</h3><div class="product-description">${escapeHtml(product.description||'Consulte a equipe para detalhes e medidas desta peça.')}</div></div></div></div>`;
+    variantModalOverlay.hidden=false;
+    variantModalOverlay.querySelectorAll('[data-image-index]').forEach(b=>b.addEventListener('click',()=>variantModalOverlay.querySelector('[data-detail-image]').src=images[Number(b.dataset.imageIndex)]));
+    variantModalOverlay.querySelectorAll('[data-variant-option]').forEach(b=>b.addEventListener('click',()=>{selected=variants.find(v=>String(v.id)===b.dataset.variantOption);variantModalOverlay.querySelectorAll('[data-variant-option]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));variantModalOverlay.querySelector('[data-detail-price]').textContent=formatPrice(selected.promotionalPrice??selected.price??product.price);variantModalOverlay.querySelector('[data-detail-stock]').textContent=`${selected.stock} unidade(s) disponíveis`;variantModalOverlay.querySelector('[data-detail-add]').disabled=false;}));
+    variantModalOverlay.querySelector('[data-detail-add]').addEventListener('click',()=>{addProductToCart(product,selected,1);closeVariantModal();});
+    variantModalOverlay.querySelector('[data-variant-modal-close]').addEventListener('click',closeVariantModal);
   }
 
   variantModalOverlay?.addEventListener('click', (event) => {
@@ -258,16 +239,17 @@
           </button>`}
         </figure>
         <div class="product-info">
-          <p class="product-name">${safeName}</p>
+          <button type="button" class="product-name product-detail-link" data-product-detail="${escapeHtml(product.id)}">${safeName}</button>
           <p class="product-price">${priceHTML}</p>
           <p class="product-installment">${escapeHtml(product.installment)}</p>
-          <p class="product-pix">5% OFF no Pix: <strong>${formatPrice(product.pixPrice)}</strong></p>
+
         </div>
       </div>`;
   }
 
   function bindQuickAdd(container) {
     if (!container) return;
+    container.querySelectorAll('[data-product-detail]').forEach(btn=>btn.addEventListener('click',()=>{const p=PRODUCTS.find(p=>String(p.id)===btn.dataset.productDetail);if(p)openVariantModal(p);}));
     container.querySelectorAll('[data-add-to-cart]').forEach((btn) => {
       btn.addEventListener('click', (event) => {
         event.preventDefault();
@@ -340,6 +322,16 @@
     renderProducts(weeklyPickProducts, weeklyScroller, weeklyGrid);
   }
 
+  function initFilters(){
+    let filters=document.querySelector('[data-catalog-filters]');
+    if(!filters){filters=document.createElement('div');filters.dataset.catalogFilters='';filters.className='catalog-filters';novidadesGrid.parentElement.before(filters);}
+    const categories=[...new Map(PRODUCTS.filter(p=>p.category).map(p=>[p.category,{slug:p.category,name:p.categoryName||p.category}])).values()];
+    filters.innerHTML=`<label>Categoria<select data-filter-category><option value="">Todas</option>${categories.map(c=>`<option value="${escapeHtml(c.slug)}">${escapeHtml(c.name)}</option>`).join('')}</select></label><label>Ordenar<select data-filter-sort><option value="name">Nome</option><option value="price-asc">Menor preço</option><option value="price-desc">Maior preço</option></select></label><label><input type="checkbox" data-filter-available> Somente disponíveis</label><span data-filter-count role="status"></span>`;
+    const apply=()=>{let list=PRODUCTS.filter(p=>(!filters.querySelector('[data-filter-category]').value||p.category===filters.querySelector('[data-filter-category]').value)&&(!filters.querySelector('[data-filter-available]').checked||p.available));const sort=filters.querySelector('[data-filter-sort]').value;list.sort((a,b)=>sort==='name'?a.name.localeCompare(b.name,'pt-BR'):((a.promotionalPrice??a.price)-(b.promotionalPrice??b.price))*(sort==='price-desc'?-1:1));renderProducts(list,novidadesScroller,novidadesGrid,'Nenhum produto corresponde aos filtros.');filters.querySelector('[data-filter-count]').textContent=`${list.length} produto(s)`;};
+    filters.addEventListener('change',apply);
+    document.querySelectorAll('[data-categories-desktop],[data-categories-mobile],[data-live-category-nav]').forEach(el=>{el.innerHTML=categories.map(c=>`<a class="category-label" href="#novidades" data-real-category="${escapeHtml(c.slug)}">${escapeHtml(c.name)}</a>`).join('');el.querySelectorAll('[data-real-category]').forEach(a=>a.addEventListener('click',()=>{filters.querySelector('[data-filter-category]').value=a.dataset.realCategory;apply();closeDrawer();}));});
+  }
+
   async function initCatalog() {
     renderCatalogLoading();
     try {
@@ -349,6 +341,7 @@
       bestSellerProducts = sections.bestSellers;
       weeklyPickProducts = sections.weeklyPicks;
       renderHomeSections();
+      initFilters();
     } catch (err) {
       console.error('[Anarosa] catálogo indisponível:', err);
       renderCatalogError();
@@ -443,8 +436,8 @@
 
   const instagramGridEl = document.querySelector('[data-instagram-grid]');
   const instagramScrollerEl = document.querySelector('[data-instagram-scroller]');
-  if (instagramGridEl) instagramGridEl.innerHTML = INSTAGRAM_POSTS.map(instagramItemHTML).join('');
-  if (instagramScrollerEl) instagramScrollerEl.innerHTML = INSTAGRAM_POSTS.map(instagramItemHTML).join('');
+  if (instagramGridEl) instagramGridEl.hidden = true;
+  if (instagramScrollerEl) instagramScrollerEl.hidden = true;
 
   /* -----------------------------------------------------------
      Hero slider
@@ -597,7 +590,7 @@
     event.preventDefault();
     const emailInput = newsletterForm.querySelector('input[type="email"]');
     if (!emailInput || !emailInput.value) return;
-    if (newsletterMsg) newsletterMsg.textContent = 'Cadastro recebido! Em breve novidades no seu e-mail.';
+    if (newsletterMsg) newsletterMsg.textContent = 'Acompanhe as novidades pelo Instagram da Anarosa.';
     newsletterForm.reset();
   });
 

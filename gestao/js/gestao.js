@@ -34,6 +34,15 @@
     setTimeout(() => toastEl.classList.remove('is-visible'), 2600);
   }
 
+  async function operationIdentity(scope,payload){
+    const fingerprint=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(payload))))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const session=await window.GestaoAuth.getSession();
+    const storageKey=`anarosa_admin_intent:${session?.user?.id||'session'}:${scope}`;
+    let saved;try{saved=JSON.parse(sessionStorage.getItem(storageKey));}catch{}
+    if(!saved||saved.fingerprint!==fingerprint){saved={fingerprint,key:crypto.randomUUID()};try{sessionStorage.setItem(storageKey,JSON.stringify(saved));}catch{}}
+    return {key:saved.key,clear:()=>{try{sessionStorage.removeItem(storageKey);}catch{}}};
+  }
+
   /**
    * Traduz um erro da API para uma mensagem amigável (FASE A / A6) —
    * nunca mostra nome de operação técnica ("products.update"), código
@@ -205,7 +214,7 @@
       const cards = [
         ['Pedidos novos', summary.newOrders],
         ['Pedidos hoje', summary.ordersToday],
-        ['Vendas hoje', fmtMoney(summary.revenueToday)],
+        ['Recebido hoje', fmtMoney(summary.revenueToday)],
         ['Vendas no mês', fmtMoney(summary.revenueMonth)],
         ['Clientes', summary.customers],
       ];
@@ -224,6 +233,7 @@
       $('[data-stat="lastSyncAtLabel"]').textContent = fmtDate(summary.lastSyncAt);
       $('[data-stat="lastWebhookAtLabel"]').textContent = fmtDate(summary.lastWebhookAt);
       $('[data-dashboard-extra]').hidden = false;
+      window.GestaoExtras.dashboard(summary);
     } catch (err) {
       if (err.status === 401) return handleSessionExpired('dashboard');
       renderState('dashboard', 'error', 'Não foi possível carregar o resumo agora.');
@@ -273,6 +283,8 @@
     try {
       const params = {
         status: $('[data-orders-status]').value || undefined,
+        origin: $('[data-orders-origin]').value || undefined,
+        paymentStatus: $('[data-orders-payment]').value || undefined,
         from: $('[data-orders-from]').value || undefined,
         to: $('[data-orders-to]').value || undefined,
         search: $('[data-orders-search]').value.trim() || undefined,
@@ -357,6 +369,7 @@
         </dl>
         ${order.notes ? `<p class="gestao-note"><strong>Observações:</strong> ${escapeHtml(order.notes)}</p>` : ''}
       `;
+      window.GestaoExtras.orderActions(order,openOrderDrawer);
     } catch (err) {
       if (err.status === 401) { closeOrderDrawer(); return handleSessionExpired('detalhe do pedido'); }
       $('[data-order-drawer-body]').innerHTML = '<div class="gestao-state-box is-error">Não foi possível carregar este pedido.</div>';
@@ -386,7 +399,7 @@
           ${hasVariants ? `<p class="gestao-product-meta">${escapeHtml(p.variants.length)} variação(ões)</p>` : ''}
           <p class="gestao-product-meta">${p.active ? 'Ativo' : 'Inativo'} · atualizado ${fmtDate(p.updatedAt)}</p>
           <div class="gestao-product-actions">
-            <button type="button" class="btn btn-outline" data-product-edit ${hasVariants ? 'disabled title="Produto com variação — edite direto no Bling"' : ''}>Editar</button>
+            <button type="button" class="btn btn-outline" data-product-edit>Editar</button>
             <button type="button" class="btn btn-outline" data-product-stock>Ajustar estoque</button>
             <button type="button" class="btn btn-outline" data-product-toggle-active>${p.active ? 'Desativar' : 'Ativar'}</button>
           </div>
@@ -492,7 +505,7 @@
     }
   }
 
-  function openProductDrawer(mode, product) {
+  async function openProductDrawer(mode, product) {
     editingBlingId = mode === 'edit' ? product.blingId : null;
     $('[data-product-drawer-title]').textContent = mode === 'edit' ? 'Editar produto' : 'Novo produto';
     $('[data-product-form-error]').hidden = true;
@@ -507,11 +520,12 @@
       // branco; o backend preserva o valor atual no Bling quando o campo
       // não é preenchido (ver buildBlingProductUpdatePayload).
     }
-    loadCategoryOptions(mode === 'edit' && product ? product.category : null);
+    await loadCategoryOptions(mode === 'edit' && product ? product.category : null);
     const submitBtn = $('[data-product-form-submit]');
-    submitBtn.disabled = mode === 'edit' && product.variants.length > 0;
+    submitBtn.disabled = true;
     productDrawer.hidden = false;
     productDrawerOverlay.hidden = false;
+    try { await window.AnaProductEditor.load(editingBlingId); submitBtn.disabled=false; } catch(err) { $('[data-product-form-error]').textContent=err.message; $('[data-product-form-error]').hidden=false; }
   }
   $('[data-product-new]')?.addEventListener('click', () => openProductDrawer('create', null));
 
@@ -529,6 +543,7 @@
     try {
       const fd = new FormData(productForm);
       const body = {
+        ...window.AnaProductEditor.read(),
         nome: String(fd.get('nome') || '').trim(),
         sku: String(fd.get('sku') || '').trim() || undefined,
         preco: Number(fd.get('preco')),
@@ -537,13 +552,16 @@
         descricaoCurta: String(fd.get('descricaoCurta') || '').trim() || undefined,
         ativo: fd.get('ativo') === 'on',
       };
+      const operation=await operationIdentity(`product:${editingBlingId||body.sku}`,body);
+      body.operationKey=operation.key;
       if (editingBlingId) {
-        await window.GestaoApi.updateProduct({ ...body, blingId: editingBlingId });
-        showToast('Produto salvo no Bling.');
+        const result=await window.GestaoApi.updateProduct({ ...body, blingId: editingBlingId });
+        showToast(result.message);
       } else {
-        await window.GestaoApi.createProduct(body);
-        showToast('Produto salvo no Bling.');
+        const result=await window.GestaoApi.createProduct(body);
+        showToast(result.message);
       }
+      operation.clear();
       closeProductDrawer();
       loadProducts(false);
     } catch (err) {
@@ -591,14 +609,31 @@
   $$('[data-stock-drawer-close]').forEach((el) => el.addEventListener('click', closeStockDrawer));
   stockDrawerOverlay?.addEventListener('click', closeStockDrawer);
 
+  async function loadStockHistory(id){
+    let box=stockDrawer.querySelector('[data-stock-history]');
+    if(!box){box=document.createElement('div');box.dataset.stockHistory='';stockForm.after(box);}
+    box.textContent='Carregando saldos e ajustes…';
+    try{
+      const data=await window.GestaoApi.stockHistory(id);if(id!==stockAdjustBlingId)return;
+      const labels={completed:'Concluído',failed:'Rejeitado',review:'Conferir no Bling',processing:'Em processamento'};
+      box.innerHTML=`<h3>Saldos sincronizados do Bling</h3>${(data.balances||[]).map(b=>`<p>${escapeHtml(b.deposit_id==='__total__'?'Total':`Depósito ${b.deposit_id}`)} · físico: ${b.physical_stock??'a confirmar'} · virtual: ${b.virtual_stock??'a confirmar'}</p>`).join('')||'<p>Sem saldo sincronizado para este SKU.</p>'}<h3>Últimos ajustes feitos neste painel</h3>${(data.operations||[]).map(o=>`<p>${escapeHtml(fmtDate(o.created_at))} · ${escapeHtml(labels[o.status]||o.status)}${o.result?.operation?` · ${{B:'Balanço',E:'Entrada',S:'Saída'}[o.result.operation]||''}: ${Number(o.result.quantity)}`:''}</p>`).join('')||'<p>Nenhum ajuste registrado neste painel.</p>'}`;
+    }catch{box.textContent='Não foi possível carregar o histórico agora.';}
+  }
+
   async function openStockDrawer(product) {
     stockAdjustBlingId = product.blingId;
+    const skuSelect=$('[data-stock-sku]');
+    const choices=product.variants.length?product.variants:[{blingId:product.blingId,name:product.name,sku:product.sku}];
+    skuSelect.innerHTML=choices.map(v=>`<option value="${escapeHtml(v.blingId)}">${escapeHtml(v.name)} · ${escapeHtml(v.sku||'')} · saldo ${v.stock??'a confirmar'}</option>`).join('');
+    skuSelect.onchange=()=>{stockAdjustBlingId=skuSelect.value;loadStockHistory(stockAdjustBlingId);};
+    stockAdjustBlingId=choices[0].blingId;
     $('[data-stock-drawer-product-name]').textContent = product.name;
     $('[data-stock-form-error]').hidden = true;
     stockForm.reset();
     applyStockMode(''); // sempre reabre no modo padrão (definir estoque atual)
     stockDrawer.hidden = false;
     stockDrawerOverlay.hidden = false;
+    loadStockHistory(stockAdjustBlingId);
 
     const select = $('[data-stock-deposit-select]');
     select.innerHTML = '<option value="">Carregando depósitos…</option>';
@@ -644,14 +679,17 @@
       const fd = new FormData(stockForm);
       const modeKey = $('[data-stock-operacao-avancada]').value;
       const operacao = (STOCK_MODES[modeKey] || STOCK_MODES['']).operacao;
-      await window.GestaoApi.adjustStock({
+      const payload={
         blingProductId: stockAdjustBlingId,
         depositoId: String(fd.get('depositoId') || ''),
         operacao,
         quantidade: Number(fd.get('quantidade')),
         observacoes: String(fd.get('observacoes') || '').trim() || undefined,
-      });
-      showToast('Estoque atualizado.');
+      };
+      const operation=await operationIdentity(`stock:${payload.blingProductId}:${payload.depositoId}`,payload);
+      const result=await window.GestaoApi.adjustStock({...payload,operationKey:operation.key});
+      operation.clear();
+      showToast(result.message);
       closeStockDrawer();
       loadProducts(false);
     } catch (err) {
@@ -694,7 +732,7 @@
   function customerRowHTML(c) {
     return `
       <tr>
-        <td>${escapeHtml(c.name || '—')}</td>
+        <td><button class="customer-history" data-customer-history="${escapeHtml(c.phone)}">${escapeHtml(c.name || '—')}</button></td>
         <td>${escapeHtml(c.phone || '—')}</td>
         <td>${escapeHtml(c.email || '—')}</td>
         <td>${escapeHtml(c.orderCount)}</td>
@@ -716,6 +754,7 @@
       renderState('clientes', null);
       $('[data-customers-tbody]').innerHTML = items.map(customerRowHTML).join('');
       $('[data-customers-table-wrap]').hidden = false;
+      window.GestaoExtras.customers(openOrderDrawer);
     } catch (err) {
       if (err.status === 401) return handleSessionExpired('clientes');
       renderState('clientes', 'error', 'Não foi possível carregar os clientes agora.');
@@ -754,6 +793,7 @@
     const session = await window.GestaoAuth.getSession();
     const email = session?.user?.email || '—';
     $('[data-settings-email]').textContent = email;
+    await window.GestaoExtras.loadSettings();
   }
 
   // ---------------------------------------------------------------

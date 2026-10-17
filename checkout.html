@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <meta name="referrer" content="no-referrer">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, follow">
@@ -119,11 +120,11 @@
     <!-- ETAPA 4 — Pagamento -->
     <section class="checkout-panel" data-panel="payment" hidden>
       <h2>Forma de pagamento</h2>
-      <p class="checkout-note">Escolha sua preferência — o pagamento é combinado diretamente com a equipe Anarosa (Pix, cartão na retirada ou pelo WhatsApp). Nenhum dado de cartão é coletado neste site.</p>
+      <p class="checkout-note">Pague online com Pix ou cartão na InfinitePay, ou escolha combinar com a equipe. Dados do cartão são preenchidos somente no ambiente da InfinitePay.</p>
       <div class="checkout-option-group" data-payment-method>
         <label class="checkout-option">
           <input type="radio" name="paymentMethod" value="pix" checked>
-          <span><strong>Pix</strong><br>Chave enviada após a confirmação do pedido</span>
+          <span><strong>Pagamento online</strong><br>Pix ou cartão via InfinitePay, com confirmação automática</span>
         </label>
         <label class="checkout-option">
           <input type="radio" name="paymentMethod" value="card_on_pickup">
@@ -134,7 +135,7 @@
           <span><strong>Combinar pelo WhatsApp</strong><br>Nossa equipe fala com você para fechar o pagamento</span>
         </label>
       </div>
-      <div class="checkout-actions">
+      <p class="checkout-form-error" data-payment-error hidden role="alert"></p><div class="checkout-actions">
         <button type="button" class="btn btn-outline" data-back="payment">Voltar</button>
         <button type="button" class="btn btn-primary" data-next="payment">Continuar</button>
       </div>
@@ -188,6 +189,8 @@
   <div class="toast" data-toast role="status" aria-live="polite"></div>
 
   <script src="js/config.js"></script>
+  <script src="js/services/settings-service.js"></script>
+  <script src="js/services/ui-service.js"></script>
   <script src="js/services/cart-service.js"></script>
   <script src="js/checkout.js"></script>
 </body>

@@ -71,8 +71,8 @@
       images: images.length ? images : [image],
       price,
       promotionalPrice,
-      installment: makeInstallment(activePrice),
-      pixPrice: activePrice * 0.95,
+      installment: 'Pix ou cartão no pagamento online',
+      pixPrice: activePrice,
       badge,
       variants: { sizes, colors, items: variants },
       stock: p.stock ?? null,
@@ -150,7 +150,7 @@
 
       let res;
       try {
-        res = await fetch(key, { headers: this._headers() });
+        res = await fetch(key, { headers: this._headers(), signal:AbortSignal.timeout(15000) });
       } catch (err) {
         throw new CatalogUnavailableError('Falha de rede ao carregar o catálogo.', err);
       }
@@ -163,8 +163,13 @@
     }
 
     async getProducts() {
-      const json = await this._fetchJson('storefront-products', { limit: 200 });
-      return (json.items || []).map((p) => normalizePublicProduct(p, this.config));
+      const products=[];
+      for(let offset=0;offset<10000;offset+=200){
+        const json=await this._fetchJson('storefront-products',{limit:200,offset});
+        const items=json.items||[];products.push(...items);
+        if(items.length<200||products.length>=Number(json.total))return products.map(p=>normalizePublicProduct(p,this.config));
+      }
+      throw new CatalogUnavailableError('Catálogo excede o limite de carregamento.');
     }
     async getProductBySlug(slug) {
       const json = await this._fetchJson('storefront-product', { slug });
@@ -223,7 +228,7 @@
   }
 
   function createCatalogService(config) {
-    const cfg = Object.assign({ catalogProvider: 'mock' }, config || {});
+    const cfg = Object.assign({ catalogProvider: 'supabase' }, config || {});
     const provider = cfg.catalogProvider === 'supabase'
       ? new SupabaseCatalogProvider(cfg)
       : new MockCatalogProvider();

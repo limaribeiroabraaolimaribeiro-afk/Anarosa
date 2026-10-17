@@ -120,6 +120,8 @@
             <option value="cancelados">Cancelados</option>
           </select>
           <input type="date" data-orders-from aria-label="De">
+          <select data-orders-origin aria-label="Origem"><option value="">Todas as origens</option><option value="site">Site</option><option value="mercado_livre">Mercado Livre</option><option value="bling_import">Bling</option><option value="manual">Manual</option><option value="other">Outras</option></select>
+          <select data-orders-payment aria-label="Pagamento"><option value="">Todos os pagamentos</option><option value="paid">Pago</option><option value="pending">Pendente</option><option value="failed">Precisa de atenção</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select>
           <input type="date" data-orders-to aria-label="Até">
           <input type="search" data-orders-search placeholder="Buscar por cliente ou telefone…">
           <button type="button" class="btn btn-outline" data-orders-filter>Filtrar</button>
@@ -237,10 +239,10 @@
       </button>
     </div>
     <div class="gestao-drawer-body">
-      <p class="gestao-note" data-product-form-variant-note hidden>Este produto tem variações — nesta versão, produtos com variação só podem ter nome/preço/categoria/situação alterados direto no Bling. Aqui você ainda pode ativar/desativar e ajustar estoque normalmente.</p>
+      <p class="gestao-note" data-product-form-variant-note hidden>Edite cada tamanho e cor abaixo. O estoque é ajustado separadamente por SKU; desative variações antigas para preservar o histórico.</p>
       <form data-product-form>
         <label>Nome *<input type="text" name="nome" required maxlength="120"></label>
-        <label>SKU (código)<input type="text" name="sku" maxlength="60" placeholder="Opcional"></label>
+        <label>SKU (código único) *<input type="text" name="sku" required maxlength="60"></label>
         <label>Preço (R$) *<input type="number" name="preco" required min="0" step="0.01"></label>
         <label>Categoria
           <select name="categoriaId" data-product-category-select>
@@ -279,7 +281,7 @@
       </button>
     </div>
     <div class="gestao-drawer-body">
-      <form data-stock-form>
+      <form data-stock-form><label data-stock-sku-label>Produto / tamanho<select data-stock-sku></select></label>
         <p class="gestao-note" data-stock-mode-hint>Informe quantas unidades existem atualmente no estoque.</p>
         <label><span data-stock-quantidade-label>Estoque atual (quantidade)</span> *
           <input type="number" name="quantidade" required min="0" step="1">
@@ -320,6 +322,9 @@
   <script src="../js/config.js"></script>
   <script src="js/gestao-auth.js"></script>
   <script src="js/gestao-api.js"></script>
+  <script src="js/product-editor.js"></script>
+  <script src="js/gestao-extras.js"></script>
+  <script src="../js/services/ui-service.js"></script>
   <script src="js/gestao.js"></script>
 </body>
 </html>

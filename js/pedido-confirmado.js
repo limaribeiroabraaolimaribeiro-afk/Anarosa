@@ -58,7 +58,7 @@
 
     if (data) {
       if (els.details) els.details.hidden = false;
-      if (els.total) els.total.textContent = formatPrice(data.total);
+      if (els.total) els.total.textContent = formatPrice(data.total)+(data.shippingPricing==='quote'?' + frete a combinar':'');
       if (els.delivery) els.delivery.textContent = DELIVERY_LABELS[data.deliveryMethod] || '—';
       const hasPayment = data.payment && (data.payment.captureMethod || data.payment.installments);
       if (els.paymentRow) els.paymentRow.hidden = !hasPayment;
@@ -68,7 +68,7 @@
         els.payment.textContent = `${methodLabel}${installments}`;
       }
       if (els.receipt) {
-        if (data.payment && data.payment.receiptUrl) {
+        if (data.payment && /^https:\/\/(?:[a-z0-9-]+\.)*infinitepay\.(?:io|com\.br)\//i.test(data.payment.receiptUrl||'')) {
           els.receipt.href = data.payment.receiptUrl;
           els.receipt.hidden = false;
         } else {

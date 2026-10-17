@@ -33,7 +33,16 @@
   const cart = window.AnarosaCart.createCartService();
 
   const STEPS = ['cart', 'customer', 'delivery', 'payment', 'review', 'confirmation'];
-  const DRAFT_KEY = 'anarosa_checkout_draft_v1';
+  const DRAFT_KEY = 'anarosa_checkout_draft_v2';
+  try{localStorage.removeItem('anarosa_checkout_draft_v1');}catch{}
+  let businessSettings=null;
+  window.AnarosaSettings.ready.then(value=>{businessSettings=value;if(!value)showBanner('Não foi possível carregar as opções da loja. Atualize a página antes de concluir.');else{
+    for(const [name,enabled] of [['shippingMethod',value.deliveryMethods],['paymentMethod',value.paymentMethods]]){
+      const options=[...document.querySelectorAll(`input[name="${name}"]`)];
+      options.forEach(el=>{el.disabled=!enabled.includes(el.value);el.closest('label').hidden=el.disabled;});
+      if(!options.some(el=>el.checked&&!el.disabled)){const first=options.find(el=>!el.disabled);if(first){first.checked=true;first.dispatchEvent(new Event('change',{bubbles:true}));}}
+    }
+  }});
 
   function escapeHtml(v) {
     return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -45,13 +54,13 @@
 
   function loadDraft() {
     try {
-      return JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+      return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '{}');
     } catch {
       return {};
     }
   }
   function saveDraft() {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* ignore */ }
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* ignore */ }
   }
 
   const draft = Object.assign(
@@ -147,7 +156,7 @@
     const errEl = document.querySelector('[data-form-error="customer"]');
     const name = customerForm.name.value.trim();
     const phone = customerForm.phone.value.trim();
-    if (!name || !phone) {
+    if (name.length<2 || !/^(?:55)?[1-9]{2}\d{8,9}$/.test(phone.replace(/\D/g,'')) || !customerForm.checkValidity()) {
       errEl.textContent = 'Nome e WhatsApp/telefone são obrigatórios.';
       errEl.hidden = false;
       return false;
@@ -179,12 +188,16 @@
     }
   }
 
+  let cepRequest=0;
+  addressForm?.zip.addEventListener('blur',async()=>{const cep=addressForm.zip.value.replace(/\D/g,'');if(!/^\d{8}$/.test(cep))return;const n=++cepRequest;const errEl=document.querySelector('[data-form-error="delivery"]');try{const res=await fetch(`https://viacep.com.br/ws/${cep}/json/`,{signal:AbortSignal.timeout(8000)});if(!res.ok)throw new Error();const data=await res.json();if(data.erro)throw new Error();if(n!==cepRequest||addressForm.zip.value.replace(/\D/g,'')!==cep)return;for(const [key,value] of Object.entries({street:data.logradouro,district:data.bairro,city:data.localidade,state:data.uf}))if(value)addressForm[key].value=value;errEl.hidden=true;}catch{errEl.textContent='Não foi possível consultar o CEP. Preencha o endereço manualmente.';errEl.hidden=false;}});
+
   function validateDelivery() {
     const errEl = document.querySelector('[data-form-error="delivery"]');
     const method = document.querySelector('input[name="shippingMethod"]:checked').value;
     if (method === 'delivery') {
       const required = ['zip', 'street', 'number', 'district', 'city', 'state'];
       const missing = required.filter((f) => !addressForm[f].value.trim());
+      if(!/^\d{8}$/.test(addressForm.zip.value.replace(/\D/g,'')))missing.push('zip');
       if (missing.length) {
         errEl.textContent = 'Preencha o endereço completo para entrega.';
         errEl.hidden = false;
@@ -215,7 +228,11 @@
     if (draft.payment.method === r.value) r.checked = true;
   });
   function validatePayment() {
-    draft.payment = { method: document.querySelector('input[name="paymentMethod"]:checked').value };
+    const selected=document.querySelector('input[name="paymentMethod"]:checked');
+    const paymentError=document.querySelector('[data-payment-error]');
+    if(!businessSettings||!selected||selected.disabled||(selected.value==='pix'&&draft.shipping.method==='delivery'&&businessSettings.deliveryPricing==='quote')){if(paymentError){paymentError.hidden=false;paymentError.textContent='O frete precisa ser definido antes do pagamento online. Escolha combinar pelo WhatsApp.';}return false;}
+    if(paymentError)paymentError.hidden=true;
+    draft.payment = { method:selected.value };
     saveDraft();
     return true;
   }
@@ -305,17 +322,18 @@
         warnings.push(`"${item.name}" não está mais disponível.`);
       } else {
         const variant = item.variantBlingId ? (latest.variants || []).find((v) => v.blingId === item.variantBlingId) : null;
-        if (item.variantBlingId && !variant) {
+        if ((item.variantBlingId && !variant) || ((latest.variants||[]).length&&!item.variantBlingId)) {
           unavailable = true;
           warnings.push(`A variação escolhida de "${item.name}" não está mais disponível.`);
         } else {
           const source = variant || latest;
           currentUnitPrice = source.promotionalPrice != null ? source.promotionalPrice : source.price;
           currentStock = source.stock;
-          if (source.available === false) {
+          if (source.available === false || currentStock == null) {
             unavailable = true;
             warnings.push(`"${item.name}" está esgotado.`);
           } else if (currentStock != null && currentStock < item.quantity) {
+            unavailable = true;
             warnings.push(`Estoque de "${item.name}" mudou (disponível: ${currentStock}).`);
           }
           if (currentUnitPrice != null && Math.abs(currentUnitPrice - item.unitPrice) > 0.001) {
@@ -339,7 +357,7 @@
     }
 
     const total = reviewItems.filter((i) => !i.unavailable).reduce((sum, i) => sum + i.currentUnitPrice * i.quantity, 0);
-    if (totalEl) totalEl.textContent = formatPrice(total);
+    if (totalEl) totalEl.textContent = formatPrice(total+(draft.shipping.method==='delivery'&&businessSettings?.deliveryPricing==='fixed'?Number(businessSettings.deliveryPrice):0))+(draft.shipping.method==='delivery'&&businessSettings?.deliveryPricing!=='fixed'?' + frete a combinar':'');
 
     const custEl = document.querySelector('[data-review-customer]');
     if (custEl) custEl.textContent = `${draft.customer.name} — ${draft.customer.phone}${draft.customer.email ? ' — ' + draft.customer.email : ''}`;
@@ -359,7 +377,7 @@
       warningsEl.innerHTML = `<strong>Atenção:</strong><ul>${warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul>`;
     }
 
-    confirmBtn.disabled = reviewItems.some((i) => i.unavailable) || reviewItems.length === 0;
+    confirmBtn.disabled = !businessSettings || reviewItems.some((i) => i.unavailable) || reviewItems.length === 0;
   }
 
   /* -----------------------------------------------------------
@@ -384,6 +402,9 @@
       items,
     };
 
+    const signature=JSON.stringify(payload);
+    if(draft.intentSignature!==signature){draft.intentSignature=signature;draft.idempotencyKey=crypto.randomUUID().replaceAll('-','');draft.publicToken=null;saveDraft();}
+    payload.idempotencyKey=draft.idempotencyKey;
     try {
       const res = await fetch(`${baseUrl}/storefront-checkout`, {
         method: 'POST',
@@ -406,7 +427,7 @@
       // preferência registrada — vão direto para a confirmação local.
       if (draft.payment.method !== 'pix') {
         cart.clear();
-        try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+        try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
         const orderIdEl = document.querySelector('[data-confirmation-order-id]');
         if (orderIdEl) orderIdEl.textContent = json.orderId || '—';
         showStep('confirmation');
@@ -417,17 +438,18 @@
       const payRes = await fetch(`${baseUrl}/infinitepay-create-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ orderId: json.orderId }),
+        body: JSON.stringify({ publicToken: json.publicToken }),
       });
       const payJson = await payRes.json().catch(() => ({}));
       if (payRes.ok && payJson.paymentUrl) {
-        try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+        draft.publicToken=json.publicToken;saveDraft();
+        if(!/^https:\/\/(?:[a-z0-9-]+\.)*infinitepay\.(?:io|com\.br)\//i.test(payJson.paymentUrl))throw new Error('URL de pagamento inválida');
         window.location.href = payJson.paymentUrl;
         return;
       }
       if (payRes.ok && payJson.alreadyPaid) {
         cart.clear();
-        try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+        try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
         window.location.href = `pedido-confirmado.html?token=${encodeURIComponent(payJson.publicToken)}`;
         return;
       }
@@ -453,11 +475,7 @@
   /* -----------------------------------------------------------
      WhatsApp (confirmação)
      ----------------------------------------------------------- */
-  const WHATSAPP_NUMBER = '554730911041';
-  document.querySelectorAll('[data-whatsapp-link]').forEach((el) => {
-    const text = encodeURIComponent('Olá! Acabei de fazer um pedido no site da Anarosa e gostaria de confirmar os detalhes.');
-    el.setAttribute('href', `https://wa.me/${WHATSAPP_NUMBER}?text=${text}`);
-  });
+  // Atendimento e links comerciais vêm de AnarosaSettings.
 
   if (!baseUrl) showBanner('Catálogo não configurado (js/config.js). O checkout não pode ser concluído neste ambiente.');
 
