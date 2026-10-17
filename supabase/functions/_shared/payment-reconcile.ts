@@ -64,7 +64,7 @@ export async function reconcilePayment(
 
   const expectedCents = Math.round((Number(order.total) || 0) * 100);
   if (check.amount == null || check.amount !== expectedCents) {
-    await ctx.db.rpc('payment_flag_failed', {
+    const { error: flagError } = await ctx.db.rpc('payment_flag_failed', {
       p_order_id: order.id,
       p_reason: 'amount_mismatch',
       p_raw: {
@@ -74,6 +74,7 @@ export async function reconcilePayment(
         captureMethod: check.captureMethod,
       },
     });
+    if (flagError) throw new Error('payment_flag_failed');
     ctx.logger.error('payment.amount_mismatch', 'valor confirmado pela InfinitePay diverge do esperado — pedido NÃO marcado como pago', {
       entityType: 'order',
       entityId: order.id,
@@ -91,7 +92,9 @@ export async function reconcilePayment(
     p_capture_method: check.captureMethod,
     p_paid_amount: check.paidAmount,
     p_installments: check.installments,
-    p_receipt_url: input.receiptUrl ?? null,
+    // Redirect/webhook URL is untrusted. Only a URL returned by payment_check
+    // can be a receipt; never persist a client-supplied link as financial proof.
+    p_receipt_url: typeof check.raw?.receipt_url === 'string' && /^https:\/\/(?:[a-z0-9-]+\.)*infinitepay\.(?:io|com\.br)\//i.test(check.raw.receipt_url) ? check.raw.receipt_url : null,
     p_raw: {
       amount: check.amount,
       paidAmount: check.paidAmount,
@@ -107,5 +110,10 @@ export async function reconcilePayment(
       entityId: order.id,
     });
   }
-  return { paid: true, changed: Boolean(transitioned), reason: transitioned ? 'confirmed' : 'already_paid' };
+  if (!transitioned) {
+    const {data:current,error:readError}=await ctx.db.from('store_orders').select('payment_status').eq('id',order.id).single();
+    if(readError) throw new Error('payment_state_read_failed');
+    return {paid:current.payment_status==='paid',changed:false,reason:current.payment_status==='paid'?'already_paid':'not_pending'};
+  }
+  return { paid: true, changed: true, reason: 'confirmed' };
 }

@@ -28,11 +28,18 @@ serve(async (req, ctx) => {
   }
 
   const status = url.searchParams.get('status');
+  for(const key of ['from','to']){const value=url.searchParams.get(key);if(value&&(!/^\d{4}-\d{2}-\d{2}$/.test(value)||new Date(value+'T00:00:00Z').toISOString().slice(0,10)!==value))throw new ValidationError('Data inválida.');}
+  const origin=url.searchParams.get('origin'),paymentStatus=url.searchParams.get('paymentStatus');
+  if(origin&&!['site','mercado_livre','shopee','manual','other','bling_import'].includes(origin))throw new ValidationError('Origem inválida.');
+  if(paymentStatus&&!['pending','paid','failed','cancelled','refunded'].includes(paymentStatus))throw new ValidationError('Pagamento inválido.');
   if (status && !VALID_STATUS_FILTERS.has(status)) {
     throw new ValidationError('status inválido.', { allowed: [...VALID_STATUS_FILTERS] });
   }
 
   const { items, total } = await ctx.adminRepo.listOrders({
+    origin,
+    paymentStatus,
+    phone:url.searchParams.get('phone'),
     status,
     from: url.searchParams.get('from'),
     to: url.searchParams.get('to'),

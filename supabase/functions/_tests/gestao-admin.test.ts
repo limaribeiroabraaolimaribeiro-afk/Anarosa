@@ -132,6 +132,7 @@ Deno.test('AdminRepository.getOrderDetail: monta itens e campos sensíveis do pe
       if (table === 'store_order_items') {
         return { select: () => ({ eq: () => Promise.resolve({ data: itemRows, error: null }) }) };
       }
+      if(table==='store_order_events')return {select:()=>({eq:()=>({order:()=>({limit:()=>Promise.resolve({data:[],error:null})})})})};
       throw new Error('unexpected table ' + table);
     },
   };
@@ -159,6 +160,7 @@ Deno.test('AdminRepository.getDashboardSummary: mapeia a RPC e nunca inventa val
   const repo = new AdminRepository(db);
   const summary = await repo.getDashboardSummary();
   assert.deepEqual(summary, {
+    revenueWeek:0,processingOrders:0,failedPayments:0,dailyRevenue:[],origins:[],
     newOrders: 0, ordersToday: 0, revenueToday: 0, revenueMonth: 0,
     activeProducts: 0, lowStockProducts: 0, outOfStockProducts: 0, customers: 0,
     lastWebhookAt: null, lastSyncAt: null, blingStatus: 'disconnected', blingConnected: false,

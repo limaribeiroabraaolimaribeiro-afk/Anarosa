@@ -454,4 +454,24 @@ export class BlingClient {
       operation: 'orders.get',
     });
   }
+
+  findOrdersByReference(reference: string) {
+    return this.request<BlingListResponse>('pedidos/vendas', {operation:'orders.find_reference',query:{numerosLojas:[reference],limite:100}});
+  }
+
+  findContactsByDocument(document: string) {
+    return this.request<BlingListResponse>('contatos', {operation:'contacts.find_document',query:{numeroDocumento:document,limite:100}});
+  }
+
+  createContact(payload: Record<string,unknown>) {
+    return this.request<BlingItemResponse>('contatos', {method:'POST',operation:'contacts.create',body:payload});
+  }
+
+  patchProduct(id: string, payload: Record<string,unknown>) {
+    return this.request<BlingItemResponse>(`produtos/${encodeURIComponent(id)}`, {method:'PATCH',operation:'products.patch',body:payload});
+  }
+
+  findProductsBySku(skus: string[]) {
+    return this.request<BlingListResponse>('produtos', {operation:'products.find_sku',query:{codigos:skus,criterio:5,limite:100}});
+  }
 }

@@ -37,7 +37,7 @@ serve(async (req, ctx) => {
     p_limit: RATE_LIMIT_MAX,
     p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
   });
-  if (allowed.data === false) throw new ValidationError('Muitas tentativas. Aguarde um instante e tente novamente.');
+  if (allowed.error || allowed.data !== true) throw new ValidationError('Muitas tentativas. Aguarde um instante e tente novamente.');
 
   const url = new URL(req.url);
   const token = (url.searchParams.get('token') || '').trim();
@@ -96,6 +96,7 @@ serve(async (req, ctx) => {
     orderNumber: current.order_number ?? null,
     total: current.total,
     deliveryMethod: shippingMethod,
+    shippingPricing: (current.shipping_data as {pricing?:string}|null)?.pricing ?? 'fixed',
     createdAt: current.created_at,
     payment: {
       captureMethod: current.payment_capture_method ?? null,

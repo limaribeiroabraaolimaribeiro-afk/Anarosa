@@ -3,13 +3,9 @@
  * (infinitepay-create-payment). Extraído para módulo próprio para ser
  * testável sem precisar de um banco real (ver _tests/payment-claim.test.ts).
  *
- * Por que TTL (achado da auditoria de 2026-09-17): sem prazo, um
- * processo que morresse ENTRE o claim e a gravação de payment_url (ou
- * antes do catch liberar o claim) deixaria o pedido com
- * payment_provider='infinitepay' para sempre, sem payment_url — nenhuma
- * tentativa futura conseguiria reivindicar de novo (bloqueio
- * permanente). Mesmo padrão de bling_connections.refresh_lock_until /
- * private.cron_locks.locked_until.
+ * O prazo identifica uma tentativa interrompida; não autoriza uma nova
+ * cobrança. Sem idempotência garantida pelo provedor, timeout ou perda
+ * da resposta exige reconciliação antes de liberar outra tentativa.
  */
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -17,7 +13,7 @@ type Db = any;
 /**
  * Tenta reivindicar a criação do link para este pedido. Só succeeds
  * quando: payment_status='pending' AND payment_url IS NULL AND
- * (nunca reivindicado OU o prazo anterior já expirou).
+ * payment_provider IS NULL. Um claim expirado com provedor permanece bloqueado.
  */
 export async function tryClaimPaymentLinkCreation(db: Db, orderId: string, ttlMs: number): Promise<boolean> {
   const nowIso = new Date().toISOString();
@@ -30,6 +26,9 @@ export async function tryClaimPaymentLinkCreation(db: Db, orderId: string, ttlMs
     .eq('id', orderId)
     .eq('payment_status', 'pending')
     .is('payment_url', null)
+    // An expired network attempt may have created a remote link. Expiry is
+    // diagnostic, not permission to issue a second financial request.
+    .is('payment_provider', null)
     .or(`payment_claim_expires_at.is.null,payment_claim_expires_at.lt.${nowIso}`)
     .select('id')
     .maybeSingle();
@@ -38,7 +37,7 @@ export async function tryClaimPaymentLinkCreation(db: Db, orderId: string, ttlMs
 }
 
 /**
- * Libera o claim (usado no catch de falha ao chamar a InfinitePay).
+ * Libera o claim apenas quando a rejeição remota foi definitiva (4xx).
  * Só afeta a linha se payment_url ainda não tiver sido gravado — nunca
  * desfaz um claim que já resultou em sucesso.
  */

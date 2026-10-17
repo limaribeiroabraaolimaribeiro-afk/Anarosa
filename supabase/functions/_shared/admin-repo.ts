@@ -23,6 +23,11 @@ function fail(op: string, error: PostgrestErrorLike | null): never {
 }
 
 export interface DashboardSummary {
+  revenueWeek:number;
+  processingOrders:number;
+  failedPayments:number;
+  dailyRevenue:Array<{day:string;total:number}>;
+  origins:Array<{origin:string;count:number}>;
   newOrders: number;
   ordersToday: number;
   revenueToday: number;
@@ -59,6 +64,7 @@ export interface AdminOrderListItem {
 }
 
 export interface AdminOrderDetail extends AdminOrderListItem {
+  events:Array<{kind:string;created_at:string;details:Record<string,unknown>}>;
   customerEmail: string | null;
   customerDocument: string | null;
   shipping: Record<string, unknown>;
@@ -80,6 +86,9 @@ export interface AdminOrderDetail extends AdminOrderListItem {
 }
 
 export interface ListOrdersOptions {
+  origin?:string|null;
+  paymentStatus?:string|null;
+  phone?:string|null;
   status?: string | null;
   from?: string | null;
   to?: string | null;
@@ -134,6 +143,7 @@ export class AdminRepository {
     if (error) fail('admin_dashboard_summary_failed', error);
     const d = (data ?? {}) as Row;
     return {
+      revenueWeek:Number(d.revenueWeek??0),processingOrders:Number(d.processingOrders??0),failedPayments:Number(d.failedPayments??0),dailyRevenue:d.dailyRevenue??[],origins:d.origins??[],
       newOrders: Number(d.newOrders ?? 0),
       ordersToday: Number(d.ordersToday ?? 0),
       revenueToday: Number(d.revenueToday ?? 0),
@@ -165,10 +175,13 @@ export class AdminRepository {
     if (opts.status && STATUS_GROUPS[opts.status]) {
       query = query.in('status', STATUS_GROUPS[opts.status]);
     }
-    if (opts.from) query = query.gte('created_at', opts.from);
-    if (opts.to) query = query.lte('created_at', opts.to);
+    if (opts.from) query = query.gte('created_at', `${opts.from}T00:00:00-03:00`);
+    if (opts.to) query = query.lte('created_at', `${opts.to}T23:59:59.999-03:00`);
+    if(opts.origin)query=query.eq('origin',opts.origin);
+    if(opts.paymentStatus)query=query.eq('payment_status',opts.paymentStatus);
+    if(opts.phone)query=query.eq('customer_data->>phone',opts.phone);
     if (opts.search) {
-      const term = opts.search.replace(/[%_,]/g, ' ').trim().slice(0, 80);
+      const term = opts.search.replace(/[^\p{L}\p{N} @+-]/gu, ' ').trim().slice(0, 80);
       if (term) {
         query = query.or(`customer_data->>name.ilike.%${term}%,customer_data->>phone.ilike.%${term}%`);
       }
@@ -203,11 +216,14 @@ export class AdminRepository {
     if (itemsError) fail('admin_order_items_failed', itemsError);
 
     const base = toItem({ ...order, store_order_items: items ?? [] });
+    const {data:events,error:eventError}=await this.db.from('store_order_events').select('kind,created_at,details').eq('order_id',id).order('created_at',{ascending:false}).limit(100);
+    if(eventError)fail('admin_order_events_failed',eventError);
     base.itemCount = (items ?? []).length;
     const customer = (order.customer_data ?? {}) as Row;
 
     return {
       ...base,
+      events:events??[],
       customerEmail: customer.email ?? null,
       customerDocument: customer.document ?? null,
       shipping: order.shipping_data ?? {},

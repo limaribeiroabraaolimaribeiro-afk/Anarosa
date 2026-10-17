@@ -23,6 +23,7 @@ function buildFakeCtx(opts: {
   };
   const ctx = {
     db: {
+      from:()=>({select:()=>({eq:()=>({single:()=>Promise.resolve({data:{payment_status:'paid'},error:null})})})}),
       // deno-lint-ignore no-explicit-any
       rpc: async (name: string, args: any) => {
         rpcCalls.push({ name, args });
@@ -102,7 +103,7 @@ Deno.test('reconcilePayment: amount confere — marca pago via mark_order_paid',
   assert.equal(rpcCalls[0].name, 'mark_order_paid');
   assert.equal(rpcCalls[0].args.p_order_id, 'order-1');
   assert.equal(rpcCalls[0].args.p_transaction_nsu, 'txn-1');
-  assert.equal(rpcCalls[0].args.p_receipt_url, 'https://recibo.test/1');
+  assert.equal(rpcCalls[0].args.p_receipt_url, null, 'redirect URL is not verified financial proof');
 });
 
 Deno.test('reconcilePayment: amount confere mas pedido já havia sido marcado por outra chamada concorrente', async () => {

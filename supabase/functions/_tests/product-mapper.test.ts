@@ -153,7 +153,7 @@ Deno.test('storefront: serialização pública não vaza campos internos e calcu
 
   const unknownStock = serializePublicProduct({ ...product, bling_id: '4000' }, [], [], [], null);
   assert.equal(unknownStock.stock, null);
-  assert.equal(unknownStock.available, true, 'sem informação de estoque → não bloqueia');
+  assert.equal(unknownStock.available, false, 'sem informação de estoque → aguarda sincronização');
 
   const inactive = serializePublicProduct({ ...product, active: false }, [], [], [], null);
   assert.equal(inactive.available, false);

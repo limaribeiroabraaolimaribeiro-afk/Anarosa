@@ -33,6 +33,7 @@ function buildFakeDb(data: FakeCatalogData) {
         return {
           select: () => ({
             eq: (_col1: string, variantBlingId: string) => ({
+              limit:()=>Promise.resolve({data:Object.entries(data.variantsByKey).filter(([key,value])=>key.startsWith(variantBlingId+'::')&&value).map(([,value])=>value).slice(0,1),error:null}),
               eq: (_col2: string, productId: string) => ({
                 maybeSingle: () =>
                   Promise.resolve({ data: data.variantsByKey[`${productId}::${variantBlingId}`] ?? null, error: null }),
@@ -196,15 +197,14 @@ Deno.test('resolveOrderItems: estoque insuficiente → insufficient_stock (nunca
   );
 });
 
-Deno.test('resolveOrderItems: sem informação de estoque (null) não bloqueia — mesma regra do storefront público', async () => {
+Deno.test('resolveOrderItems: sem informação de estoque bloqueia até sincronização', async () => {
   const db = buildFakeDb({
     productsBySlug: { produto: BASE_PRODUCT },
     variantsByKey: {},
     inventoryTotals: {}, // nenhuma linha de estoque
   });
   const repo = new CatalogRepository(db);
-  const [item] = await repo.resolveOrderItems([{ slug: 'produto', quantity: 3 }]);
-  assert.equal(item.availableStock, null);
+  await assert.rejects(repo.resolveOrderItems([{ slug: 'produto', quantity: 3 }]),/sincronização/);
 });
 
 Deno.test('resolveOrderItems: segundo item inválido interrompe e aponta o item certo (não o primeiro)', async () => {

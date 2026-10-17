@@ -66,8 +66,7 @@ export function resolveStock(blingId: string, totals: StockTotal[], totalsFallba
 /**
  * Regra de disponibilidade:
  *   - produto inativo → indisponível
- *   - sem informação de estoque (null) → disponível (o Bling ainda não
- *     informou; a venda continua sujeita à confirmação do pedido)
+ *   - sem informação de estoque (null) → indisponível até sincronização
  *   - estoque conhecido → disponível se > 0 (ou se alguma variação tiver > 0)
  */
 export function serializePublicProduct(
@@ -92,7 +91,7 @@ export function serializePublicProduct(
         promotionalPrice: num(v.promotional_price),
         attributes: (v.attributes ?? {}) as Record<string, string>,
         stock,
-        available: stock == null ? true : stock > 0,
+        available: stock != null && stock > 0,
       };
     });
 
@@ -103,7 +102,7 @@ export function serializePublicProduct(
   }
 
   const active = product.active !== false;
-  const available = active && (stock == null ? true : stock > 0);
+  const available = active && (publicVariants.length ? publicVariants.some(v=>v.available) : stock != null && stock > 0);
   const tags = Array.isArray(product.metadata?.tags)
     ? (product.metadata.tags as unknown[]).map(String)
     : [];

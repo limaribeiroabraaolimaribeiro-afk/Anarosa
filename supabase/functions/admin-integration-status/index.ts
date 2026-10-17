@@ -34,6 +34,6 @@ serve(async (req, ctx) => {
     cachedProducts: products.total,
     activeProducts: products.active,
     blingConfigured: isBlingConfigured(ctx.blingConfig),
-    orderSyncEnabled: ctx.blingConfig.orderSyncEnabled,
+    orderSyncEnabled: ctx.blingConfig.orderSyncEnabled && Deno.env.get('BLING_ORDER_OPERATION_VALIDATED') === 'true',
   });
 });

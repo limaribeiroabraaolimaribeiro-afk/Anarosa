@@ -69,6 +69,8 @@ export type OrderItemRejectionReason =
   | 'product_inactive'
   | 'variant_not_found'
   | 'variant_inactive'
+  | 'variant_required'
+  | 'stock_unavailable'
   | 'insufficient_stock';
 
 /** 400 com o motivo exato — usado pelo checkout para dar feedback claro ao cliente. */
@@ -516,7 +518,12 @@ export class CatalogRepository {
       let name: string = product.name;
       let unitPrice = Number(product.promotional_price ?? product.price ?? 0);
 
-      if (req.variantBlingId) {
+        if (!req.variantBlingId) {
+          const {data:variants,error:variantError}=await this.db.from('store_product_variants').select('id').eq('product_id',product.id).limit(1);
+          if(variantError)fail('order_variant_required_lookup_failed',variantError);
+          if(variants?.length)throw new OrderItemRejectedError('variant_required',req.slug,'Escolha o tamanho e a cor do produto.');
+        }
+        if (req.variantBlingId) {
         const { data: variant, error: verr } = await this.db
           .from('store_product_variants')
           .select('id, bling_id, product_id, sku, name, price, promotional_price, active')
@@ -538,6 +545,7 @@ export class CatalogRepository {
 
       const stock = await this.stockFor([blingProductId]);
       const availableStock = resolveStock(blingProductId, stock.byDeposits, stock.totals);
+        if(availableStock==null)throw new OrderItemRejectedError('stock_unavailable',req.slug,'Estoque aguardando sincronização.');
       if (availableStock != null && availableStock < req.quantity) {
         throw new OrderItemRejectedError(
           'insufficient_stock',

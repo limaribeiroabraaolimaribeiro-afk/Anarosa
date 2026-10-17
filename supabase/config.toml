@@ -101,3 +101,9 @@ verify_jwt = false
 
 [functions.storefront-order-status]
 verify_jwt = false
+
+[functions.storefront-settings]
+verify_jwt = false
+
+[functions.bling-order-sync-process]
+verify_jwt = false

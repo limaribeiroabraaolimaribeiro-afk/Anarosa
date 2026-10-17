@@ -1,3 +1,4 @@
+import { mapMarketplaceOrder } from './marketplace-order.ts';
 /**
  * Handlers dos eventos de webhook do Bling.
  *
@@ -83,43 +84,20 @@ export async function handleStockEvent(evt: ParsedWebhookEvent, deps: HandlerDep
 // Pedido (somente status; criação real fica para bling-create-order)
 // ---------------------------------------------------------------------
 export async function handleOrderEvent(evt: ParsedWebhookEvent, deps: HandlerDeps): Promise<HandlerOutcome> {
-  const blingOrderId = toId(evt.data?.id) ?? null;
-  if (!blingOrderId || !deps.db) return 'ignored';
-
-  const { data: existing, error } = await deps.db
-    .from('store_orders')
-    .select('id, status')
-    .eq('bling_id', blingOrderId)
-    .maybeSingle();
-  if (error) throw new Error(`order_lookup_failed: ${error.message}`);
-
-  if (!existing) {
-    // Pedido criado fora da loja (balcão, marketplace via Bling).
-    // Não duplicamos nem criamos nada: apenas registramos.
-    deps.logger.info('webhook.order', 'pedido não originado na loja; ignorado', {
-      entityType: 'order',
-      entityId: blingOrderId,
-      event: evt.event,
-    });
-    return 'ignored';
-  }
-
-  if (evt.event === 'order.deleted') {
-    await deps.db.from('store_orders').update({ status: 'cancelled', synced_at: new Date().toISOString() }).eq('id', existing.id);
+  const id=toId(evt.data?.id); if(!id||!deps.db)return 'ignored';
+  if(evt.event==='order.deleted') {
+    const {error}=await deps.db.from('store_orders').update({status:'cancelled',synced_at:new Date().toISOString()}).eq('bling_id',id);
+    if(error)throw new Error('order_delete_sync_failed');
     return 'processed';
   }
-
-  const detail = await deps.client.getOrderById(blingOrderId);
-  const status = mapBlingOrderStatus((detail?.data ?? {}) as { situacao?: { id?: number } });
-  await deps.db
-    .from('store_orders')
-    .update({ status, synced_at: new Date().toISOString(), bling_sync_status: 'synced' })
-    .eq('id', existing.id);
-  deps.logger.info('webhook.order', 'status do pedido sincronizado', {
-    entityType: 'order',
-    entityId: blingOrderId,
-    status,
-  });
+  const detail=await deps.client.getOrderById(id);
+  let channels:Record<string,string>={};
+  try{channels=JSON.parse(Deno.env.get('BLING_CHANNEL_MAP')||'{}');}catch{throw new Error('invalid_channel_map');}
+  let statuses:Record<string,string>={};
+  try{statuses=JSON.parse(Deno.env.get('BLING_ORDER_STATUS_MAP')||'{}');}catch{throw new Error('invalid_status_map');}
+  const order=mapMarketplaceOrder(detail.data??{},channels,statuses);
+  const {error}=await deps.db.rpc('import_bling_order',{p_order:order});
+  if(error)throw new Error('order_import_failed');
   return 'processed';
 }
 

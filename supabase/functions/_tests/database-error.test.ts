@@ -88,11 +88,11 @@ Deno.test('logger: sanitize() de um erro tipado preserva code (como errorCode)/d
   assert.equal(out.httpStatus, 500);
   const details = out.details as Record<string, unknown>;
   assert.equal(details.pgCode, '42501');
-  assert.equal(details.pgDetails, 'Key (id)=(1) already exists.');
+  assert.equal(details.pgDetails, '[REDACTED]');
   // O hint é preservado (não é um segredo por si só); o teste documenta que
   // o valor passa por sanitizeString() — não há mascaramento de texto livre
   // hoje além de padrões de token/JWT/Bearer/query-string.
-  assert.equal(details.pgHint, SECRET_LIKE_HINT);
+  assert.equal(details.pgHint, '[REDACTED]');
   assert.equal(out.stack, undefined, 'stack trace não é logado');
 });
 

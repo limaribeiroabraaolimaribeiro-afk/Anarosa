@@ -95,17 +95,21 @@ serve(async (req, ctx) => {
   const orderId = typeof body.orderId === 'string' ? body.orderId.trim() : '';
   const publicToken = typeof body.publicToken === 'string' ? body.publicToken.trim() : '';
 
-  if (!orderId && !publicToken) throw new ValidationError('orderId ou publicToken é obrigatório.');
+  if (!publicToken) throw new ValidationError('publicToken é obrigatório.');
   if (orderId && !UUID_RE.test(orderId)) throw new ValidationError('orderId inválido.');
   if (publicToken && !TOKEN_RE.test(publicToken)) throw new ValidationError('publicToken inválido.');
 
   const query = ctx.db
     .from('store_orders')
     .select('id, public_token, status, payment_status, payment_provider, payment_url, total, discount, shipping, customer_data, shipping_data');
-  const { data: order, error: loadErr } = await (orderId ? query.eq('id', orderId) : query.eq('public_token', publicToken))
+  const { data: order, error: loadErr } = await query.eq('public_token', publicToken)
     .maybeSingle<OrderRow>();
   if (loadErr) throw new Error(`create_payment_order_lookup_failed: ${loadErr.message}`);
   if (!order) throw new NotFoundError('Pedido não encontrado.');
+
+  if (order.shipping_data?.method === 'delivery' && (order.shipping_data as Record<string,unknown>).pricing !== 'fixed') {
+    throw new ValidationError('Frete ainda não definido. Combine a entrega antes de pagar.');
+  }
 
   if (order.payment_status === 'paid') {
     return json(req, { ok: true, alreadyPaid: true, publicToken: order.public_token }, 200);
@@ -120,24 +124,6 @@ serve(async (req, ctx) => {
 
   if (!isInfinitePayConfigured(ctx.infinitePayConfig)) {
     throw new ConfigError('INFINITEPAY_HANDLE não configurado no backend.');
-  }
-
-  // "Reivindica" a criação de forma atômica, com PRAZO (TTL) — ver
-  // _shared/payment-claim.ts (extraído para ser testável sem banco
-  // real, com os 5 cenários da auditoria de 2026-09-17 cobertos em
-  // _tests/payment-claim.test.ts).
-  const claimed = await tryClaimPaymentLinkCreation(ctx.db, order.id, CLAIM_TTL_MS);
-  if (!claimed) {
-    // outra requisição já está criando (ou já criou) o link deste pedido
-    const { data: again } = await ctx.db
-      .from('store_orders')
-      .select('payment_url, public_token')
-      .eq('id', order.id)
-      .maybeSingle<{ payment_url: string | null; public_token: string }>();
-    if (again?.payment_url) {
-      return json(req, { ok: true, paymentUrl: again.payment_url, publicToken: again.public_token }, 200);
-    }
-    return json(req, { ok: true, pending: true, message: 'Estamos preparando seu pagamento. Tente novamente em alguns segundos.' }, 202);
   }
 
   const { data: itemRows, error: itemsErr } = await ctx.db
@@ -193,6 +179,25 @@ serve(async (req, ctx) => {
   // id interno aqui.
   const redirectUrl = `${ctx.infinitePayConfig.redirectUrl}?token=${encodeURIComponent(order.public_token)}`;
 
+  // "Reivindica" a criação de forma atômica, com PRAZO (TTL) — ver
+  // _shared/payment-claim.ts (extraído para ser testável sem banco
+  // real, com os 5 cenários da auditoria de 2026-09-17 cobertos em
+  // _tests/payment-claim.test.ts).
+  const claimed = await tryClaimPaymentLinkCreation(ctx.db, order.id, CLAIM_TTL_MS);
+  if (!claimed) {
+    // outra requisição já está criando (ou já criou) o link deste pedido
+    const { data: again } = await ctx.db
+      .from('store_orders')
+      .select('payment_url, public_token, payment_claim_expires_at')
+      .eq('id', order.id)
+      .maybeSingle<{ payment_url: string | null; public_token: string; payment_claim_expires_at?:string }>();
+    if (again?.payment_url) {
+      return json(req, { ok: true, paymentUrl: again.payment_url, publicToken: again.public_token }, 200);
+    }
+    if(again?.payment_claim_expires_at && new Date(again.payment_claim_expires_at).getTime()<Date.now())return json(req,{ok:false,message:'A criação do pagamento precisa de conferência. Fale com a equipe informando a referência do pedido.'},409);
+    return json(req, { ok: true, pending: true, message: 'Estamos preparando seu pagamento. Tente novamente em alguns segundos.' }, 202);
+  }
+
   try {
     const result = await ctx.paymentClient().createCheckoutLink({
       orderNsu: order.id,
@@ -203,7 +208,7 @@ serve(async (req, ctx) => {
       address,
     });
 
-    await ctx.db
+    const {error:saveError} = await ctx.db
       .from('store_orders')
       .update({
         payment_url: result.url,
@@ -212,6 +217,8 @@ serve(async (req, ctx) => {
         payment_claim_expires_at: null,
       })
       .eq('id', order.id);
+
+    if(saveError) throw new Error('payment_link_persist_failed');
 
     ctx.logger.info('payment.create_link', 'link de pagamento InfinitePay criado', {
       entityType: 'order',
@@ -222,12 +229,15 @@ serve(async (req, ctx) => {
     return json(req, { ok: true, paymentUrl: result.url, publicToken: order.public_token }, 201);
   } catch (err) {
     const d = describeError(err);
-    // Libera a reivindicação para permitir uma nova tentativa manual
-    // imediata — não deixamos o pedido travado por uma falha
-    // transitória da InfinitePay. Mesmo que este release nunca rode
-    // (processo morto), o CLAIM_TTL_MS acima garante a liberação
-    // automática depois.
-    await releasePaymentLinkClaim(ctx.db, order.id, { payment_raw_status: { last_create_error: d.code } });
+    // Only an explicit rejection is safe to retry. Timeout, 5xx and failure to
+    // persist a successful response are ambiguous; keep the claim for review.
+    const providerStatus=Number(d.details?.infinitePayStatus??0);
+    if(providerStatus>=400&&providerStatus<500&&providerStatus!==408) {
+      await releasePaymentLinkClaim(ctx.db, order.id, { payment_raw_status: { last_create_error: d.code } });
+    } else {
+      const {error:reviewError}=await ctx.db.from('store_order_events').insert({order_id:order.id,kind:'payment.link_review',details:{errorCode:d.code}});
+      if(reviewError)throw new Error('payment_review_audit_failed');
+    }
     ctx.logger.error('payment.create_link', 'falha ao criar link de pagamento InfinitePay', {
       entityType: 'order',
       entityId: order.id,

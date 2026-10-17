@@ -24,7 +24,7 @@ export interface LogEntry {
 export type LogSink = (entry: LogEntry) => Promise<void> | void;
 
 const SENSITIVE_KEY_PATTERN =
-  /(authorization|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|passwd|api[_-]?key|service[_-]?role|^code$|auth(orization)?[_-]?code|cookie|set-cookie|token)/i;
+  /(authorization|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|passwd|api[_-]?key|service[_-]?role|^code$|auth(orization)?[_-]?code|cookie|set-cookie|token|document|cpf|cnpj|email|phone|customer|address|pgDetails|pgHint)/i;
 
 const JWT_PATTERN = /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g;
 const BEARER_PATTERN = /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi;
@@ -38,7 +38,9 @@ export function sanitizeString(value: string): string {
   return value
     .replace(JWT_PATTERN, REDACTED)
     .replace(BEARER_PATTERN, `$1 ${REDACTED}`)
-    .replace(QUERY_SECRET_PATTERN, `$1${REDACTED}`);
+    .replace(QUERY_SECRET_PATTERN, `$1${REDACTED}`)
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, REDACTED)
+    .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b|\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b|\b\d{11,14}\b/g, REDACTED);
 }
 
 /** Sanitiza recursivamente objetos/arrays (chaves sensíveis viram [REDACTED]). */

@@ -95,7 +95,7 @@ Deno.test('claim: segunda tentativa concorrente (mesmo pedido, claim ainda váli
   assert.equal(second, false, 'não pode reivindicar duas vezes enquanto o claim anterior não expirou');
 });
 
-Deno.test('claim: InfinitePay /links dá timeout/500 → release libera o pedido para nova tentativa imediata', async () => {
+Deno.test('claim: rejeição explícita sem criação → release permite nova tentativa', async () => {
   const row = pendingOrder();
   const db = buildFakeDb(row);
   assert.equal(await tryClaimPaymentLinkCreation(db, row.id, 30_000), true);
@@ -110,7 +110,7 @@ Deno.test('claim: InfinitePay /links dá timeout/500 → release libera o pedido
   assert.equal(retried, true, 'após liberar o claim, uma nova tentativa deve conseguir reivindicar de novo');
 });
 
-Deno.test('claim: processo morre ENTRE o claim e a gravação de payment_url — pedido NÃO fica bloqueado para sempre', async () => {
+Deno.test('claim: processo morre após chamada — expiração não autoriza criar outro link', async () => {
   const row = pendingOrder();
   const db = buildFakeDb(row);
   // claim reivindicado; processo "morre" aqui — nem grava payment_url,
@@ -128,7 +128,7 @@ Deno.test('claim: processo morre ENTRE o claim e a gravação de payment_url —
   // rodado — o claim expira sozinho.
   row.payment_claim_expires_at = new Date(Date.now() - 1000).toISOString();
   const afterTtl = await tryClaimPaymentLinkCreation(db, row.id, 30_000);
-  assert.equal(afterTtl, true, 'depois do TTL expirar, uma nova tentativa deve conseguir reivindicar — nunca fica bloqueado para sempre');
+  assert.equal(afterTtl, false, 'resultado ambíguo exige reconciliação; nunca repetir criação apenas por TTL');
   assert.equal(row.payment_url, null, 'o pedido continua sem link — nenhum estado inconsistente foi criado');
   assert.equal(row.payment_status, 'pending', 'nunca marca pago/mudou status por causa do claim expirado');
 });
