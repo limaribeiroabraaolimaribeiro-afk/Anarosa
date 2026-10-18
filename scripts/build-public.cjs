@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '..');
 const out = path.join(root, '_site');
 // Explicit allowlist: new internal files never become public automatically.
@@ -50,7 +51,8 @@ function assets(dir) {
     else if (/\.(svg|webp|avif|png|jpe?g|gif|ico|woff2?)$/i.test(entry.name)) {
       if (entry.isSymbolicLink()) throw Error('Asset symlink forbidden');
       fs.mkdirSync(path.dirname(path.join(out, file)), { recursive: true });
-      fs.copyFileSync(path.join(root, file), path.join(out, file));
+      if (/\.svg$/i.test(file)) fs.writeFileSync(path.join(out, file), fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n'));
+      else fs.copyFileSync(path.join(root, file), path.join(out, file));
     }
   }
 }
@@ -58,7 +60,7 @@ assets('assets');
 fs.writeFileSync(path.join(out, 'CNAME'), 'www.lojaanarosa.com.br\n');
 fs.writeFileSync(path.join(out, '.nojekyll'), '');
 for (const file of files.filter((f) => f.endsWith('.html'))) {
-  const html = fs.readFileSync(path.join(out, file), 'utf8');
+  let html = fs.readFileSync(path.join(out, file), 'utf8');
   for (const match of html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)) {
     if (/^https?:/.test(match[1])) continue;
     const resolved = path.resolve(path.dirname(path.join(out, file)), match[1]);
@@ -66,5 +68,14 @@ for (const file of files.filter((f) => f.endsWith('.html'))) {
       throw Error(`Missing public dependency: ${file} -> ${match[1]}`);
     }
   }
+  // A visitor may still have the old layout's scripts/styles in HTTP cache.
+  // Version each local dependency by its actual public bytes, including Gestão.
+  html = html.replace(/((?:src|href)=["'])([^"']+\.(?:js|css))(?:\?[^"']*)?(["'])/g, (match, prefix, url, quote) => {
+    if (/^https?:/.test(url)) return match;
+    const dependency = path.resolve(path.dirname(path.join(out, file)), url);
+    const version = crypto.createHash('sha256').update(fs.readFileSync(dependency)).digest('hex').slice(0, 12);
+    return `${prefix}${url}?v=${version}${quote}`;
+  });
+  fs.writeFileSync(path.join(out, file), html);
 }
 console.log(`Artefato público verificado: ${files.length} arquivos de aplicação + imagens/fontes.`);

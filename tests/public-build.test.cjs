@@ -2,6 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..','_site');
 function walk(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(dir,e.name)):[path.join(dir,e.name)]);}
 const files=walk(root);
@@ -39,4 +40,15 @@ test('public frontend uses only the existing production interfaces',()=>{
  assert(checkout.includes('storefront-checkout'));assert(checkout.includes('infinitepay-create-payment'));
  assert(fs.readFileSync(path.join(root,'gestao/js/gestao-auth.js'),'utf8').includes('signInWithPassword'));
  assert(!fs.readFileSync(path.join(root,'js/products.js'),'utf8').includes("price:"));
+});
+test('each local script and stylesheet has a content-specific cache version',()=>{
+ for(const file of files.filter(f=>f.endsWith('.html'))){
+  const html=fs.readFileSync(file,'utf8');
+  for(const match of html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))([^"']*)["']/g)){
+   if(/^https?:/.test(match[1]))continue;
+   const dependency=path.resolve(path.dirname(file),match[1]);
+   const version=crypto.createHash('sha256').update(fs.readFileSync(dependency)).digest('hex').slice(0,12);
+   assert.equal(match[2],`?v=${version}`,`${path.relative(root,file)} -> ${match[1]}`);
+  }
+ }
 });
