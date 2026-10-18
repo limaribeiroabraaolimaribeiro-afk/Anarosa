@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./isolated-test.cjs');
 const variants = ['P', 'M', 'G', 'GG', 'XG'].map((size, i) => ({
   id: String(i + 1),
   blingId: String(201 + i),

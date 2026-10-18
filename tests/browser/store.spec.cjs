@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./isolated-test.cjs');
 const settings = {
   name: 'Anarosa',
   whatsapp: '554730911041',

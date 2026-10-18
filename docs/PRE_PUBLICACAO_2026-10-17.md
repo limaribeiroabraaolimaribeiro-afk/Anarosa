@@ -1,6 +1,10 @@
 # Preparação da publicação — Anarosa
 
 **Situação: backup concluído e verificações apresentadas; produção não liberada.**
+Homologação local posterior autorizada e executada: restauração integral,
+integridade e duas migrations aprovadas no clone. Consulte o
+[relatório de homologação](HOMOLOGACAO_LOCAL_2026-10-17.md) para evidências,
+limites e pendências; o relato abaixo preserva o estado anterior ao ensaio.
 Projeto confirmado pela CLI autenticada: `gpmbkptimjipqsayrvce`.
 Branch: `feat/production-hardening-20261016`.
 Inspeção realizada em 17/10/2026, horário de Brasília, com registros UTC de 18/10.
