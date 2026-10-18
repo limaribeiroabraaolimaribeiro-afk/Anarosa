@@ -39,3 +39,7 @@ tmp/
 # Artefato local do build do GitHub Pages (gerado por
 # .github/workflows/deploy-pages.yml; nunca deve ser commitado)
 _site/
+
+# Browser verification artifacts (not public)
+test-results/
+playwright-report/

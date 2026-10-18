@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, follow">
   <title>Finalizar compra | Anarosa</title>
-  <meta name="theme-color" content="#5a3516">
+  <meta name="theme-color" content="#F8F3EC">
   <link rel="canonical" href="https://www.lojaanarosa.com.br/checkout.html">
   <link rel="icon" type="image/jpeg" href="assets/logo/logo-anarosa.jpg">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/fonts.css">
 
   <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/variables.css">
@@ -19,15 +17,17 @@
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/checkout.css">
 </head>
-<body>
+<body class="purchase-page">
   <header class="checkout-header">
     <a href="index.html" class="checkout-logo">
       <img src="assets/logo/logo-anarosa.jpg" alt="Anarosa">
     </a>
     <p class="checkout-header-title">Finalizar compra</p>
+    <a href="index.html#novidades" class="checkout-back">Voltar para a coleção →</a>
   </header>
 
   <main class="checkout">
+    <div class="checkout-intro"><p class="eyebrow">Sua próxima história começa aqui</p><h1>Vamos finalizar sua escolha.</h1><p>Confira cada detalhe antes de continuar.</p></div>
     <ol class="checkout-steps" data-checkout-steps aria-label="Etapas da compra">
       <li data-step-indicator="cart">Carrinho</li>
       <li data-step-indicator="customer">Seus dados</li>
@@ -119,11 +119,11 @@
     <!-- ETAPA 4 — Pagamento -->
     <section class="checkout-panel" data-panel="payment" hidden>
       <h2>Forma de pagamento</h2>
-      <p class="checkout-note">Escolha sua preferência — o pagamento é combinado diretamente com a equipe Anarosa (Pix, cartão na retirada ou pelo WhatsApp). Nenhum dado de cartão é coletado neste site.</p>
+      <p class="checkout-note">Escolha Pix online pela InfinitePay, cartão na retirada ou atendimento pelo WhatsApp. Os dados de pagamento online são preenchidos somente no ambiente da InfinitePay.</p>
       <div class="checkout-option-group" data-payment-method>
         <label class="checkout-option">
           <input type="radio" name="paymentMethod" value="pix" checked>
-          <span><strong>Pix</strong><br>Chave enviada após a confirmação do pedido</span>
+          <span><strong>Pix</strong><br>Pagamento online no ambiente da InfinitePay</span>
         </label>
         <label class="checkout-option">
           <input type="radio" name="paymentMethod" value="card_on_pickup">

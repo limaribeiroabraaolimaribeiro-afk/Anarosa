@@ -14,6 +14,8 @@
 
   const STORAGE_KEY = 'anarosa_cart_v2';
   const OLD_COUNTER_KEY = 'anarosa_cart_count'; // versão anterior (só um número) — descontinuada
+  // Only these confirmed test records are hidden; real IDs and SKUs stay intact.
+  const testProductIds = new Set(['a93ccd7c-7bd9-4f15-9f3f-090fc91c7f74', 'b37ce022-22df-4a7a-8267-e3e3e775a765']);
 
   function readStorage() {
     try {
@@ -42,7 +44,7 @@
     constructor() {
       // migra da versão antiga (só contador): nada a preservar, apenas remove.
       try { localStorage.removeItem(OLD_COUNTER_KEY); } catch { /* ignore */ }
-      this._items = readStorage();
+      this._items = readStorage().filter((item) => !testProductIds.has(String(item.productId)));
       this._listeners = [];
     }
 
@@ -86,10 +88,15 @@
      * `clamped` no retorno indica se a quantidade pedida foi reduzida.
      */
     addItem(product, variant, quantity) {
+      if (testProductIds.has(String(product.id))) return { clamped: true, blocked: true, count: this.getCount() };
+      const variants = product.variants && Array.isArray(product.variants.items) ? product.variants.items : [];
+      if (variants.length && !variants.some((item) => variant && item.id === variant.id)) return { clamped: true, blocked: true, count: this.getCount() };
+      if ((variant || product).available === false) return { clamped: true, blocked: true, count: this.getCount() };
       const requested = Math.max(1, Math.round(Number(quantity) || 1));
       const knownStock = variant && variant.stock != null ? Number(variant.stock) : (product.stock != null ? Number(product.stock) : null);
       const ceiling = knownStock != null && Number.isFinite(knownStock) ? Math.max(0, Math.floor(knownStock)) : 20;
       const cap = Math.min(20, ceiling);
+      if (cap <= 0) return { clamped: true, blocked: true, count: this.getCount() };
       const variantId = variant ? variant.id : null;
       const variantBlingId = variant ? variant.blingId : null;
       const unitPrice = variant && variant.promotionalPrice != null
