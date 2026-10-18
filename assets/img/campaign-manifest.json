@@ -1,0 +1,314 @@
+{
+  "originals_preserved": true,
+  "product_sku_associations": false,
+  "images": [
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_35-1.png",
+      "source_sha256": "60968d0ea4217e1e25164571141e73d29caea19d391fae36d6ac6aa36ccf0b17",
+      "width": 1122,
+      "height": 1402,
+      "description": "Mulher com conjunto bege listrado",
+      "usage": "Universo Feminino",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/feminino-campanha-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 49636
+        },
+        {
+          "file": "optimized/feminino-campanha-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 130182
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_37-2.png",
+      "source_sha256": "c4f4d110ee8b4b67fab6c0210d9eaa21e4ee275ac408a684f4e1cc350aecd1c3",
+      "width": 1122,
+      "height": 1402,
+      "description": "Menina com camiseta branca de laços",
+      "usage": "Universo Infantil",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/infantil-campanha-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 39452
+        },
+        {
+          "file": "optimized/infantil-campanha-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 99410
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_38-3.png",
+      "source_sha256": "c73a0face90130ef51a2ee724332c86e1081be239241d5349c3bc0b9cb72d4b3",
+      "width": 1122,
+      "height": 1402,
+      "description": "Homem com camiseta preta",
+      "usage": "Universo Masculino",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/masculino-campanha-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 34404
+        },
+        {
+          "file": "optimized/masculino-campanha-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 85278
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_40-4.png",
+      "source_sha256": "ec3c2a4bf78dfc009411f7071fd65da776b89197086a210d26b8a00b453c3d79",
+      "width": 1122,
+      "height": 1402,
+      "description": "Mulher com vestido verde oliva",
+      "usage": "Universo Plus Size",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/plus-size-campanha-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 48028
+        },
+        {
+          "file": "optimized/plus-size-campanha-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 123886
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_42-5.png",
+      "source_sha256": "8d9f8024c6cfa70c22bdd9bb169b208ce82f6c62373c82be92676901b12e5109",
+      "width": 1122,
+      "height": 1402,
+      "description": "Bebê com conjunto verde estampado",
+      "usage": "Manifesto e faixa Instagram",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/bebe-editorial-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 43626
+        },
+        {
+          "file": "optimized/bebe-editorial-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 108448
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_44-6.png",
+      "source_sha256": "f27072273e0337b163f75e95b05a091f52c73b6f5703c71ac67ef8b3f0549641",
+      "width": 1122,
+      "height": 1402,
+      "description": "Segunda fotografia da menina com camiseta de laços",
+      "usage": "Faixa Instagram",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/infantil-editorial-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 43542
+        },
+        {
+          "file": "optimized/infantil-editorial-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 115558
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_46-7.png",
+      "source_sha256": "e937019559b8b21c0b26317930baf013422d8650cd075a10e6aeebb62b26b077",
+      "width": 1122,
+      "height": 1402,
+      "description": "Segunda fotografia do conjunto bege",
+      "usage": "Manifesto e faixa Instagram",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/feminino-editorial-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 56106
+        },
+        {
+          "file": "optimized/feminino-editorial-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 149000
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_47-8.png",
+      "source_sha256": "d8070e67d3129799ab1ff0223c949bf9024ab4d078969e21d48a04895936c618",
+      "width": 1122,
+      "height": 1402,
+      "description": "Segunda fotografia do homem com camiseta preta",
+      "usage": "Faixa Instagram",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/masculino-editorial-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 30858
+        },
+        {
+          "file": "optimized/masculino-editorial-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 76780
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_51-9.png",
+      "source_sha256": "aad235b2a7d205fae5b843774b5e1faea39636168f91b608bd6d2eb51586d8e6",
+      "width": 1122,
+      "height": 1402,
+      "description": "Dois meninos com camisetas escuras",
+      "usage": "Faixa Instagram",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/juvenil-editorial-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 41036
+        },
+        {
+          "file": "optimized/juvenil-editorial-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 110556
+        }
+      ]
+    },
+    {
+      "source": "Imagem do ChatGPT 17 de out. de 2026, 22_13_52-10.png",
+      "source_sha256": "939c3d6f335f103a63140c4a8c2a6ae118416897f004f53e7ac5803948450d95",
+      "width": 1122,
+      "height": 1402,
+      "description": "Segunda fotografia do vestido verde",
+      "usage": "Faixa Instagram",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1122,
+        "height": 1402
+      },
+      "variants": [
+        {
+          "file": "optimized/plus-size-editorial-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 43494
+        },
+        {
+          "file": "optimized/plus-size-editorial-960.webp",
+          "width": 960,
+          "height": 1200,
+          "bytes": 107930
+        }
+      ]
+    },
+    {
+      "source": "banners/Moda que Veste Momentos em Família.png",
+      "source_sha256": "29515d07a6dd2a28bfd2c1b732a09e912cae3e98ef44ec10d3a931ea2693922b",
+      "width": 1953,
+      "height": 805,
+      "description": "Família reunida em um jardim ensolarado",
+      "usage": "Hero; recorte sem textos e botões incorporados",
+      "crop": {
+        "x": 840,
+        "y": 0,
+        "width": 880,
+        "height": 805
+      },
+      "variants": [
+        {
+          "file": "optimized/familia-campanha-640.webp",
+          "width": 640,
+          "height": 585,
+          "bytes": 81510
+        },
+        {
+          "file": "optimized/familia-campanha-880.webp",
+          "width": 880,
+          "height": 805,
+          "bytes": 130688
+        }
+      ]
+    }
+  ]
+}

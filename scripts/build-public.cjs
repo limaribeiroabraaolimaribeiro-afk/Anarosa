@@ -7,6 +7,9 @@ const files = [
   'index.html',
   'checkout.html',
   'pedido-confirmado.html',
+  'informacoes.html',
+  'css/fonts.css',
+  'assets/fonts/LICENSE.txt',
   'css/reset.css',
   'css/variables.css',
   'css/styles.css',
@@ -18,6 +21,7 @@ const files = [
   'js/app.js',
   'js/checkout.js',
   'js/pedido-confirmado.js',
+  'js/informacoes.js',
   'js/services/catalog-service.js',
   'js/services/cart-service.js',
   'js/services/settings-service.js',
@@ -40,6 +44,10 @@ for (const file of files) {
 function assets(dir) {
   for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
+    // Keep source PNGs and their manifest in the repository, outside the public
+    // artifact. Only the optimized campaign derivatives are needed by the shop.
+    const publicPath = file.split(path.sep).join('/');
+    if (publicPath.startsWith('assets/img/') && !publicPath.startsWith('assets/img/optimized/') && publicPath !== 'assets/img/optimized') continue;
     if (entry.isDirectory()) assets(file);
     else if (/\.(svg|webp|avif|png|jpe?g|gif|ico|woff2?)$/i.test(entry.name)) {
       if (entry.isSymbolicLink()) throw Error('Asset symlink forbidden');

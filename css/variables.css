@@ -1,32 +1,25 @@
 :root {
-  /* Brand palette */
-  --brown-dark: #5a3516;
-  --brown: #79512d;
-  --gold: #a47a4a;
-  --beige: #f3e9de;
-  --beige-light: #faf6f1;
-  --cream: #fffdfc;
-  --text: #2a211c;
-  --muted: #74675f;
-  --white: #ffffff;
-
-  --border-soft: #e7dbcb;
-
-  /* Typography */
-  --font-heading: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --font-body: 'Inter', 'Segoe UI', Arial, sans-serif;
-
-  /* Layout */
-  --container-max: 1280px;
-  --header-height: 64px;
-  --topbar-height: 36px;
-  --radius-sm: 6px;
-  --radius-md: 14px;
-  --radius-btn: 6px;
-
-  /* Motion */
-  --transition-fast: 0.18s ease;
-  --transition-medium: 0.35s ease;
-
-  --shadow-soft: 0 2px 14px rgba(90, 53, 22, 0.08);
+  --brown-dark: #5A3E2B;
+  --brown: #72543A;
+  --gold: #B08A52;
+  --beige: #EFE4D6;
+  --beige-light: #F8F3EC;
+  --cream: #FCF9F4;
+  --text: #2C241F;
+  --muted: #74685D;
+  --white: #fff;
+  --green: #A7B48A;
+  --olive: #626750;
+  --border-soft: #E4D9CA;
+  --font-heading: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-body: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+  --container-max: 1440px;
+  --header-height: 112px;
+  --topbar-height: 34px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-btn: 4px;
+  --transition-fast: .2s ease;
+  --transition-medium: .4s ease;
+  --shadow-soft: 0 8px 32px rgb(90 62 43 / .04);
 }

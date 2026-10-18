@@ -5,11 +5,13 @@
   "description": "Loja virtual ANAROSA — frontend estático + integração Bling via Supabase Edge Functions",
   "scripts": {
     "dev": "node scripts/serve-local.cjs",
+    "preview:local": "node scripts/build-public.cjs && node scripts/serve-preview.cjs",
     "test": "cd supabase/functions && deno test --allow-env --allow-read _tests/",
     "check": "cd supabase/functions && deno task check",
     "lint:js": "node scripts/check-javascript.cjs",
     "secrets:scan": "node scripts/secrets-scan.js",
     "test:db": "node --test tests/database.test.mjs",
+    "test:preview": "node scripts/build-public.cjs && node --test tests/preview.test.cjs",
     "test:browser": "node scripts/build-public.cjs && node scripts/run-browser-tests.cjs",
     "build:public": "node scripts/build-public.cjs"
   },

@@ -1,0 +1,182 @@
+{
+  "date": "2026-10-18",
+  "branch": "feat/boutique-editorial-solar-20261017",
+  "base_commit": "e1d0653",
+  "production_mutations": 0,
+  "financial_operations": 0,
+  "originals_sha256_verified": 11,
+  "webp_derivatives": 22,
+  "tests": {
+    "backend": 217,
+    "database": 12,
+    "browser": 40,
+    "preview": 3,
+    "failures": 0
+  },
+  "checks": [
+    {
+      "check": "test",
+      "exitCode": 0
+    },
+    {
+      "check": "test:db",
+      "exitCode": 0
+    },
+    {
+      "check": "check",
+      "exitCode": 0
+    },
+    {
+      "check": "lint:js",
+      "exitCode": 0
+    },
+    {
+      "check": "secrets:scan",
+      "exitCode": 0
+    },
+    {
+      "check": "test:preview",
+      "exitCode": 0
+    }
+  ],
+  "responsive": [
+    {
+      "width": 360,
+      "errors": [],
+      "scrollWidth": 360,
+      "heroImage": "familia-campanha-640.webp",
+      "font": "\"Cormorant Garamond\", Georgia, \"Times New Roman\", serif",
+      "products": 6,
+      "missingImages": [],
+      "overflow": []
+    },
+    {
+      "width": 390,
+      "errors": [],
+      "scrollWidth": 390,
+      "heroImage": "familia-campanha-640.webp",
+      "font": "\"Cormorant Garamond\", Georgia, \"Times New Roman\", serif",
+      "products": 6,
+      "missingImages": [],
+      "overflow": []
+    },
+    {
+      "width": 430,
+      "errors": [],
+      "scrollWidth": 430,
+      "heroImage": "familia-campanha-640.webp",
+      "font": "\"Cormorant Garamond\", Georgia, \"Times New Roman\", serif",
+      "products": 6,
+      "missingImages": [],
+      "overflow": []
+    },
+    {
+      "width": 768,
+      "errors": [],
+      "scrollWidth": 768,
+      "heroImage": "familia-campanha-640.webp",
+      "font": "\"Cormorant Garamond\", Georgia, \"Times New Roman\", serif",
+      "products": 6,
+      "missingImages": [],
+      "overflow": []
+    },
+    {
+      "width": 1024,
+      "errors": [],
+      "scrollWidth": 1024,
+      "heroImage": "familia-campanha-640.webp",
+      "font": "\"Cormorant Garamond\", Georgia, \"Times New Roman\", serif",
+      "products": 6,
+      "missingImages": [],
+      "overflow": []
+    },
+    {
+      "width": 1366,
+      "errors": [],
+      "scrollWidth": 1366,
+      "heroImage": "familia-campanha-880.webp",
+      "font": "\"Cormorant Garamond\", Georgia, \"Times New Roman\", serif",
+      "products": 6,
+      "missingImages": [],
+      "overflow": []
+    },
+    {
+      "width": 1440,
+      "errors": [],
+      "scrollWidth": 1440,
+      "heroImage": "familia-campanha-880.webp",
+      "font": "\"Cormorant Garamond\", Georgia, \"Times New Roman\", serif",
+      "products": 6,
+      "missingImages": [],
+      "overflow": []
+    }
+  ],
+  "purchase": [
+    {
+      "width": 390,
+      "file": "checkout.html",
+      "errors": [],
+      "scrollWidth": 390
+    },
+    {
+      "width": 390,
+      "file": "informacoes.html",
+      "errors": [],
+      "scrollWidth": 390
+    },
+    {
+      "width": 390,
+      "file": "pedido-confirmado.html",
+      "errors": [],
+      "scrollWidth": 390
+    },
+    {
+      "width": 1440,
+      "file": "checkout.html",
+      "errors": [],
+      "scrollWidth": 1440
+    },
+    {
+      "width": 1440,
+      "file": "informacoes.html",
+      "errors": [],
+      "scrollWidth": 1440
+    },
+    {
+      "width": 1440,
+      "file": "pedido-confirmado.html",
+      "errors": [],
+      "scrollWidth": 1440
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "home-desktop.png",
+      "sha256": "19810270ee5ccd3423ece139f9418a19f7478b423d9f8c41758845674610a639"
+    },
+    {
+      "file": "home-mobile.png",
+      "sha256": "9c45b467bcae9e30d34a1a044d791fb8aa3de157ee5b3ea799bba17048431881"
+    },
+    {
+      "file": "home-tablet.png",
+      "sha256": "9510f3769473182dbf621e1324e1929082455c1fa588adcfee64f2397e604abd"
+    },
+    {
+      "file": "product-desktop.png",
+      "sha256": "6e441533912a9ec042deef63b62c29f864c21547d4254a744a23a69431dc22d1"
+    },
+    {
+      "file": "cart-mobile.png",
+      "sha256": "5b60df8988dfe8d87540d2e173c3619f33e8760e84a32f1e58db213cba17dcfa"
+    },
+    {
+      "file": "checkout-desktop.png",
+      "sha256": "0fcfeac6d3f7b22913946b329ecea9bfdafd96af6a49da80d8cd51562f48f318"
+    },
+    {
+      "file": "checkout-mobile.png",
+      "sha256": "ac4386d1bd6d970110fb934203a5c6ac761832b4acf15e2bb8397c7b0a019eb4"
+    }
+  ]
+}

@@ -1,45 +1,23 @@
-/** Identidade visual da loja. Produtos e categorias vêm exclusivamente do Bling via Supabase. */
-function formatPrice(value) { return Number(value||0).toLocaleString("pt-BR", {style:"currency",currency:"BRL"}); }
-const PRODUCTS=[];
-const CATEGORIES=[];
-const HERO_SLIDES = [
-  {
-    image: 'assets/hero/hero-1.svg',
-    title: 'Estilo Anarosa\npara todos os momentos',
-    description:
-      'Encontre sua próxima peça favorita e combine a retirada ou entrega com a nossa equipe.',
-  },
-  {
-    image: 'assets/hero/hero-2.svg',
-    title: 'Novidades toda semana\npra você se apaixonar',
-    description: 'Coleções exclusivas chegando toda semana com a qualidade e o estilo Anarosa.',
-  },
-  {
-    image: 'assets/hero/hero-3.svg',
-    title: 'Condições especiais\npra toda a família',
-    description: 'Escolha Pix ou cartão no ambiente seguro da InfinitePay.',
-  },
-];
-
-const HERO_CTA_PRIMARY = { label: 'Comprar agora', href: '#mais-vendidos' };
-const HERO_CTA_SECONDARY = { label: 'Ver novidades', href: '#novidades' };
-
-const HERO_PERKS = [
-  { icon: 'tag', label: 'Atendimento próximo' },
-  { icon: 'card', label: 'Pagamento online' },
-  { icon: 'truck', label: 'Retirada ou entrega' },
-  { icon: 'phone', label: 'Atendimento no WhatsApp' },
-];
-
-const INSTAGRAM_POSTS=[];
-
-window.AnarosaData = {
-  PRODUCTS,
-  CATEGORIES,
-  HERO_SLIDES,
-  HERO_CTA_PRIMARY,
-  HERO_CTA_SECONDARY,
-  HERO_PERKS,
-  INSTAGRAM_POSTS,
-  formatPrice,
-};
+/** Editorial assets only. Sale products always come from CatalogService. */
+(function () {
+  'use strict';
+  const base = 'assets/img/optimized/';
+  const CATEGORIES = [
+    { slug: 'feminino', name: 'Feminino', line: 'Elegância para todos os seus dias', image: 'feminino-campanha', alt: 'Campanha feminina: conjunto bege listrado' },
+    { slug: 'infantil', name: 'Infantil', line: 'Pequenos looks, grandes aventuras', image: 'infantil-campanha', alt: 'Campanha infantil: camiseta branca com laços' },
+    { slug: 'masculino', name: 'Masculino', line: 'Estilo para todas as ocasiões', image: 'masculino-campanha', alt: 'Campanha masculina: camiseta preta' },
+    { slug: 'plus-size', name: 'Plus Size', line: 'Beleza em todas as suas formas', image: 'plus-size-campanha', alt: 'Campanha plus size: vestido verde oliva' },
+  ];
+  const INSTAGRAM_POSTS = [
+    ['bebe-editorial', 'Bebê com conjunto verde estampado'],
+    ['infantil-editorial', 'Menina com camiseta branca de laços'],
+    ['masculino-editorial', 'Homem com camiseta preta'],
+    ['feminino-editorial', 'Mulher com conjunto bege'],
+    ['juvenil-editorial', 'Dois meninos com camisetas escuras'],
+    ['plus-size-editorial', 'Mulher com vestido verde oliva'],
+  ].map(([image, alt]) => ({ image: base + image + '-480.webp', alt: 'Imagem de campanha: ' + alt }));
+  window.AnarosaData = {
+    PRODUCTS: [], CATEGORIES, INSTAGRAM_POSTS,
+    formatPrice: (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+  };
+})();

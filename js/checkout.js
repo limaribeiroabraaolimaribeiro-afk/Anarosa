@@ -96,7 +96,7 @@
       el.classList.toggle('is-active', key === step);
       el.classList.toggle('is-done', i >= 0 && idx >= 0 && i < idx);
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     if (step === 'review') runReview();
   }
 
