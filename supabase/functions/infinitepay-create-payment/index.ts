@@ -23,6 +23,7 @@ import { isInfinitePayConfigured } from '../_shared/config.ts';
 import { serve } from '../_shared/context.ts';
 import { ConfigError, NotFoundError, ValidationError, describeError } from '../_shared/errors.ts';
 import { json, methodNotAllowed } from '../_shared/responses.ts';
+import { checkoutMaintenance } from '../_shared/checkout-maintenance.ts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN_RE = /^[0-9a-f]{20,64}$/i;
@@ -75,6 +76,7 @@ interface OrderRow {
 
 serve(async (req, ctx) => {
   if (req.method !== 'POST') return methodNotAllowed(req, ['POST']);
+  const paused=checkoutMaintenance(req);if(paused)return paused;
 
   const allowed = await ctx.db.rpc('rl_check_and_increment', {
     p_bucket: `create-payment:${clientIp(req)}`,

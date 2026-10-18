@@ -2,9 +2,11 @@
 import { validateCheckout } from '../_shared/commerce-input.ts';
 import { ValidationError } from '../_shared/errors.ts';
 import { json, methodNotAllowed } from '../_shared/responses.ts';
+import { checkoutMaintenance } from '../_shared/checkout-maintenance.ts';
 
 serve(async (req,ctx)=> {
   if(req.method!=='POST') return methodNotAllowed(req,['POST']);
+  const paused=checkoutMaintenance(req);if(paused)return paused;
   const ip=(req.headers.get('x-forwarded-for')||'unknown').split(',')[0].slice(0,64);
   const limit=await ctx.db.rpc('rl_check_and_increment',{p_bucket:`checkout:${ip}`,p_limit:10,p_window_seconds:60});
   if(limit.error) throw new Error('rate_limit_unavailable');

@@ -36,6 +36,7 @@ desktop.ini
 # Saídas temporárias
 *.log
 tmp/
+.backups/
 test-results/
 playwright-report/
 

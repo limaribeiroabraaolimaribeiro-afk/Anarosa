@@ -21,7 +21,7 @@ const files = execSync('git ls-files --cached --others --exclude-standard', { en
   .split(/\r?\n/)
   .filter(Boolean)
   .filter((f) => !ALLOW.some((rx) => rx.test(f)))
-  .filter((f) => /\.([cm]?[jt]s|json|html|css|sql|toml|md|env|example|txt|yml|yaml)$/i.test(f) || f.startsWith('.env'));
+  .filter((f) => /\.([cm]?[jt]s|ps1|json|html|css|sql|toml|md|env|example|txt|yml|yaml)$/i.test(f) || f.startsWith('.env'));
 
 let hits = 0;
 for (const file of files) {
