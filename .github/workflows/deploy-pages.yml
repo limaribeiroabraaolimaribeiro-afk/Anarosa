@@ -56,50 +56,16 @@ jobs:
       # repositório nunca vaze para o site sem uma decisão consciente
       # aqui.
       # ---------------------------------------------------------------
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Montar artefato público (_site)
-        run: |
-          set -euo pipefail
+        run: node scripts/build-public.cjs
 
-          rm -rf _site
-          mkdir -p _site/css
-          mkdir -p _site/js/services
-
-          # ---- HTML público ------------------------------------------------
-          cp index.html               _site/index.html
-          cp checkout.html            _site/checkout.html
-          cp pedido-confirmado.html   _site/pedido-confirmado.html
-
-          # ---- CSS necessário à loja -----------------------------------------
-          cp css/reset.css              _site/css/reset.css
-          cp css/variables.css          _site/css/variables.css
-          cp css/styles.css             _site/css/styles.css
-          cp css/responsive.css         _site/css/responsive.css
-          cp css/checkout.css           _site/css/checkout.css
-          cp css/pedido-confirmado.css  _site/css/pedido-confirmado.css
-
-          # ---- JS necessário à loja -------------------------------------------
-          cp js/config.js                  _site/js/config.js
-          cp js/products.js                _site/js/products.js
-          cp js/app.js                      _site/js/app.js
-          cp js/checkout.js                 _site/js/checkout.js
-          cp js/pedido-confirmado.js        _site/js/pedido-confirmado.js
-          cp js/services/catalog-service.js _site/js/services/catalog-service.js
-          cp js/services/cart-service.js    _site/js/services/cart-service.js
-
-          # ---- assets (logo, hero, categorias, produtos, instagram) ---------
-          cp -r assets _site/assets
-
-          # ---- painel Gestão Anarosa (login + app; auth real protege os dados) ----
-          cp -r gestao _site/gestao
-
-          # ---- domínio customizado + desativa processamento Jekyll ----------
-          # Domínio já configurado hoje em Settings → Pages; mantido aqui só
-          # para o artefato baseado em Actions preservar o mesmo CNAME.
-          echo "www.lojaanarosa.com.br" > _site/CNAME
-          touch _site/.nojekyll
-
-          echo "Conteúdo final de _site:"
-          find _site -type f | sort
+      - name: Validar artefato público e compatibilidade
+        run: node --test tests/public-build.test.cjs
 
       # ---------------------------------------------------------------
       # Barreira de segurança: se qualquer arquivo/pasta interno (admin,

@@ -16,6 +16,10 @@
 (function () {
   'use strict';
 
+  // Presentation exclusions: confirmed test records, never a database mutation.
+  const testProductIds = new Set(['a93ccd7c-7bd9-4f15-9f3f-090fc91c7f74', 'b37ce022-22df-4a7a-8267-e3e3e775a765']);
+  const visibleProduct = (product) => product && !testProductIds.has(String(product.id));
+
   const BADGE_TAGS = {
     novo: 'novo',
     'mais-vendido': 'mais-vendido',
@@ -71,8 +75,9 @@
       images: images.length ? images : [image],
       price,
       promotionalPrice,
-      installment: makeInstallment(activePrice),
-      pixPrice: activePrice * 0.95,
+      // Commercial terms are only confirmed by the existing payment flow.
+      installment: null,
+      pixPrice: null,
       badge,
       variants: { sizes, colors, items: variants },
       stock: p.stock ?? null,
@@ -190,17 +195,18 @@
       this.provider = provider;
       this.mode = provider.name;
     }
-    getProducts() {
-      return this.provider.getProducts();
+    async getProducts() {
+      return (await this.provider.getProducts()).filter(visibleProduct);
     }
-    getProductBySlug(slug) {
-      return this.provider.getProductBySlug(slug);
+    async getProductBySlug(slug) {
+      const product = await this.provider.getProductBySlug(slug);
+      return visibleProduct(product) ? product : null;
     }
-    getProductsByCategory(category) {
-      return this.provider.getProductsByCategory(category);
+    async getProductsByCategory(category) {
+      return (await this.provider.getProductsByCategory(category)).filter(visibleProduct);
     }
-    searchProducts(query) {
-      return this.provider.searchProducts(query);
+    async searchProducts(query) {
+      return (await this.provider.searchProducts(query)).filter(visibleProduct);
     }
 
     /**

@@ -8,6 +8,12 @@
     "test": "cd supabase/functions && npx -y deno@2 test --allow-env --allow-read _tests/",
     "check": "cd supabase/functions && npx -y deno@2 task check",
     "lint:js": "node --check js/config.js && node --check js/products.js && node --check js/services/catalog-service.js && node --check js/services/cart-service.js && node --check js/app.js && node --check js/integration-status.js && node --check js/checkout.js && node --check js/pedido-confirmado.js && node --check gestao/js/gestao-auth.js && node --check gestao/js/gestao-api.js && node --check gestao/js/gestao.js",
-    "secrets:scan": "node scripts/secrets-scan.js"
+    "secrets:scan": "node scripts/secrets-scan.js",
+    "build:public": "node scripts/build-public.cjs",
+    "test:public": "node scripts/build-public.cjs && node --test tests/public-build.test.cjs",
+    "test:browser": "node scripts/build-public.cjs && node scripts/run-browser-tests.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
   }
 }
