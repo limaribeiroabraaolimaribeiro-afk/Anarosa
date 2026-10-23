@@ -1,149 +1,282 @@
 (function () {
   'use strict';
   const form = document.querySelector('[data-product-form]');
-  const esc = (v) =>
-    String(v ?? '').replace(
-      /[&<>"']/g,
-      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]),
-    );
-  let revision = null, imagePermission = false;
-  const extra = document.createElement('div');
-  extra.className = 'product-editor-sections';
-  extra.innerHTML =
-    `<details open><summary>Variações de tamanho e cor</summary><p class="gestao-note">Cada tamanho tem SKU, preço e saldo próprios. Salvar o cadastro não movimenta estoque.</p><div data-editor-variants></div><div class="gestao-actions"><button type="button" class="btn btn-outline" data-add-variant>Adicionar variação</button><button type="button" class="btn btn-outline" data-size-grid>Criar grade P a XG</button></div></details>
-  <details><summary>Descrição e características</summary><label>Descrição completa e medidas<textarea name="descricaoComplementar" rows="5" maxlength="10000" placeholder="Informe as medidas reais e a composição da peça."></textarea></label></details>
-  <details><summary>Logística</summary><div class="editor-grid">${
-      [
-        ['pesoLiquido', 'Peso líquido (kg)'],
-        ['pesoBruto', 'Peso embalado (kg)'],
-        ['volumes', 'Volumes'],
-        ['largura', 'Largura embalada (cm)'],
-        ['altura', 'Altura embalada (cm)'],
-        ['profundidade', 'Profundidade embalada (cm)'],
-      ].map(([name, label]) =>
-        `<label>${label}<input name="${name}" type="number" min="0" step="${
-          name === 'volumes' ? '1' : '0.001'
-        }"></label>`
-      ).join('')
-    }</div></details>
-  <details><summary>Fiscal</summary><p class="gestao-note">Preencha somente classificações conferidas com sua contabilidade.</p><div class="editor-grid"><label>Origem<select name="origem"><option value="">Não informada</option>${
-      Array.from({ length: 9 }, (_, i) => `<option value="${i}">${i}</option>`).join('')
-    }</select></label><label>NCM<input name="ncm" inputmode="numeric" maxlength="8"></label><label>CEST<input name="cest" inputmode="numeric" maxlength="7"></label></div></details>
-  <details><summary>Galeria de imagens</summary><p class="gestao-note" data-image-capability></p><label>URLs HTTPS, uma por linha. A primeira será a principal.<textarea name="images" rows="4"></textarea></label><div class="editor-gallery" data-editor-gallery></div><p class="gestao-note">Reordene as linhas para ordenar a galeria; remova uma linha para excluir a imagem. Upload de arquivo depende de armazenamento e permissão verificados.</p></details>`;
-  form.querySelector('.gestao-field-group')?.remove();
-  form.querySelector('[data-product-form-error]').before(extra);
+  const page = document.querySelector('[data-product-drawer]');
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const money = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  class ProductEditorValidationError extends Error {
+    constructor(message) { super(message); this.name = 'ProductEditorValidationError'; }
+  }
+  const field = (name, label, attrs = '') => `<label>${label}<input name="${name}" ${attrs}></label>`;
+  let revision = null, imagePermission = false, imageIndex = 0, generation = 0;
+  let savedProduct = null, ready = false, busy = false;
+  page.className = 'product-workspace';
+  // Keep the editor inside the authenticated app, including during session expiry.
+  document.querySelector('.gestao-main').append(page);
+  page.replaceChildren(form);
+  form.id = 'product-form';
+  form.innerHTML = `
+    <div class="product-page-head">
+      <div><div class="product-breadcrumb"><button type="button" data-product-drawer-close>Produtos</button><span>›</span><span data-editor-breadcrumb>Novo produto</span></div>
+      <h1 data-product-drawer-title>Novo Produto</h1><p>Cadastre um novo produto na sua loja e gerencie todas as informações em um só lugar.</p></div>
+      <div class="product-head-actions">
+        <button type="submit" class="btn btn-outline" data-save-draft>Salvar rascunho</button>
+        <button type="button" class="btn btn-outline" data-preview-open>◉ &nbsp; Visualizar</button>
+        <button type="submit" class="btn btn-primary" data-product-form-submit>Publicar produto</button>
+      </div>
+    </div>
+    <p class="gestao-form-error" role="alert" data-product-form-error hidden></p>
+    <p class="editor-loading" role="status" data-editor-loading>Carregando informações do produto…</p>
+    <div class="product-layout">
+      <div class="product-fields">
+        <section class="product-section" id="product-photos" aria-labelledby="photos-title">
+          <div class="section-heading"><div><h2 id="photos-title"><b>1.</b> Fotos do produto</h2><p>A primeira imagem será a principal do produto.</p></div><span class="photo-tip">Imagens nítidas, em WebP ou JPG.<br>Recomendado: 1200 × 1200 px.</span></div>
+          <div class="product-gallery" data-editor-gallery></div>
+          <p class="field-note" data-image-capability></p>
+          <details class="image-url-editor"><summary>Adicionar ou editar links de imagens</summary><label>Links HTTPS, um por linha (até 12)<textarea name="images" rows="3" placeholder="https://…"></textarea></label></details>
+          <p class="field-note">Upload de arquivos indisponível nesta conexão. Use links de fotos já hospedadas, quando a gravação estiver habilitada.</p>
+        </section>
+        <section class="product-section" id="product-basics" aria-labelledby="basics-title">
+          <h2 id="basics-title"><b>2.</b> Informações básicas</h2>
+          <div class="product-basic-grid">
+            <label class="field-name">Nome do produto <em>*</em><input name="nome" required minlength="2" maxlength="120" placeholder="Ex.: Conjunto feminino de linho"></label>
+            ${field('sku', 'SKU <em>*</em>', 'required maxlength="60" pattern="[A-Za-z0-9._\\-]+" title="Use letras, números, ponto, hífen ou sublinhado" placeholder="Código único"')}
+            ${field('marca', 'Marca', 'maxlength="100" placeholder="Informe a marca"')}
+            <label>Categoria<select name="categoriaId" data-product-category-select><option value="">Sem categoria</option></select></label>
+            <label>Coleção<input disabled placeholder="Não disponível na integração"></label>
+            <label class="field-segment">Segmento / gênero<input disabled placeholder="Gerenciado pelas categorias no Bling"></label>
+            <label class="field-full short-description">Descrição curta<textarea name="descricaoCurta" maxlength="500" rows="2" placeholder="Apresente os detalhes que tornam esta peça especial."></textarea><span data-description-count>0/500</span></label>
+            <label class="field-description" id="product-description">Descrição completa e medidas<textarea name="descricaoComplementar" rows="5" maxlength="10000" placeholder="Descreva o tecido, a modelagem, a composição e as medidas reais."></textarea></label>
+            <div class="field-tags"><span>Tags e atributos</span><div class="unavailable-field">Tags ainda não são editáveis nesta integração.<br><br>Tamanhos e cores são cadastrados na grade abaixo.</div></div>
+          </div>
+        </section>
+        <section class="product-section" id="product-pricing" aria-labelledby="pricing-title">
+          <h2 id="pricing-title"><b>3.</b> Preço e vendas</h2>
+          <div class="product-price-grid">
+            ${field('preco', 'Preço de venda (R$) <em>*</em>', 'type="number" required min="0" step="0.01" placeholder="0,00"')}
+            <label>Preço promocional<input disabled placeholder="Gerenciado no Bling"></label>
+            <div class="price-note"><strong>Pagamento na loja</strong><span>Condições e parcelamento são apresentados no checkout.</span></div>
+          </div>
+          <label class="product-switch"><input type="checkbox" name="ativo" checked><span></span>Produto ativo após salvar</label>
+          <p class="field-note">Rascunho salva o produto como inativo no Bling. Promoções, períodos e destaque ainda não são editáveis por aqui.</p>
+        </section>
+        <section class="product-section" id="product-variants" aria-labelledby="variants-title">
+          <div class="section-heading"><div><h2 id="variants-title"><b>4.</b> Variações (Tamanhos e Cores)</h2><p>SKU e preço próprios para cada combinação.</p></div><button type="button" class="btn btn-outline btn-small" data-size-grid>Criar grade P a XG</button></div>
+          <p class="field-note" data-product-form-variant-note hidden>Desative variações existentes para preservar o histórico e o estoque.</p>
+          <div class="variant-table-wrap"><div data-editor-variants></div></div>
+          <p class="variant-empty" data-variant-empty>Produto sem variações. Adicione os tamanhos e cores disponíveis.</p>
+          <button type="button" class="btn btn-soft" data-add-variant>＋ Adicionar variação</button>
+          <p class="field-note">GTIN / código de barras é diferente do SKU. Sua edição deve ser feita no Bling; este formulário não altera o GTIN.</p>
+        </section>
+        <section class="product-section" id="product-logistics" aria-labelledby="logistics-title">
+          <div class="section-heading"><div><h2 id="logistics-title"><b>5.</b> Estoque e logística</h2><p>Ajuste o saldo por SKU e depósito no controle de estoque.</p></div><button type="button" class="btn btn-outline btn-small" data-editor-stock disabled>Ajustar estoque</button></div>
+          <p class="field-note" data-stock-availability>Salve o produto para cadastrar estoque no depósito existente.</p>
+          <div class="product-logistics-grid">${[
+            ['pesoLiquido', 'Peso líquido (kg)'], ['pesoBruto', 'Peso bruto (kg)'], ['volumes', 'Volumes'],
+            ['largura', 'Largura (cm)'], ['altura', 'Altura (cm)'], ['profundidade', 'Profundidade (cm)'],
+          ].map(([name, label]) => field(name, label, `type="number" min="0" step="${name === 'volumes' ? '1' : '0.001'}"`)).join('')}</div>
+          <details class="product-fiscal"><summary>Informações fiscais</summary><div class="product-logistics-grid">
+            <label>Origem<select name="origem"><option value="">Não informada</option>${Array.from({ length: 9 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label>
+            ${field('ncm', 'NCM', 'inputmode="numeric" maxlength="8"')}${field('cest', 'CEST', 'inputmode="numeric" maxlength="7"')}
+          </div><p class="field-note">Use as classificações conferidas com sua contabilidade.</p></details>
+        </section>
+      </div>
+      <aside class="product-summary" aria-label="Prévia e situação do produto">
+        <section class="product-section preview-card" tabindex="-1" data-product-preview>
+          <div class="section-heading"><h2>Prévia do produto</h2><span class="preview-label">Visualização</span></div>
+          <div class="preview-image"><img data-preview-image src="../assets/products/placeholder.svg" alt="Produto sem foto"><button type="button" data-preview-prev aria-label="Foto anterior">‹</button><button type="button" data-preview-next aria-label="Próxima foto">›</button></div>
+          <div class="preview-dots" data-preview-dots></div>
+          <h3 data-preview-name>Nome do produto</h3><p class="preview-description" data-preview-description>Os detalhes da sua peça aparecem aqui.</p>
+          <strong class="preview-price" data-preview-price>R$ 0,00</strong><p class="field-note">Prévia das alterações do formulário.</p>
+        </section>
+        <section class="product-section"><div class="section-heading"><h2>Status do cadastro</h2><span class="product-status" data-product-status>Não salvo</span></div><p class="field-note" data-product-status-note>Este produto ainda não foi cadastrado.</p></section>
+        <section class="product-section"><div class="section-heading"><h2>Checklist do produto</h2><span class="field-note" data-checklist-count>0 de 5</span></div><progress max="5" value="0" data-checklist-progress aria-label="Informações preenchidas"></progress><div class="product-checklist" data-product-checklist></div><p class="field-note">Conferência de preenchimento. Estoque e canais são verificados separadamente.</p></section>
+        <section class="product-section"><h2>Canais de venda</h2><div class="product-channel"><span class="channel-symbol">♔</span><span>Loja Anarosa<small data-store-channel>Cadastro ainda não salvo</small></span></div><div class="product-channel"><span class="channel-symbol">M</span><span>Mercado Livre<small>Vínculo não informado pela integração</small></span></div><div class="product-channel"><span class="channel-symbol">S</span><span>Shopee<small>Vínculo não informado pela integração</small></span></div><a class="channel-link" href="#/integracao">Consultar integração Bling ↗</a></section>
+      </aside>
+    </div>
+    <div class="product-footer"><button type="button" class="btn btn-outline" data-product-drawer-close>Voltar aos produtos</button><span class="field-note">As alterações são confirmadas após a resposta do Bling.</span></div>`;
+  const $ = (selector) => form.querySelector(selector);
+  const values = () => form.images.value.split('\n').map((s) => s.trim()).filter(Boolean);
+  const photos = () => values().filter((url) => { try { return new URL(url).protocol === 'https:'; } catch { return false; } });
+  function refresh() {
+    const urls = photos();
+    imageIndex = Math.max(0, Math.min(imageIndex, urls.length - 1));
+    $('[data-preview-image]').src = urls[imageIndex] || '../assets/products/placeholder.svg';
+    $('[data-preview-image]').alt = form.nome.value || 'Produto sem foto';
+    $('[data-preview-name]').textContent = form.nome.value || 'Nome do produto';
+    $('[data-preview-description]').textContent = form.descricaoCurta.value || 'Os detalhes da sua peça aparecem aqui.';
+    $('[data-preview-price]').textContent = money(form.preco.value);
+    $('[data-description-count]').textContent = `${form.descricaoCurta.value.length}/500`;
+    $('[data-preview-prev]').disabled = $('[data-preview-next]').disabled = urls.length < 2;
+    $('[data-preview-dots]').textContent = urls.map((_, i) => i === imageIndex ? '●' : '○').join(' ');
+    const rows = [...form.querySelectorAll('.variant-edit-row')];
+    $('[data-variant-empty]').hidden = rows.length > 0;
+    const checks = [
+      ['Informações básicas', form.nome.value.trim().length >= 2 && form.sku.validity.valid && !!form.sku.value, 'product-basics'],
+      ['Fotos do produto', urls.length > 0 && urls.length === values().length && urls.length <= 12, 'product-photos'],
+      ['Descrição completa', !!form.descricaoComplementar.value.trim(), 'product-description'],
+      ['Preço de venda', !!form.preco.value && form.preco.validity.valid, 'product-pricing'],
+      ['Variações ou produto simples', !rows.length || rows.every((r) => [...r.querySelectorAll('input')].every((i) => i.validity.valid) && (r.querySelector('[data-v-size]').value.trim() || r.querySelector('[data-v-color]').value.trim())), 'product-variants'],
+    ];
+    const complete = checks.filter((c) => c[1]).length;
+    $('[data-checklist-count]').textContent = `${complete} de 5 completos`;
+    $('[data-checklist-progress]').value = complete;
+    $('[data-product-checklist]').innerHTML = checks.map(([label, done, target]) =>
+      `<button type="button" data-check-target="${target}"><span class="check-box ${done ? 'is-complete' : ''}" aria-label="${done ? 'Preenchido' : 'Pendente'}">${done ? '✓' : ''}</span>${label}<span>›</span></button>`).join('');
+  }
+  $('[data-preview-image]').addEventListener('error', (e) => {
+    if (!e.target.src.endsWith('/placeholder.svg')) e.target.src = '../assets/products/placeholder.svg';
+  });
+  function gallery() {
+    $('[data-editor-gallery]').innerHTML = photos().map((url, i) => `
+      <figure class="gallery-photo" draggable="${imagePermission && !busy}" data-photo-index="${i}">
+        <button type="button" class="photo-open" data-photo-open="${i}" aria-label="Visualizar foto ${i + 1}"><img src="${esc(url)}" alt="Foto ${i + 1} do produto"></button>
+        ${i === 0 ? '<span class="primary-photo">♔ &nbsp; Imagem principal</span>' : ''}
+        <div class="photo-actions"><button type="button" data-photo-main="${i}" ${!imagePermission || busy || i === 0 ? 'disabled' : ''} aria-label="Tornar foto ${i + 1} principal">☆</button><button type="button" data-photo-left="${i}" ${!imagePermission || busy || i === 0 ? 'disabled' : ''} aria-label="Mover foto ${i + 1} para a esquerda">←</button><button type="button" data-photo-right="${i}" ${!imagePermission || busy || i === photos().length - 1 ? 'disabled' : ''} aria-label="Mover foto ${i + 1} para a direita">→</button><button type="button" data-photo-remove="${i}" ${!imagePermission || busy ? 'disabled' : ''} aria-label="Excluir foto ${i + 1}">×</button></div>
+      </figure>`).join('') + `<button type="button" class="photo-add" data-photo-add ${!imagePermission || busy ? 'disabled' : ''}><span>＋</span><strong>Adicionar fotos</strong><small>Inserir links de imagens</small></button>`;
+    refresh();
+  }
+  function changePhotos(list) { form.images.value = list.join('\n'); gallery(); }
+  let dragging = null;
+  $('[data-editor-gallery]').addEventListener('dragstart', (e) => {
+    dragging = Number(e.target.closest('[data-photo-index]')?.dataset.photoIndex);
+    if (!imagePermission || busy || !Number.isInteger(dragging)) return e.preventDefault();
+    e.dataTransfer.setData('text/plain', String(dragging));
+  });
+  $('[data-editor-gallery]').addEventListener('dragover', (e) => { if (imagePermission && !busy) e.preventDefault(); });
+  $('[data-editor-gallery]').addEventListener('drop', (e) => {
+    e.preventDefault();
+    const target = e.target.closest('[data-photo-index]');
+    if (!imagePermission || busy || dragging === null || !target) return;
+    const list = photos(), [moved] = list.splice(dragging, 1);
+    if (moved) { list.splice(Number(target.dataset.photoIndex), 0, moved); changePhotos(list); }
+    dragging = null;
+  });
+  $('[data-editor-gallery]').addEventListener('dragend', () => { dragging = null; });
   function row(v = {}) {
     const el = document.createElement('div');
     el.className = 'variant-edit-row';
     el.dataset.variantId = v.id || '';
-    const size = /(?:^|;)Tamanho:([^;]+)/i.exec(v.nome || '')?.[1] || '',
-      color = /(?:^|;)Cor:([^;]+)/i.exec(v.nome || '')?.[1] || '';
-    el.innerHTML = `<label>Tamanho<input data-v-size value="${
-      esc(size)
-    }" maxlength="20"></label><label>Cor<input data-v-color value="${
-      esc(color)
-    }" maxlength="30"></label><label>SKU<input data-v-sku required value="${
-      esc(v.sku)
-    }" maxlength="60"></label><label>Preço<input data-v-price required type="number" min="0" step="0.01" value="${
-      esc(v.preco ?? form.preco.value)
-    }"></label><label><input data-v-active type="checkbox" ${
-      v.ativo !== false ? 'checked' : ''
-    }> Ativa</label>${
-      v.id ? '' : '<button type="button" data-v-remove aria-label="Remover nova variação">Remover</button>'
-    }`;
-    el.querySelector('[data-v-remove]')?.addEventListener('click', () => el.remove());
-    extra.querySelector('[data-editor-variants]').append(el);
+    const size = /(?:^|;)Tamanho:([^;]+)/i.exec(v.nome || '')?.[1] || '';
+    const color = /(?:^|;)Cor:([^;]+)/i.exec(v.nome || '')?.[1] || '';
+    el.innerHTML = `<label>Tamanho<input data-v-size value="${esc(size)}" maxlength="20" placeholder="M"></label><label>Cor<input data-v-color value="${esc(color)}" maxlength="30" placeholder="Bege"></label><label>SKU <em>*</em><input data-v-sku required pattern="[A-Za-z0-9._\\-]+" value="${esc(v.sku)}" maxlength="60"></label><label>Preço (R$) <em>*</em><input data-v-price required type="number" min="0" step="0.01" value="${esc(v.preco ?? form.preco.value)}"></label><span class="variant-balance">Saldo<small>${Number.isFinite(v.stock) ? esc(v.stock) : v.id ? 'Consultar' : 'Após salvar'}</small></span><label class="variant-active"><input data-v-active type="checkbox" ${v.ativo !== false ? 'checked' : ''}> Ativa</label>${v.id ? '<span class="field-note" title="Variação cadastrada">✓</span>' : '<button type="button" class="variant-remove" data-v-remove aria-label="Remover nova variação">×</button>'}`;
+    $('[data-editor-variants]').append(el);
+    refresh();
   }
-  extra.querySelector('[data-add-variant]').addEventListener('click', () => row());
-  extra.querySelector('[data-size-grid]').addEventListener('click', () => {
-    if (extra.querySelector('.variant-edit-row')) return;
-    for (const size of ['P', 'M', 'G', 'GG', 'XG']) {
-      row({ nome: `Tamanho:${size}`, sku: form.sku.value ? `${form.sku.value}-${size}` : '' });
+  form.addEventListener('input', (e) => {
+    form.querySelectorAll('[data-v-sku],[data-v-size],[data-v-color]').forEach((input) => input.setCustomValidity(''));
+    if (e.target === form.images) gallery(); else refresh();
+  });
+  form.addEventListener('click', (e) => {
+    const button = e.target.closest('button');
+    if (!button) return;
+    if (button.hasAttribute('data-add-variant')) { row(); $('[data-editor-variants]').lastElementChild.querySelector('input').focus(); }
+    if (button.hasAttribute('data-size-grid')) {
+      const existing = new Set([...form.querySelectorAll('[data-v-size]')].map((input) => input.value.trim().toUpperCase()));
+      for (const size of ['P', 'M', 'G', 'GG', 'XG']) if (!existing.has(size)) row({ nome: `Tamanho:${size}`, sku: form.sku.value ? `${form.sku.value}-${size}` : '' });
+    }
+    if (button.hasAttribute('data-v-remove')) { button.closest('.variant-edit-row').remove(); refresh(); }
+    if (button.dataset.checkTarget) document.getElementById(button.dataset.checkTarget)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (button.hasAttribute('data-preview-open')) { $('[data-product-preview]').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('[data-product-preview]').focus({ preventScroll: true }); }
+    if (button.hasAttribute('data-photo-open')) { imageIndex = Number(button.dataset.photoOpen); refresh(); $('[data-product-preview]').focus(); }
+    if (button.hasAttribute('data-preview-prev') || button.hasAttribute('data-preview-next')) {
+      imageIndex = (imageIndex + (button.hasAttribute('data-preview-prev') ? -1 : 1) + photos().length) % Math.max(photos().length, 1); refresh();
+    }
+    if (button.hasAttribute('data-photo-add')) { $('.image-url-editor').open = true; form.images.focus(); }
+    if (!imagePermission || busy) return;
+    const action = ['Main', 'Left', 'Right', 'Remove'].find((key) => button.dataset['photo' + key] !== undefined);
+    if (action) {
+      const index = Number(button.dataset['photo' + action]), list = photos(), [url] = list.splice(index, 1);
+      if (action !== 'Remove') list.splice(action === 'Main' ? 0 : index + (action === 'Left' ? -1 : 1), 0, url);
+      changePhotos(list);
     }
   });
-  function preview() {
-    extra.querySelector('[data-editor-gallery]').replaceChildren();
-    form.images.value.split('\n').map((x) => x.trim()).filter((x) => /^https:\/\//i.test(x)).forEach(
-      (url, i) => {
-        const img = document.createElement('img');
-        img.src = url;
-        img.alt = i === 0 ? 'Imagem principal' : `Imagem ${i + 1}`;
-        img.loading = 'lazy';
-        extra.querySelector('[data-editor-gallery]').append(img);
-      },
-    );
+  function setBusy(value) {
+    busy = value;
+    page.setAttribute('aria-busy', String(value));
+    $('[data-product-form-submit]').disabled = $('[data-save-draft]').disabled = value || !ready;
+    form.querySelectorAll('.product-fields input, .product-fields select, .product-fields textarea, [data-add-variant], [data-size-grid], [data-editor-stock]').forEach((el) => {
+      if (value) { el.dataset.wasDisabled = String(el.disabled); el.disabled = true; }
+      else if (el.dataset.wasDisabled !== undefined) { el.disabled = el.dataset.wasDisabled === 'true'; delete el.dataset.wasDisabled; }
+    });
+    gallery();
   }
-  form.images.addEventListener('input', preview);
   window.AnaProductEditor = {
-    async load(id) {
-      revision = null;
-      imagePermission = false;
-      extra.querySelector('[data-editor-variants]').replaceChildren();
-      const response = await window.GestaoApi.getProductDetail(id || undefined);
-      const p = response.product;
-      revision = response.revision || null;
-      imagePermission = response.capabilities.images;
-      for (
-        const k of [
-          'nome',
-          'sku',
-          'preco',
-          'marca',
-          'descricaoCurta',
-          'descricaoComplementar',
-          'pesoLiquido',
-          'pesoBruto',
-          'volumes',
-        ]
-      ) if (p[k] != null) form.elements[k].value = p[k];
-      if (id) {
-        form.ativo.checked = p.ativo;
-        form.categoriaId.value = p.categoriaId;
-      }
-      const dimensionFactor = Number(p.dimensoes?.unidadeMedida) === 0
-        ? 100
-        : Number(p.dimensoes?.unidadeMedida) === 2
-        ? 0.1
-        : 1;
-      for (const k of ['largura', 'altura', 'profundidade']) {
-        form.elements[k].value = p.dimensoes?.[k] != null ? Number(p.dimensoes[k]) * dimensionFactor : '';
-      }
-      for (const k of ['origem', 'ncm', 'cest']) form.elements[k].value = p.tributacao?.[k] ?? '';
-      for (const v of p.variacoes || []) row(v);
-      form.images.value = (p.images || []).join('\n');
-      form.images.disabled = !imagePermission;
-      extra.querySelector('[data-image-capability]').textContent = imagePermission
-        ? 'Permissão de gravação habilitada pela operação.'
-        : 'Galeria em leitura. A permissão de salvar imagens ainda precisa ser validada no Bling.';
-      preview();
+    reset() {
+      generation++;
+      ready = false; busy = false; savedProduct = null; imagePermission = false; revision = null; imageIndex = 0;
+      form.querySelectorAll('[data-was-disabled]').forEach((el) => { el.disabled = el.dataset.wasDisabled === 'true'; delete el.dataset.wasDisabled; });
+      $('[data-editor-variants]').replaceChildren();
+      form.images.value = ''; form.images.disabled = true;
+      $('[data-editor-stock]').disabled = true;
+      $('[data-stock-availability]').textContent = 'Salve o produto para cadastrar estoque no depósito existente.';
+      $('[data-editor-loading]').hidden = false;
+      $('[data-product-status]').textContent = 'Carregando';
+      $('[data-product-status-note]').textContent = 'Consultando o cadastro e as permissões…';
+      $('[data-image-capability]').textContent = 'Verificando permissão de imagens…';
+      $('[data-store-channel]').textContent = 'Consultando cadastro…';
+      $('[data-save-draft]').hidden = false;
+      setBusy(true);
     },
+    cancel() { generation++; },
+    setBusy,
+    async load(id, listing) {
+      const request = generation;
+      const response = await window.GestaoApi.getProductDetail(id || undefined);
+      if (request !== generation) return false;
+      const p = response.product;
+      savedProduct = id ? p : null;
+      revision = response.revision || null;
+      imagePermission = response.capabilities?.images === true;
+      for (const k of ['nome', 'sku', 'preco', 'marca', 'descricaoCurta', 'descricaoComplementar', 'pesoLiquido', 'pesoBruto', 'volumes']) {
+        if (p[k] != null) form.elements[k].value = p[k];
+      }
+      if (id) { form.ativo.checked = p.ativo; form.categoriaId.value = p.categoriaId || ''; }
+      const factor = Number(p.dimensoes?.unidadeMedida) === 0 ? 100 : Number(p.dimensoes?.unidadeMedida) === 2 ? 0.1 : 1;
+      for (const k of ['largura', 'altura', 'profundidade']) form.elements[k].value = p.dimensoes?.[k] != null ? Number(p.dimensoes[k]) * factor : '';
+      for (const k of ['origem', 'ncm', 'cest']) form.elements[k].value = p.tributacao?.[k] ?? '';
+      for (const v of p.variacoes || []) row({ ...v, stock: listing?.variants?.find((item) => String(item.blingId) === String(v.id))?.stock });
+      form.images.value = (p.images || []).join('\n');
+      form.images.dataset.wasDisabled = String(!imagePermission);
+      $('[data-image-capability]').textContent = imagePermission ? 'Reordene as fotos pelos botões ou arraste. Salve o produto para confirmar as alterações.' : 'Galeria em leitura: a conexão Bling ainda não autorizou a gravação de imagens.';
+      $('[data-editor-loading]').hidden = true;
+      $('[data-editor-breadcrumb]').textContent = id ? 'Editar produto' : 'Novo produto';
+      $('[data-product-form-submit]').textContent = id ? 'Salvar alterações' : 'Publicar produto';
+      $('[data-save-draft]').hidden = !!id;
+      $('.product-switch').hidden = !id;
+      $('[data-product-status]').textContent = id ? (p.ativo ? 'Ativo no Bling' : 'Inativo no Bling') : 'Não salvo';
+      $('[data-product-status-note]').textContent = id ? 'Situação do último cadastro carregado. Alterações aguardam salvamento.' : 'Este produto ainda não foi cadastrado. Salve como rascunho ou publique na loja.';
+      $('[data-store-channel]').textContent = id ? (p.ativo ? 'Cadastro ativo · vitrine depende da sincronização e estoque' : 'Cadastro inativo no Bling') : 'Cadastro ainda não salvo';
+      $('[data-editor-stock]').dataset.wasDisabled = String(!id);
+      $('[data-stock-availability]').textContent = id ? 'Os saldos da grade são os da listagem na abertura. Consulte e ajuste por depósito em “Ajustar estoque”. Salvar o cadastro não movimenta estoque.' : 'Salve o produto para cadastrar estoque no depósito existente.';
+      ready = true; setBusy(false);
+      return true;
+    },
+    fail() { $('[data-editor-loading]').hidden = true; $('[data-product-status]').textContent = 'Não carregado'; $('[data-product-status-note]').textContent = 'Não foi possível consultar o produto. Reabra o cadastro para tentar novamente.'; },
     read() {
+      if (!ready || busy) throw new ProductEditorValidationError('Aguarde o carregamento do produto.');
+      const skus = new Set([form.sku.value.trim().toLowerCase()]), combinations = new Set();
+      const variacoes = [...form.querySelectorAll('.variant-edit-row')].map((el) => {
+        const size = el.querySelector('[data-v-size]').value.trim(), color = el.querySelector('[data-v-color]').value.trim();
+        const skuInput = el.querySelector('[data-v-sku]'), sku = skuInput.value.trim();
+        if (!sku || skus.has(sku.toLowerCase())) { skuInput.setCustomValidity('Cada variação precisa de um SKU único, diferente do produto principal.'); skuInput.reportValidity(); throw new ProductEditorValidationError('Revise os SKUs das variações: existem códigos vazios ou repetidos.'); }
+        skus.add(sku.toLowerCase());
+        const combination = [size.toLowerCase(), color.toLowerCase()].join(';');
+        if ((!size && !color) || /[;:]/.test(size + color) || combinations.has(combination)) throw new ProductEditorValidationError('Informe tamanho ou cor em cada variação, sem combinações repetidas ou os caracteres ; e :.');
+        combinations.add(combination);
+        return { id: el.dataset.variantId || undefined, nome: [size ? `Tamanho:${size}` : '', color ? `Cor:${color}` : ''].filter(Boolean).join(';'), sku, preco: Number(el.querySelector('[data-v-price]').value), ativo: el.querySelector('[data-v-active]').checked };
+      });
+      if (imagePermission && (values().length > 12 || values().some((url) => !photos().includes(url) || url.length > 1000))) throw new ProductEditorValidationError('Use até 12 links HTTPS válidos, com no máximo 1000 caracteres cada.');
       return {
-        revision,
-        descricaoComplementar: form.descricaoComplementar.value,
-        pesoLiquido: form.pesoLiquido.value,
-        pesoBruto: form.pesoBruto.value,
-        volumes: form.volumes.value,
-        dimensoes: Object.fromEntries(
-          ['largura', 'altura', 'profundidade'].map((k) => [k, form.elements[k].value]),
-        ),
+        revision, descricaoComplementar: form.descricaoComplementar.value,
+        pesoLiquido: form.pesoLiquido.value, pesoBruto: form.pesoBruto.value, volumes: form.volumes.value,
+        dimensoes: Object.fromEntries(['largura', 'altura', 'profundidade'].map((k) => [k, form.elements[k].value])),
         tributacao: Object.fromEntries(['origem', 'ncm', 'cest'].map((k) => [k, form.elements[k].value])),
-        ...(imagePermission
-          ? { images: form.images.value.split('\n').map((x) => x.trim()).filter(Boolean) }
-          : {}),
-        variacoes: [...extra.querySelectorAll('.variant-edit-row')].map((el) => ({
-          id: el.dataset.variantId || undefined,
-          nome: [
-            el.querySelector('[data-v-size]').value
-              ? `Tamanho:${el.querySelector('[data-v-size]').value}`
-              : '',
-            el.querySelector('[data-v-color]').value ? `Cor:${el.querySelector('[data-v-color]').value}` : '',
-          ].filter(Boolean).join(';'),
-          sku: el.querySelector('[data-v-sku]').value,
-          preco: Number(el.querySelector('[data-v-price]').value),
-          ativo: el.querySelector('[data-v-active]').checked,
-        })),
+        ...(imagePermission ? { images: values() } : {}), variacoes,
       };
     },
+    get savedProduct() { return savedProduct; },
   };
+  refresh();
 })();

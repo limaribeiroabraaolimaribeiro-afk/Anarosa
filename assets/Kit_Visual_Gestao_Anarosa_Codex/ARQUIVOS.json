@@ -1,0 +1,96 @@
+{
+  "project": "Gestao Anarosa",
+  "source_image": "imagem enviada pelo usuario nesta conversa em 2026-10-21; referencia de Biblioteca com mesmo conteudo visual",
+  "source_dimensions": {
+    "width": 1448,
+    "height": 1086
+  },
+  "distinct_source_mockups": 1,
+  "visual_crops": [
+    {
+      "file": "recortes/02_Menu_Lateral.png",
+      "area": [
+        0,
+        0,
+        215,
+        1086
+      ],
+      "note": "Menu lateral e identidade visual"
+    },
+    {
+      "file": "recortes/03_Cabecalho_e_Acoes.png",
+      "area": [
+        214,
+        0,
+        1448,
+        168
+      ],
+      "note": "Topo, busca, perfil, acoes e titulo"
+    },
+    {
+      "file": "recortes/04_Fotos_do_Produto.png",
+      "area": [
+        223,
+        165,
+        1081,
+        427
+      ],
+      "note": "Grade de imagens com imagem principal e upload"
+    },
+    {
+      "file": "recortes/05_Informacoes_Basicas.png",
+      "area": [
+        223,
+        433,
+        1080,
+        784
+      ],
+      "note": "Dados basicos, categoria, descricao, tags"
+    },
+    {
+      "file": "recortes/06_Precos_e_Vendas.png",
+      "area": [
+        223,
+        791,
+        1080,
+        908
+      ],
+      "note": "Precificacao, promocao, condicoes de venda"
+    },
+    {
+      "file": "recortes/07_Variacoes_e_Estoque.png",
+      "area": [
+        223,
+        917,
+        1080,
+        1086
+      ],
+      "note": "Variacoes e grade de estoque (cortado no mockup)"
+    },
+    {
+      "file": "recortes/08_Previa_do_Produto.png",
+      "area": [
+        1087,
+        161,
+        1393,
+        592
+      ],
+      "note": "Previa comercial do produto"
+    },
+    {
+      "file": "recortes/09_Status_Checklist_e_Canais.png",
+      "area": [
+        1087,
+        595,
+        1393,
+        1086
+      ],
+      "note": "Status, checklist, canais de venda"
+    }
+  ],
+  "notes": [
+    "O layout original e mockup de uma pagina, nao pacote de telas criadas separadamente.",
+    "Variacoes estao parcialmente cortadas na origem.",
+    "Os dados do exemplo na imagem nao sao dados comerciais verdadeiros."
+  ]
+}

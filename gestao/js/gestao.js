@@ -52,6 +52,7 @@
    */
   function friendlyErrorMessage(err, fallback) {
     console.error('[Gestao]', err);
+    if (err?.name === 'ProductEditorValidationError') return err.message;
     if (err && err.name === 'GestaoApiError') {
       if (err.status === 400 && err.payload && err.payload.error === 'validation_error') {
         const fieldErrors = err.payload.details && Array.isArray(err.payload.details.errors)
@@ -163,8 +164,13 @@
   const sidebar = $('[data-sidebar]');
   const sidebarOverlay = $('[data-sidebar-overlay]');
   $('[data-hamburger]')?.addEventListener('click', () => {
-    sidebar.classList.add('is-open');
-    sidebarOverlay.classList.add('is-open');
+    if (window.matchMedia('(min-width: 900px)').matches) {
+      document.body.classList.toggle('sidebar-collapsed');
+      return;
+    }
+    const open = sidebar.classList.toggle('is-open');
+    sidebarOverlay.classList.toggle('is-open', open);
+    $('[data-hamburger]').setAttribute('aria-expanded', String(open));
   });
   sidebarOverlay?.addEventListener('click', () => {
     sidebar.classList.remove('is-open');
@@ -189,16 +195,26 @@
   }
 
   function renderRoute() {
+    closeProductDrawer();
     const page = currentPage();
     $$('[data-page]').forEach((el) => { el.hidden = el.dataset.page !== page; });
     $$('[data-nav]').forEach((el) => el.classList.toggle('is-active', el.dataset.nav === page));
     $('[data-page-title]').textContent = PAGE_TITLES[page];
     sidebar.classList.remove('is-open');
     sidebarOverlay.classList.remove('is-open');
+    $('[data-hamburger]').setAttribute('aria-expanded', 'false');
     const loader = LOADERS[page];
     if (loader) loader();
   }
   window.addEventListener('hashchange', renderRoute);
+  $('[data-global-search]').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const scope = $('[data-global-scope]').value;
+    const input = { produtos: '[data-products-search]', pedidos: '[data-orders-search]', clientes: '[data-customers-search]' }[scope];
+    $(input).value = $('[data-global-query]').value.trim();
+    if (currentPage() === scope) renderRoute();
+    else window.location.hash = '#/' + scope;
+  });
 
   // ---------------------------------------------------------------
   // DASHBOARD
@@ -472,12 +488,21 @@
   const productForm = $('[data-product-form]');
   let editingBlingId = null;
   let categoriesCache = null;
+  let productOpenSequence = 0;
+  let editorStockProduct = null;
 
   function closeProductDrawer() {
+    productOpenSequence++;
+    window.AnaProductEditor.cancel();
     productDrawer.hidden = true;
     productDrawerOverlay.hidden = true;
+    document.body.classList.remove('product-editor-open');
   }
-  $$('[data-product-drawer-close]').forEach((el) => el.addEventListener('click', closeProductDrawer));
+  $$('[data-product-drawer-close]').forEach((el) => el.addEventListener('click', () => {
+    closeProductDrawer();
+    if (currentPage() !== 'produtos') window.location.hash = '#/produtos';
+    else $('[data-product-new]').focus({ preventScroll: true });
+  }));
   productDrawerOverlay?.addEventListener('click', closeProductDrawer);
 
   async function loadCategoryOptions(selectedName) {
@@ -501,16 +526,21 @@
       }
     } catch (err) {
       console.error('[Gestao] falha ao carregar categorias:', err);
+      if (err.status === 401) throw err;
       select.innerHTML = '<option value="">Sem categoria</option>';
     }
   }
 
   async function openProductDrawer(mode, product) {
-    editingBlingId = mode === 'edit' ? product.blingId : null;
-    $('[data-product-drawer-title]').textContent = mode === 'edit' ? 'Editar produto' : 'Novo produto';
-    $('[data-product-form-error]').hidden = true;
-    $('[data-product-form-variant-note]').hidden = !(mode === 'edit' && product.variants.length > 0);
+    if (productSubmitInFlight) return;
+    const sequence = ++productOpenSequence;
     productForm.reset();
+    window.AnaProductEditor.reset();
+    editingBlingId = mode === 'edit' ? product.blingId : null;
+    editorStockProduct = product || null;
+    $('[data-product-drawer-title]').textContent = mode === 'edit' ? 'Editar Produto' : 'Novo Produto';
+    $('[data-product-form-error]').hidden = true;
+    $('[data-product-form-variant-note]').hidden = !(mode === 'edit' && product.variants?.length > 0);
     if (mode === 'edit' && product) {
       productForm.nome.value = product.name || '';
       productForm.sku.value = product.sku || '';
@@ -520,14 +550,45 @@
       // branco; o backend preserva o valor atual no Bling quando o campo
       // não é preenchido (ver buildBlingProductUpdatePayload).
     }
-    await loadCategoryOptions(mode === 'edit' && product ? product.category : null);
-    const submitBtn = $('[data-product-form-submit]');
-    submitBtn.disabled = true;
     productDrawer.hidden = false;
-    productDrawerOverlay.hidden = false;
-    try { await window.AnaProductEditor.load(editingBlingId); submitBtn.disabled=false; } catch(err) { $('[data-product-form-error]').textContent=err.message; $('[data-product-form-error]').hidden=false; }
+    productDrawerOverlay.hidden = true;
+    document.body.classList.add('product-editor-open');
+    sidebar.classList.remove('is-open');
+    sidebarOverlay.classList.remove('is-open');
+    window.scrollTo({ top: 0 });
+    try {
+      await loadCategoryOptions(mode === 'edit' && product ? product.category : null);
+      if (sequence !== productOpenSequence) return;
+      if (await window.AnaProductEditor.load(editingBlingId, product)) productForm.nome.focus({ preventScroll: true });
+    } catch(err) {
+      if (sequence !== productOpenSequence) return;
+      if (err.status === 401) { closeProductDrawer(); return handleSessionExpired('produtos'); }
+      window.AnaProductEditor.fail();
+      $('[data-product-form-error]').textContent = friendlyErrorMessage(err, 'Não foi possível carregar o produto. Reabra o cadastro para tentar novamente.');
+      $('[data-product-form-error]').hidden = false;
+    }
   }
   $('[data-product-new]')?.addEventListener('click', () => openProductDrawer('create', null));
+  $('[data-nav-new]').addEventListener('click', () => openProductDrawer('create', null));
+  $('[data-nav-attributes]').addEventListener('click', async () => {
+    if (productDrawer.hidden) await openProductDrawer('create', null);
+    document.getElementById('product-variants').scrollIntoView({ block: 'center' });
+  });
+  $('[data-editor-stock]').addEventListener('click', () => {
+    const p = window.AnaProductEditor.savedProduct;
+    if (!p || !editingBlingId) return;
+    openStockDrawer({
+      ...editorStockProduct, blingId: editingBlingId, name: p.nome, sku: p.sku,
+      variants: (p.variacoes || []).map((v) => ({ blingId: v.id, name: v.nome, sku: v.sku })),
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      sidebar.classList.remove('is-open');
+      sidebarOverlay.classList.remove('is-open');
+      $('[data-hamburger]').setAttribute('aria-expanded', 'false');
+    }
+  });
 
   let productSubmitInFlight = false;
   productForm?.addEventListener('submit', async (e) => {
@@ -550,8 +611,9 @@
         categoriaId: String(fd.get('categoriaId') || '').trim() || undefined,
         marca: String(fd.get('marca') || '').trim() || undefined,
         descricaoCurta: String(fd.get('descricaoCurta') || '').trim() || undefined,
-        ativo: fd.get('ativo') === 'on',
+        ativo: e.submitter?.hasAttribute('data-save-draft') ? false : editingBlingId ? fd.get('ativo') === 'on' : true,
       };
+      window.AnaProductEditor.setBusy(true);
       const operation=await operationIdentity(`product:${editingBlingId||body.sku}`,body);
       body.operationKey=operation.key;
       if (editingBlingId) {
@@ -563,13 +625,14 @@
       }
       operation.clear();
       closeProductDrawer();
-      loadProducts(false);
+      if (currentPage() !== 'produtos') window.location.hash = '#/produtos';
+      else loadProducts(false);
     } catch (err) {
       if (err.status === 401) { closeProductDrawer(); return handleSessionExpired('produtos'); }
       errEl.textContent = friendlyErrorMessage(err, 'Não foi possível salvar o produto agora. Tente novamente em instantes.');
       errEl.hidden = false;
     } finally {
-      submitBtn.disabled = false;
+      window.AnaProductEditor.setBusy(false);
       submitBtn.textContent = originalLabel;
       productSubmitInFlight = false;
     }

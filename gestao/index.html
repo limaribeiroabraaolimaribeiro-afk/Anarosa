@@ -8,13 +8,12 @@
   <meta name="theme-color" content="#5a3516">
   <link rel="icon" type="image/jpeg" href="../assets/logo/logo-anarosa.jpg">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/fonts.css">
 
   <link rel="stylesheet" href="../css/reset.css">
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="css/gestao.css">
+  <link rel="stylesheet" href="css/product-editor.css">
 </head>
 <body>
 
@@ -51,16 +50,18 @@
     <aside class="gestao-sidebar" data-sidebar>
       <div class="gestao-sidebar-head">
         <img src="../assets/logo/logo-anarosa.jpg" alt="Anarosa">
-        <span>Gestão Anarosa</span>
+        <span>GESTÃO ANAROSA</span>
       </div>
       <nav class="gestao-nav" aria-label="Navegação do painel">
-        <a href="#/dashboard" data-nav="dashboard">Visão geral</a>
-        <a href="#/pedidos" data-nav="pedidos">Pedidos</a>
-        <a href="#/produtos" data-nav="produtos">Produtos</a>
-        <a href="#/clientes" data-nav="clientes">Clientes</a>
-        <a href="#/integracao" data-nav="integracao">Integração</a>
-        <a href="#/configuracoes" data-nav="configuracoes">Configurações</a>
+        <a href="#/dashboard" data-nav="dashboard"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+        <a href="#/produtos" data-nav="produtos"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4Z M3 7l9 4 9-4 M12 11v10 M7 5l10 5v4"/></svg>Produtos<span class="nav-chevron">⌄</span></a>
+        <div class="gestao-subnav"><a href="#/produtos">Todos os produtos</a><button type="button" data-nav-new>Novo produto</button><button type="button" data-nav-attributes>Tamanhos e cores</button></div>
+        <a href="#/pedidos" data-nav="pedidos"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l1 14H4Z M8 8V6a4 4 0 0 1 8 0v2"/></svg>Pedidos<span class="nav-chevron">›</span></a>
+        <a href="#/clientes" data-nav="clientes"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3Z"/></svg>Clientes<span class="nav-chevron">›</span></a>
+        <a href="#/integracao" data-nav="integracao"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12 5-5a4 4 0 0 1 6 6l-3 3 M16 12l-5 5a4 4 0 0 1-6-6l3-3"/></svg>Integrações<span class="nav-chevron">›</span></a>
+        <a href="#/configuracoes" data-nav="configuracoes"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m9 3 6 0 1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1Z"/></svg>Configurações<span class="nav-chevron">›</span></a>
       </nav>
+      <div class="gestao-brand-note" aria-hidden="true"><p>Moda que<br>conecta pessoas <span>♡</span></p><img src="../assets/img/optimized/feminino-editorial-480.webp" alt=""><blockquote>“Mais que moda.<br>Histórias reais.”</blockquote><span>—</span></div>
       <div class="gestao-sidebar-foot">
         <span data-current-user-email>—</span>
         <button type="button" class="gestao-link-btn" data-logout>Sair</button>
@@ -72,8 +73,10 @@
         <button type="button" class="gestao-hamburger" data-hamburger aria-label="Abrir menu">
           <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
         </button>
-        <h1 data-page-title>Visão geral</h1>
+        <form class="gestao-global-search" role="search" data-global-search><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input type="search" aria-label="Buscar no painel" placeholder="Buscar produtos, pedidos, clientes…" data-global-query><select aria-label="Onde buscar" data-global-scope><option value="produtos">Produtos</option><option value="pedidos">Pedidos</option><option value="clientes">Clientes</option></select></form>
+        <a class="gestao-account" href="#/configuracoes"><span class="gestao-account-icon" aria-hidden="true">A</span><span>Minha conta<small>Acesso administrativo</small></span></a>
       </header>
+      <h1 class="gestao-page-heading" data-page-title>Visão geral</h1>
 
       <div class="gestao-banner" data-session-banner hidden></div>
 
@@ -231,43 +234,7 @@
        DRAWER — CRIAR/EDITAR PRODUTO (grava no Bling, nunca direto no Supabase)
        ========================================================= -->
   <div class="gestao-drawer-overlay" data-product-drawer-overlay hidden></div>
-  <aside class="gestao-drawer" data-product-drawer hidden aria-label="Produto">
-    <div class="gestao-drawer-head">
-      <h2 data-product-drawer-title>Novo produto</h2>
-      <button type="button" class="drawer-close" data-product-drawer-close aria-label="Fechar">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
-      </button>
-    </div>
-    <div class="gestao-drawer-body">
-      <p class="gestao-note" data-product-form-variant-note hidden>Edite cada tamanho e cor abaixo. O estoque é ajustado separadamente por SKU; desative variações antigas para preservar o histórico.</p>
-      <form data-product-form>
-        <label>Nome *<input type="text" name="nome" required maxlength="120"></label>
-        <label>SKU (código único) *<input type="text" name="sku" required maxlength="60"></label>
-        <label>Preço (R$) *<input type="number" name="preco" required min="0" step="0.01"></label>
-        <label>Categoria
-          <select name="categoriaId" data-product-category-select>
-            <option value="">Sem categoria</option>
-          </select>
-        </label>
-        <label>Marca<input type="text" name="marca" maxlength="100" placeholder="Opcional"></label>
-        <label>Descrição curta<textarea name="descricaoCurta" maxlength="500" rows="3" placeholder="Opcional"></textarea></label>
-        <label class="gestao-checkbox-label"><input type="checkbox" name="ativo" checked> Produto ativo</label>
-
-        <div class="gestao-field-group">
-          <label class="gestao-disabled-label">Imagem do produto
-            <input type="file" accept="image/*" disabled>
-          </label>
-          <p class="gestao-note">Envio de imagem ainda não disponível — requer um novo escopo do Bling ("Salvar imagens dos Produtos") que esta conexão ainda não tem. Por enquanto, cadastre a foto direto no Bling.</p>
-        </div>
-
-        <p class="gestao-form-error" data-product-form-error hidden></p>
-        <div class="gestao-drawer-actions">
-          <button type="button" class="btn btn-outline" data-product-drawer-close>Cancelar</button>
-          <button type="submit" class="btn btn-primary" data-product-form-submit>Salvar no Bling</button>
-        </div>
-      </form>
-    </div>
-  </aside>
+  <aside class="product-workspace" data-product-drawer hidden aria-label="Produto"><form data-product-form></form></aside>
 
   <!-- =========================================================
        DRAWER — AJUSTAR ESTOQUE (lança movimento no Bling)

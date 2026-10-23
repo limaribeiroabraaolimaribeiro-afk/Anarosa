@@ -1,0 +1,24 @@
+/* Guia de cores e medidas APROXIMADAS com base no mockup, nao tokens oficiais da marca. */
+:root {
+  --anarosa-bg: #faf7f2;
+  --anarosa-sidebar: #f8f0e4;
+  --anarosa-surface: #ffffff;
+  --anarosa-surface-soft: #f8f4ed;
+  --anarosa-ink: #322318;
+  --anarosa-brown: #70491e;
+  --anarosa-gold: #8e6a30;
+  --anarosa-border: #eadfd3;
+  --anarosa-muted: #7b7774;
+  --anarosa-success: #2f8342;
+  --anarosa-radius-card: 12px;
+  --anarosa-radius-input: 6px;
+  --anarosa-space-1: 4px;
+  --anarosa-space-2: 8px;
+  --anarosa-space-3: 12px;
+  --anarosa-space-4: 16px;
+  --anarosa-space-5: 24px;
+  --anarosa-space-6: 32px;
+  --anarosa-font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --anarosa-font-display: Georgia, 'Times New Roman', serif;
+}
+/* Recomenda-se integrar ao design system existente ao inves de aplicar diretamente. */
