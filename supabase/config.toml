@@ -4,6 +4,12 @@
 # apenas mantenha as seções [functions.*] abaixo.
 project_id = "anarosa"
 
+[functions.admin-product-detail]
+verify_jwt = true
+
+[functions.admin-stock-history]
+verify_jwt = true
+
 [api]
 enabled = true
 port = 54321

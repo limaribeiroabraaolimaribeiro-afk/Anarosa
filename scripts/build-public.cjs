@@ -28,9 +28,11 @@ const files = [
   'js/services/ui-service.js',
   'gestao/index.html',
   'gestao/css/gestao.css',
+  'gestao/css/product-editor.css',
   'gestao/js/gestao-auth.js',
   'gestao/js/gestao-api.js',
   'gestao/js/gestao.js',
+  'gestao/js/product-editor.js',
 ];
 if (path.dirname(out) !== root || path.basename(out) !== '_site') throw Error('Unsafe build destination');
 fs.rmSync(out, { recursive: true, force: true });
@@ -46,6 +48,7 @@ function assets(dir) {
     // Keep source PNGs and their manifest in the repository, outside the public
     // artifact. Only the optimized campaign derivatives are needed by the shop.
     const publicPath = file.split(path.sep).join('/');
+    if (publicPath.startsWith('assets/Kit_Visual_Gestao_Anarosa_Codex')) continue;
     if (publicPath.startsWith('assets/img/') && !publicPath.startsWith('assets/img/optimized/') && publicPath !== 'assets/img/optimized') continue;
     if (entry.isDirectory()) assets(file);
     else if (/\.(svg|webp|avif|png|jpe?g|gif|ico|woff2?)$/i.test(entry.name)) {

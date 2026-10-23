@@ -614,3 +614,15 @@ body {
 @media (max-width: 899px) {
   .gestao-stats { grid-template-columns: repeat(2, 1fr); }
 }
+/* Operational forms share the store typography and spacing. */
+.editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.product-editor-sections details{border-top:1px solid #e5ddd4;padding:16px 0}
+.product-editor-sections summary{font-weight:600;cursor:pointer;margin-bottom:12px}
+.variant-edit-row{padding:14px;background:#faf7f3;border-radius:10px;margin:12px 0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.editor-gallery{display:flex;gap:10px;overflow:auto}.editor-gallery img{width:100px;height:125px;object-fit:cover;border-radius:8px}
+.settings-form{display:grid;gap:20px}.settings-form label{display:grid;gap:6px}.settings-form input,.settings-form select,.settings-form textarea{border:1px solid #d5c8ba;border-radius:8px;padding:12px;font:inherit;max-width:100%}
+.settings-form fieldset{padding:18px;border:1px solid #e5ddd4;display:grid;gap:12px}.settings-form input[type=checkbox]{width:auto}
+.revenue-chart{display:flex;gap:12px;align-items:end;padding:20px 0;overflow-x:auto}.revenue-column{flex:1;min-width:65px;text-align:center;font-size:12px}.revenue-bar{min-height:2px;background:#795943;border-radius:4px 4px 0 0;margin:10px auto;width:65%}
+.customer-history{color:#795943;text-decoration:underline;background:none;border:0;font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid #9b7655;outline-offset:3px}
+@media(max-width:600px){.editor-grid{grid-template-columns:1fr}.gestao-drawer{width:100%;max-width:100vw}.gestao-actions{flex-wrap:wrap}.gestao-table{min-width:650px}.gestao-drawer-body{overflow-x:auto}.variant-edit-row{grid-template-columns:1fr 1fr}}

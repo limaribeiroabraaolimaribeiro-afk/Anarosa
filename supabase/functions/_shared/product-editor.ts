@@ -1,0 +1,148 @@
+import { ValidationError } from './errors.ts';
+import { validateProductAdminInput } from './product-admin-mapper.ts';
+import { sha256Hex } from './crypto.ts';
+type Row = Record<string, any>;
+export function productEditorView(raw: Row) {
+  return {
+    nome: raw.nome,
+    sku: raw.codigo ?? '',
+    preco: raw.preco,
+    categoriaId: raw.categoria?.id ? String(raw.categoria.id) : '',
+    marca: raw.marca ?? '',
+    descricaoCurta: raw.descricaoCurta ?? '',
+    descricaoComplementar: raw.descricaoComplementar ?? '',
+    ativo: raw.situacao === 'A',
+    pesoLiquido: raw.pesoLiquido ?? null,
+    pesoBruto: raw.pesoBruto ?? null,
+    volumes: raw.volumes ?? null,
+    dimensoes: raw.dimensoes ?? {},
+    tributacao: {
+      origem: raw.tributacao?.origem ?? null,
+      ncm: raw.tributacao?.ncm ?? '',
+      cest: raw.tributacao?.cest ?? '',
+    },
+    images: [...(raw.midia?.imagens?.externas ?? []), ...(raw.midia?.imagens?.internas ?? [])].map((i) =>
+      i.link
+    ).filter(Boolean),
+    variacoes: (raw.variacoes ?? []).map((v: Row) => ({
+      id: String(v.id),
+      nome: v.variacao?.nome ?? v.nome,
+      sku: v.codigo,
+      preco: v.preco,
+      ativo: v.situacao === 'A',
+    })),
+  };
+}
+export const productRevision = (raw: Row) => sha256Hex(JSON.stringify(productEditorView(raw)));
+export function buildProductEditorPayload(raw: Row, current: Row | null = null, imagesAllowed = false): Row {
+  const b = validateProductAdminInput(raw);
+  if (!b.sku) throw new ValidationError('Informe um SKU único para o produto.');
+  const out: Row = {
+    nome: b.nome,
+    codigo: b.sku,
+    preco: b.preco,
+    situacao: b.ativo ? 'A' : 'I',
+    marca: b.marca ?? '',
+    descricaoCurta: b.descricaoCurta ?? '',
+  };
+  if (!current) Object.assign(out, { tipo: 'P', formato: 'S', condicao: 0 });
+  if (b.categoriaId) out.categoria = { id: Number(b.categoriaId) };
+  if (raw.descricaoComplementar !== undefined) {
+    out.descricaoComplementar = String(raw.descricaoComplementar).slice(0, 10000);
+  }
+  for (const k of ['pesoLiquido', 'pesoBruto', 'volumes']) {
+    if (raw[k] != null && raw[k] !== '') {
+      const n = Number(raw[k]);
+      if (
+        !Number.isFinite(n) || n < 0 || (k === 'volumes' && !Number.isInteger(n))
+      ) throw new ValidationError('Peso ou volumes inválidos.');
+      out[k] = n;
+    }
+  }
+  if (raw.dimensoes) {
+    out.dimensoes = { ...(current?.dimensoes ?? {}), unidadeMedida: 1 };
+    for (const k of ['largura', 'altura', 'profundidade']) {
+      if (raw.dimensoes[k] == null || raw.dimensoes[k] === '') continue;
+      const n = Number(raw.dimensoes[k]);
+      if (!Number.isFinite(n) || n < 0) throw new ValidationError('Dimensão inválida.');
+      out.dimensoes[k] = n;
+    }
+  }
+  if (raw.tributacao) {
+    out.tributacao = { ...(current?.tributacao ?? {}) };
+    for (const [k, len] of [['ncm', 8], ['cest', 7]] as const) {
+      if (raw.tributacao[k] === undefined) continue;
+      const v = String(raw.tributacao[k]).replace(/[.\s]/g, '');
+      if (v && !new RegExp(`^\\d{${len}}$`).test(v)) {
+        throw new ValidationError(`${k.toUpperCase()} inválido.`);
+      }
+      out.tributacao[k] = v;
+    }
+    if (raw.tributacao.origem != null && raw.tributacao.origem !== '') {
+      const n = Number(raw.tributacao.origem);
+      if (!Number.isInteger(n) || n < 0 || n > 8) throw new ValidationError('Origem fiscal inválida.');
+      out.tributacao.origem = n;
+    }
+  }
+  if (raw.images !== undefined) {
+    const same = current && JSON.stringify(raw.images) === JSON.stringify(productEditorView(current).images);
+    if (!same) {
+      if (!imagesAllowed) {
+        throw new ValidationError('Permissão para salvar imagens ainda não validada na conexão Bling.');
+      }
+      if (!Array.isArray(raw.images) || raw.images.length > 12) {
+        throw new ValidationError('Máximo de 12 imagens.');
+      }
+      if (
+        raw.images.some((u: unknown) => typeof u !== 'string' || !/^https:\/\//i.test(u) || u.length > 1000)
+      ) throw new ValidationError('Use URLs HTTPS de imagens.');
+      out.midia = {
+        ...(current?.midia ?? {}),
+        imagens: { imagensURL: raw.images.map((link: string) => ({ link })) },
+      };
+    }
+  }
+  if (raw.variacoes !== undefined) {
+    if (!Array.isArray(raw.variacoes) || raw.variacoes.length > 100) {
+      throw new ValidationError('Variações inválidas.');
+    }
+    const existing = current?.variacoes ?? [];
+    if (current && current.formato !== 'V' && raw.variacoes.length) {
+      throw new ValidationError(
+        'Converter produto simples altera seu estoque. Faça essa conversão no Bling antes de editar as variações aqui.',
+      );
+    }
+    if (existing.some((v: Row) => !raw.variacoes.some((x: Row) => String(x.id) === String(v.id)))) {
+      throw new ValidationError(
+        'Não remova variações existentes. Desative a variação para preservar histórico e estoque.',
+      );
+    }
+    const skus = new Set([b.sku.toLowerCase()]);
+    const ids = new Set();
+    out.variacoes = raw.variacoes.map((v: Row, index: number) => {
+      if (v.id && (ids.has(v.id) || !existing.some((x: Row) => String(x.id) === String(v.id)))) {
+        throw new ValidationError('Variação não pertence ao produto ou está repetida.');
+      }
+      ids.add(v.id);
+      const data = validateProductAdminInput({ nome: v.nome, sku: v.sku, preco: v.preco, ativo: v.ativo });
+      if (!data.sku || skus.has(data.sku.toLowerCase())) {
+        throw new ValidationError('Cada variação precisa de SKU único.');
+      }
+      skus.add(data.sku.toLowerCase());
+      if (!/^(?:Tamanho|Cor):[^;:]+(?:;(?:Tamanho|Cor):[^;:]+)*$/i.test(data.nome)) {
+        throw new ValidationError('Use Tamanho:M;Cor:Azul nas características da variação.');
+      }
+      return {
+        ...(v.id ? { id: Number(v.id) } : { tipo: 'P', formato: 'S' }),
+        nome: `${b.nome} ${data.nome}`.slice(0, 120),
+        codigo: data.sku,
+        preco: data.preco,
+        situacao: data.ativo ? 'A' : 'I',
+        variacao: { nome: data.nome, ordem: index, produtoPai: { cloneInfo: false } },
+      };
+    });
+    if (!current && out.variacoes.length) out.formato = 'V';
+    if (!out.variacoes.length) delete out.variacoes;
+  }
+  return out;
+}

@@ -454,4 +454,11 @@ export class BlingClient {
       operation: 'orders.get',
     });
   }
+  // Partial updates preserve fields that the administrative form does not edit.
+  patchProduct(id: string, payload: Record<string, unknown>) {
+    return this.request<BlingItemResponse>(`produtos/${encodeURIComponent(id)}`, { method: 'PATCH', operation: 'products.patch', body: payload });
+  }
+  findProductsBySku(skus: string[]) {
+    return this.request<BlingListResponse>('produtos', { operation: 'products.find_sku', query: { codigos: skus, criterio: 5, limite: 100 } });
+  }
 }

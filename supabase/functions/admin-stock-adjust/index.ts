@@ -21,6 +21,7 @@ import { serve } from '../_shared/context.ts';
 import { NotFoundError, ValidationError } from '../_shared/errors.ts';
 import { json, methodNotAllowed } from '../_shared/responses.ts';
 import { syncStockForProducts } from '../_shared/sync-service.ts';
+import { runAdminMutation } from '../_shared/admin-mutation.ts';
 
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
@@ -34,7 +35,7 @@ serve(async (req, ctx) => {
     p_limit: RATE_LIMIT_MAX,
     p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
   });
-  if (allowed.data === false) throw new ValidationError('Muitas tentativas. Aguarde um instante e tente novamente.');
+  if (allowed.error || allowed.data !== true) throw new ValidationError('Muitas tentativas. Aguarde um instante e tente novamente.');
 
   let raw: unknown;
   try {
@@ -43,11 +44,17 @@ serve(async (req, ctx) => {
     throw new ValidationError('Body JSON inválido.');
   }
   const input = validateStockAdjustmentInput(raw);
+  const response = await runAdminMutation(ctx, {
+    key: (raw as Record<string,string>).operationKey,
+    resource: `stock:${input.blingProductId}:${input.depositoId}`,
+    actor: admin.id, payload: input,
+  }, async submitted => {
 
   const product = await ctx.repo.findProductByBlingId(input.blingProductId);
   const variant = product ? null : await ctx.repo.findVariantByBlingId(input.blingProductId);
   if (!product && !variant) throw new NotFoundError('Produto ou variação não encontrado no catálogo sincronizado.');
 
+  await submitted();
   const result = await ctx.client().createStockEntry({
     produto: { id: Number(input.blingProductId) },
     deposito: { id: Number(input.depositoId) },
@@ -65,10 +72,16 @@ serve(async (req, ctx) => {
     blingStockEntryId: result?.data?.id ?? null,
   });
 
+  try {
   const updatedRows = await syncStockForProducts(
     { client: ctx.client(), repo: ctx.repo, logger: ctx.logger, tokenStore: ctx.tokenStore },
     [input.blingProductId],
   );
 
-  return json(req, { ok: true, updatedRows, message: 'Estoque ajustado no Bling e saldo sincronizado.' }, 200);
+  return { ok: true, updatedRows, operation:input.operacao, quantity:input.quantidade, depositId:input.depositoId, blingEntryId:result?.data?.id??null, message: 'Estoque ajustado no Bling e saldo sincronizado.' };
+  } catch {
+    return { ok:true, syncPending:true, operation:input.operacao, quantity:input.quantidade, depositId:input.depositoId, blingEntryId:result?.data?.id??null, message:'Movimentação registrada no Bling. Saldo aguardando sincronização; não repita o ajuste.' };
+  }
+  });
+  return json(req, response, response.syncPending ? 202 : 200);
 });
