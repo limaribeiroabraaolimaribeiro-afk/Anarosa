@@ -177,8 +177,8 @@ export function validateStockAdjustmentInput(raw: unknown): StockAdjustmentInput
   if (!operacao) errors.push('operacao deve ser "entrada", "saida" ou "balanco".');
 
   const quantidade = Number(body.quantidade);
-  if (!Number.isFinite(quantidade) || quantidade <= 0) {
-    errors.push('quantidade deve ser um número maior que zero.');
+  if (!Number.isFinite(quantidade) || quantidade < 0 || (quantidade === 0 && operacao !== 'B')) {
+    errors.push('quantidade deve ser positiva; balanço permite zero.');
   }
 
   const observacoes = sanitizeText(body.observacoes, 500);

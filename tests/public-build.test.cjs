@@ -32,9 +32,10 @@ test('all local HTML, CSS and editorial image references exist in the artifact',
  for(const slug of ['bebe-editorial','infantil-editorial','masculino-editorial','feminino-editorial','juvenil-editorial','plus-size-editorial'])assert(fs.existsSync(path.join(root,`assets/img/optimized/${slug}-480.webp`)));
  assert.equal(files.filter(f=>f.endsWith('.webp')).length,22);assert.equal(files.filter(f=>f.endsWith('.woff2')).length,6);
 });
-test('public frontend uses only the existing production interfaces',()=>{
+test('public checkout contract is preserved and new APIs are limited to product administration',()=>{
  const source=files.filter(f=>f.endsWith('.js')).map(f=>fs.readFileSync(f,'utf8')).join('\n');
- for(const missing of ['storefront-settings','admin-settings','admin-product-detail','admin-order-action','admin-stock-history','bling-order-sync-process'])assert(!source.includes(missing),missing);
+ for(const missing of ['storefront-settings','admin-settings','admin-order-action','bling-order-sync-process'])assert(!source.includes(missing),missing);
+ for(const added of ['admin-product-detail','admin-stock-history'])assert(source.includes(added),added);
  const checkout=fs.readFileSync(path.join(root,'js/checkout.js'),'utf8');
  assert(checkout.includes('JSON.stringify({ orderId: json.orderId })'));
  assert(checkout.includes('storefront-checkout'));assert(checkout.includes('infinitepay-create-payment'));

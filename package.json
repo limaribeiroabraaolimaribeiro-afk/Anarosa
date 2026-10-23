@@ -5,15 +5,18 @@
   "description": "Loja virtual ANAROSA — frontend estático + integração Bling via Supabase Edge Functions",
   "scripts": {
     "dev": "python -m http.server 5500 --bind 127.0.0.1",
-    "test": "cd supabase/functions && npx -y deno@2 test --allow-env --allow-read _tests/",
-    "check": "cd supabase/functions && npx -y deno@2 task check",
-    "lint:js": "node --check js/config.js && node --check js/products.js && node --check js/services/catalog-service.js && node --check js/services/cart-service.js && node --check js/app.js && node --check js/integration-status.js && node --check js/checkout.js && node --check js/pedido-confirmado.js && node --check gestao/js/gestao-auth.js && node --check gestao/js/gestao-api.js && node --check gestao/js/gestao.js",
+    "test": "cd supabase/functions && deno test --allow-env --allow-read _tests/",
+    "check": "cd supabase/functions && deno task check",
+    "lint:js": "node scripts/check-javascript.cjs",
     "secrets:scan": "node scripts/secrets-scan.js",
     "build:public": "node scripts/build-public.cjs",
     "test:public": "node scripts/build-public.cjs && node --test tests/public-build.test.cjs",
-    "test:browser": "node scripts/build-public.cjs && node scripts/run-browser-tests.cjs"
+    "test:browser": "node scripts/build-public.cjs && node scripts/run-browser-tests.cjs",
+    "test:gestao:db": "node --test tests/gestao-operations.test.cjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1"
+    "@playwright/test": "1.64.1",
+    "@electric-sql/pglite": "0.5.10",
+    "deno": "2.9.6"
   }
 }

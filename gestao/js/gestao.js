@@ -34,6 +34,15 @@
     setTimeout(() => toastEl.classList.remove('is-visible'), 2600);
   }
 
+  async function operationIdentity(scope,payload){
+    const fingerprint=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(payload))))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const session=await window.GestaoAuth.getSession();
+    const storageKey=`anarosa_admin_intent:${session?.user?.id||'session'}:${scope}`;
+    let saved;try{saved=JSON.parse(sessionStorage.getItem(storageKey));}catch{}
+    if(!saved||saved.fingerprint!==fingerprint){saved={fingerprint,key:crypto.randomUUID()};try{sessionStorage.setItem(storageKey,JSON.stringify(saved));}catch{}}
+    return {key:saved.key,clear:()=>{try{sessionStorage.removeItem(storageKey);}catch{}}};
+  }
+
   /**
    * Traduz um erro da API para uma mensagem amigável (FASE A / A6) —
    * nunca mostra nome de operação técnica ("products.update"), código
@@ -43,6 +52,7 @@
    */
   function friendlyErrorMessage(err, fallback) {
     console.error('[Gestao]', err);
+    if (err?.name === 'ProductEditorValidationError') return err.message;
     if (err && err.name === 'GestaoApiError') {
       if (err.status === 400 && err.payload && err.payload.error === 'validation_error') {
         const fieldErrors = err.payload.details && Array.isArray(err.payload.details.errors)
@@ -154,8 +164,13 @@
   const sidebar = $('[data-sidebar]');
   const sidebarOverlay = $('[data-sidebar-overlay]');
   $('[data-hamburger]')?.addEventListener('click', () => {
-    sidebar.classList.add('is-open');
-    sidebarOverlay.classList.add('is-open');
+    if (window.matchMedia('(min-width: 900px)').matches) {
+      document.body.classList.toggle('sidebar-collapsed');
+      return;
+    }
+    const open = sidebar.classList.toggle('is-open');
+    sidebarOverlay.classList.toggle('is-open', open);
+    $('[data-hamburger]').setAttribute('aria-expanded', String(open));
   });
   sidebarOverlay?.addEventListener('click', () => {
     sidebar.classList.remove('is-open');
@@ -180,16 +195,26 @@
   }
 
   function renderRoute() {
+    closeProductDrawer();
     const page = currentPage();
     $$('[data-page]').forEach((el) => { el.hidden = el.dataset.page !== page; });
     $$('[data-nav]').forEach((el) => el.classList.toggle('is-active', el.dataset.nav === page));
     $('[data-page-title]').textContent = PAGE_TITLES[page];
     sidebar.classList.remove('is-open');
     sidebarOverlay.classList.remove('is-open');
+    $('[data-hamburger]').setAttribute('aria-expanded', 'false');
     const loader = LOADERS[page];
     if (loader) loader();
   }
   window.addEventListener('hashchange', renderRoute);
+  $('[data-global-search]').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const scope = $('[data-global-scope]').value;
+    const input = { produtos: '[data-products-search]', pedidos: '[data-orders-search]', clientes: '[data-customers-search]' }[scope];
+    $(input).value = $('[data-global-query]').value.trim();
+    if (currentPage() === scope) renderRoute();
+    else window.location.hash = '#/' + scope;
+  });
 
   // ---------------------------------------------------------------
   // DASHBOARD
@@ -205,7 +230,7 @@
       const cards = [
         ['Pedidos novos', summary.newOrders],
         ['Pedidos hoje', summary.ordersToday],
-        ['Vendas hoje', fmtMoney(summary.revenueToday)],
+        ['Recebido hoje', fmtMoney(summary.revenueToday)],
         ['Vendas no mês', fmtMoney(summary.revenueMonth)],
         ['Clientes', summary.customers],
       ];
@@ -386,7 +411,7 @@
           ${hasVariants ? `<p class="gestao-product-meta">${escapeHtml(p.variants.length)} variação(ões)</p>` : ''}
           <p class="gestao-product-meta">${p.active ? 'Ativo' : 'Inativo'} · atualizado ${fmtDate(p.updatedAt)}</p>
           <div class="gestao-product-actions">
-            <button type="button" class="btn btn-outline" data-product-edit ${hasVariants ? 'disabled title="Produto com variação — edite direto no Bling"' : ''}>Editar</button>
+            <button type="button" class="btn btn-outline" data-product-edit>Editar</button>
             <button type="button" class="btn btn-outline" data-product-stock>Ajustar estoque</button>
             <button type="button" class="btn btn-outline" data-product-toggle-active>${p.active ? 'Desativar' : 'Ativar'}</button>
           </div>
@@ -459,12 +484,21 @@
   const productForm = $('[data-product-form]');
   let editingBlingId = null;
   let categoriesCache = null;
+  let productOpenSequence = 0;
+  let editorStockProduct = null;
 
   function closeProductDrawer() {
+    productOpenSequence++;
+    window.AnaProductEditor.cancel();
     productDrawer.hidden = true;
     productDrawerOverlay.hidden = true;
+    document.body.classList.remove('product-editor-open');
   }
-  $$('[data-product-drawer-close]').forEach((el) => el.addEventListener('click', closeProductDrawer));
+  $$('[data-product-drawer-close]').forEach((el) => el.addEventListener('click', () => {
+    closeProductDrawer();
+    if (currentPage() !== 'produtos') window.location.hash = '#/produtos';
+    else $('[data-product-new]').focus({ preventScroll: true });
+  }));
   productDrawerOverlay?.addEventListener('click', closeProductDrawer);
 
   async function loadCategoryOptions(selectedName) {
@@ -488,16 +522,21 @@
       }
     } catch (err) {
       console.error('[Gestao] falha ao carregar categorias:', err);
+      if (err.status === 401) throw err;
       select.innerHTML = '<option value="">Sem categoria</option>';
     }
   }
 
-  function openProductDrawer(mode, product) {
-    editingBlingId = mode === 'edit' ? product.blingId : null;
-    $('[data-product-drawer-title]').textContent = mode === 'edit' ? 'Editar produto' : 'Novo produto';
-    $('[data-product-form-error]').hidden = true;
-    $('[data-product-form-variant-note]').hidden = !(mode === 'edit' && product.variants.length > 0);
+  async function openProductDrawer(mode, product) {
+    if (productSubmitInFlight) return;
+    const sequence = ++productOpenSequence;
     productForm.reset();
+    window.AnaProductEditor.reset();
+    editingBlingId = mode === 'edit' ? product.blingId : null;
+    editorStockProduct = product || null;
+    $('[data-product-drawer-title]').textContent = mode === 'edit' ? 'Editar Produto' : 'Novo Produto';
+    $('[data-product-form-error]').hidden = true;
+    $('[data-product-form-variant-note]').hidden = !(mode === 'edit' && product.variants?.length > 0);
     if (mode === 'edit' && product) {
       productForm.nome.value = product.name || '';
       productForm.sku.value = product.sku || '';
@@ -507,13 +546,45 @@
       // branco; o backend preserva o valor atual no Bling quando o campo
       // não é preenchido (ver buildBlingProductUpdatePayload).
     }
-    loadCategoryOptions(mode === 'edit' && product ? product.category : null);
-    const submitBtn = $('[data-product-form-submit]');
-    submitBtn.disabled = mode === 'edit' && product.variants.length > 0;
     productDrawer.hidden = false;
-    productDrawerOverlay.hidden = false;
+    productDrawerOverlay.hidden = true;
+    document.body.classList.add('product-editor-open');
+    sidebar.classList.remove('is-open');
+    sidebarOverlay.classList.remove('is-open');
+    window.scrollTo({ top: 0 });
+    try {
+      await loadCategoryOptions(mode === 'edit' && product ? product.category : null);
+      if (sequence !== productOpenSequence) return;
+      if (await window.AnaProductEditor.load(editingBlingId, product)) productForm.nome.focus({ preventScroll: true });
+    } catch(err) {
+      if (sequence !== productOpenSequence) return;
+      if (err.status === 401) { closeProductDrawer(); return handleSessionExpired('produtos'); }
+      window.AnaProductEditor.fail();
+      $('[data-product-form-error]').textContent = friendlyErrorMessage(err, 'Não foi possível carregar o produto. Reabra o cadastro para tentar novamente.');
+      $('[data-product-form-error]').hidden = false;
+    }
   }
   $('[data-product-new]')?.addEventListener('click', () => openProductDrawer('create', null));
+  $('[data-nav-new]').addEventListener('click', () => openProductDrawer('create', null));
+  $('[data-nav-attributes]').addEventListener('click', async () => {
+    if (productDrawer.hidden) await openProductDrawer('create', null);
+    document.getElementById('product-variants').scrollIntoView({ block: 'center' });
+  });
+  $('[data-editor-stock]').addEventListener('click', () => {
+    const p = window.AnaProductEditor.savedProduct;
+    if (!p || !editingBlingId) return;
+    openStockDrawer({
+      ...editorStockProduct, blingId: editingBlingId, name: p.nome, sku: p.sku,
+      variants: (p.variacoes || []).map((v) => ({ blingId: v.id, name: v.nome, sku: v.sku })),
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      sidebar.classList.remove('is-open');
+      sidebarOverlay.classList.remove('is-open');
+      $('[data-hamburger]').setAttribute('aria-expanded', 'false');
+    }
+  });
 
   let productSubmitInFlight = false;
   productForm?.addEventListener('submit', async (e) => {
@@ -529,29 +600,35 @@
     try {
       const fd = new FormData(productForm);
       const body = {
+        ...window.AnaProductEditor.read(),
         nome: String(fd.get('nome') || '').trim(),
         sku: String(fd.get('sku') || '').trim() || undefined,
         preco: Number(fd.get('preco')),
         categoriaId: String(fd.get('categoriaId') || '').trim() || undefined,
         marca: String(fd.get('marca') || '').trim() || undefined,
         descricaoCurta: String(fd.get('descricaoCurta') || '').trim() || undefined,
-        ativo: fd.get('ativo') === 'on',
+        ativo: e.submitter?.hasAttribute('data-save-draft') ? false : editingBlingId ? fd.get('ativo') === 'on' : true,
       };
+      window.AnaProductEditor.setBusy(true);
+      const operation=await operationIdentity(`product:${editingBlingId||body.sku}`,body);
+      body.operationKey=operation.key;
       if (editingBlingId) {
-        await window.GestaoApi.updateProduct({ ...body, blingId: editingBlingId });
-        showToast('Produto salvo no Bling.');
+        const result=await window.GestaoApi.updateProduct({ ...body, blingId: editingBlingId });
+        showToast(result.message);
       } else {
-        await window.GestaoApi.createProduct(body);
-        showToast('Produto salvo no Bling.');
+        const result=await window.GestaoApi.createProduct(body);
+        showToast(result.message);
       }
+      operation.clear();
       closeProductDrawer();
-      loadProducts(false);
+      if (currentPage() !== 'produtos') window.location.hash = '#/produtos';
+      else loadProducts(false);
     } catch (err) {
       if (err.status === 401) { closeProductDrawer(); return handleSessionExpired('produtos'); }
       errEl.textContent = friendlyErrorMessage(err, 'Não foi possível salvar o produto agora. Tente novamente em instantes.');
       errEl.hidden = false;
     } finally {
-      submitBtn.disabled = false;
+      window.AnaProductEditor.setBusy(false);
       submitBtn.textContent = originalLabel;
       productSubmitInFlight = false;
     }
@@ -591,14 +668,31 @@
   $$('[data-stock-drawer-close]').forEach((el) => el.addEventListener('click', closeStockDrawer));
   stockDrawerOverlay?.addEventListener('click', closeStockDrawer);
 
+  async function loadStockHistory(id){
+    let box=stockDrawer.querySelector('[data-stock-history]');
+    if(!box){box=document.createElement('div');box.dataset.stockHistory='';stockForm.after(box);}
+    box.textContent='Carregando saldos e ajustes…';
+    try{
+      const data=await window.GestaoApi.stockHistory(id);if(id!==stockAdjustBlingId)return;
+      const labels={completed:'Concluído',failed:'Rejeitado',review:'Conferir no Bling',processing:'Em processamento'};
+      box.innerHTML=`<h3>Saldos sincronizados do Bling</h3>${(data.balances||[]).map(b=>`<p>${escapeHtml(b.deposit_id==='__total__'?'Total':`Depósito ${b.deposit_id}`)} · físico: ${b.physical_stock??'a confirmar'} · virtual: ${b.virtual_stock??'a confirmar'}</p>`).join('')||'<p>Sem saldo sincronizado para este SKU.</p>'}<h3>Últimos ajustes feitos neste painel</h3>${(data.operations||[]).map(o=>`<p>${escapeHtml(fmtDate(o.created_at))} · ${escapeHtml(labels[o.status]||o.status)}${o.result?.operation?` · ${{B:'Balanço',E:'Entrada',S:'Saída'}[o.result.operation]||''}: ${Number(o.result.quantity)}`:''}</p>`).join('')||'<p>Nenhum ajuste registrado neste painel.</p>'}`;
+    }catch{box.textContent='Não foi possível carregar o histórico agora.';}
+  }
+
   async function openStockDrawer(product) {
     stockAdjustBlingId = product.blingId;
+    const skuSelect=$('[data-stock-sku]');
+    const choices=product.variants.length?product.variants:[{blingId:product.blingId,name:product.name,sku:product.sku}];
+    skuSelect.innerHTML=choices.map(v=>`<option value="${escapeHtml(v.blingId)}">${escapeHtml(v.name)} · ${escapeHtml(v.sku||'')} · saldo ${v.stock??'a confirmar'}</option>`).join('');
+    skuSelect.onchange=()=>{stockAdjustBlingId=skuSelect.value;loadStockHistory(stockAdjustBlingId);};
+    stockAdjustBlingId=choices[0].blingId;
     $('[data-stock-drawer-product-name]').textContent = product.name;
     $('[data-stock-form-error]').hidden = true;
     stockForm.reset();
     applyStockMode(''); // sempre reabre no modo padrão (definir estoque atual)
     stockDrawer.hidden = false;
     stockDrawerOverlay.hidden = false;
+    loadStockHistory(stockAdjustBlingId);
 
     const select = $('[data-stock-deposit-select]');
     select.innerHTML = '<option value="">Carregando depósitos…</option>';
@@ -644,14 +738,17 @@
       const fd = new FormData(stockForm);
       const modeKey = $('[data-stock-operacao-avancada]').value;
       const operacao = (STOCK_MODES[modeKey] || STOCK_MODES['']).operacao;
-      await window.GestaoApi.adjustStock({
+      const payload={
         blingProductId: stockAdjustBlingId,
         depositoId: String(fd.get('depositoId') || ''),
         operacao,
         quantidade: Number(fd.get('quantidade')),
         observacoes: String(fd.get('observacoes') || '').trim() || undefined,
-      });
-      showToast('Estoque atualizado.');
+      };
+      const operation=await operationIdentity(`stock:${payload.blingProductId}:${payload.depositoId}`,payload);
+      const result=await window.GestaoApi.adjustStock({...payload,operationKey:operation.key});
+      operation.clear();
+      showToast(result.message);
       closeStockDrawer();
       loadProducts(false);
     } catch (err) {

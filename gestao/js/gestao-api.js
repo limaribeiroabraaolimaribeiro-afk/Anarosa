@@ -39,6 +39,7 @@
     let res;
     try {
       res = await fetch(url.toString(), {
+        signal: AbortSignal.timeout(30000),
         method: method || (body !== undefined ? 'POST' : 'GET'),
         headers,
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -55,6 +56,8 @@
 
   window.GestaoApi = {
     GestaoApiError,
+    getProductDetail:(id)=>call('admin-product-detail',{params:{id}}),
+    stockHistory:(id)=>call('admin-stock-history',{params:{id}}),
     getDashboardSummary: () => call('admin-dashboard-summary'),
     listOrders: (params) => call('admin-orders', { params }),
     getOrder: (id) => call('admin-orders', { params: { id } }),
