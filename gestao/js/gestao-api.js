@@ -34,7 +34,7 @@
 
     const headers = { Accept: 'application/json', Authorization: `Bearer ${session.access_token}` };
     if (cfg.supabaseAnonKey) headers.apikey = cfg.supabaseAnonKey;
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
 
     let res;
     try {
@@ -42,7 +42,7 @@
         signal: AbortSignal.timeout(30000),
         method: method || (body !== undefined ? 'POST' : 'GET'),
         headers,
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        ...(body !== undefined ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}),
       });
     } catch (err) {
       throw new GestaoApiError('Falha de rede ao contatar o painel.', 0, null);
@@ -66,6 +66,7 @@
     getIntegrationStatus: () => call('admin-integration-status'),
     reconnectBling: () => call('admin-bling-reconnect', { method: 'POST' }),
     createProduct: (body) => call('admin-product-create', { body }),
+    uploadProductImage: (file) => { const body = new FormData(); body.append('photo', file); return call('admin-product-image-upload', { body }); },
     updateProduct: (body) => call('admin-product-update', { body }),
     changeProductSituation: (body) => call('admin-product-situacao', { body }),
     adjustStock: (body) => call('admin-stock-adjust', { body }),

@@ -208,3 +208,20 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Imagens selecionadas localmente: previa do arquivo antes do envio. */
+.catalog-file-upload {
+  margin-block: 12px;
+  border: 1px dashed #c8b8a7;
+  border-radius: 12px;
+  padding: 14px;
+  background: #fdfaf6;
+}
+.catalog-file-upload > label { display: block; font-weight: 650; margin-bottom: 8px; }
+.catalog-file-upload input[type=file] { width: 100%; max-width: 100%; }
+.catalog-file-upload input[type=file]:disabled { opacity: 0.55; cursor: not-allowed; }
+.catalog-pending-photos { display: grid; grid-template-columns: repeat(auto-fit,minmax(90px,1fr)); gap: 10px; margin-top: 10px; }
+.catalog-pending-photos:empty { display: none; }
+.catalog-pending-photos figure { margin: 0; min-width: 0; }
+.catalog-pending-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+.catalog-pending-photos figcaption { overflow-wrap: anywhere; font-size: 11px; color: #675647; margin-top: 4px; }

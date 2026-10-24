@@ -9,7 +9,8 @@
     constructor(message) { super(message); this.name = 'ProductEditorValidationError'; }
   }
   const field = (name, label, attrs = '') => `<label>${label}<input name="${name}" ${attrs}></label>`;
-  let revision = null, imagePermission = false, imageIndex = 0, generation = 0;
+  let revision = null, imagePermission = false, binaryUpload = false, imageIndex = 0, generation = 0;
+  let pendingFiles = [], pendingPreviewUrls = [];
   let savedProduct = null, ready = false, busy = false;
   page.className = 'product-workspace';
   // Keep the editor inside the authenticated app, including during session expiry.
@@ -33,9 +34,15 @@
         <section class="product-section" id="product-photos" aria-labelledby="photos-title">
           <div class="section-heading"><div><h2 id="photos-title"><b>1.</b> Fotos do produto</h2><p>A primeira imagem será a principal do produto.</p></div><span class="photo-tip">Imagens nítidas, em WebP ou JPG.<br>Recomendado: 1200 × 1200 px.</span></div>
           <div class="product-gallery" data-editor-gallery></div>
+          <div class="catalog-file-upload">
+            <label for="catalog-image-files">Adicionar fotos do celular ou computador</label>
+            <input id="catalog-image-files" type="file" accept="image/jpeg,image/png,image/webp" multiple data-image-files disabled>
+            <p class="field-note">Até 12 fotos no total, JPG/PNG/WebP e até 3 MB por arquivo. Arquivos são enviados pelo painel ao salvar.</p>
+            <div class="catalog-pending-photos" data-pending-photos aria-live="polite"></div>
+          </div>
           <p class="field-note" data-image-capability></p>
           <details class="image-url-editor"><summary>Adicionar ou editar links de imagens</summary><label>Links HTTPS, um por linha (até 12)<textarea name="images" rows="3" placeholder="https://…"></textarea></label></details>
-          <p class="field-note">Upload de arquivos indisponível nesta conexão. Use links de fotos já hospedadas, quando a gravação estiver habilitada.</p>
+          <p class="field-note">O envio de fotos exige autorização no Bling e armazenamento configurado no Supabase. Se estiver indisponível, confira a conexão antes de cadastrar.</p>
         </section>
         <section class="product-section" id="product-basics" aria-labelledby="basics-title">
           <h2 id="basics-title"><b>2.</b> Informações básicas</h2>
@@ -43,6 +50,8 @@
             <label class="field-name">Nome do produto <em>*</em><input name="nome" required minlength="2" maxlength="120" placeholder="Ex.: Conjunto feminino de linho"></label>
             ${field('sku', 'SKU <em>*</em>', 'required maxlength="60" pattern="[A-Za-z0-9._\\-]+" title="Use letras, números, ponto, hífen ou sublinhado" placeholder="Código único"')}
             ${field('marca', 'Marca', 'maxlength="100" placeholder="Informe a marca"')}
+            ${field('unidade', 'Unidade de venda', 'maxlength="6" placeholder="UN"')}
+            ${field('gtin', 'GTIN/EAN da etiqueta oficial', 'maxlength="14" placeholder="SEM GTIN ou código do fabricante"')}
             <label>Categoria<select name="categoriaId" data-product-category-select><option value="">Sem categoria</option></select></label>
             <label>Coleção<input disabled placeholder="Não disponível na integração"></label>
             <label class="field-segment">Segmento / gênero<input disabled placeholder="Gerenciado pelas categorias no Bling"></label>
@@ -99,6 +108,45 @@
   const $ = (selector) => form.querySelector(selector);
   const values = () => form.images.value.split('\n').map((s) => s.trim()).filter(Boolean);
   const photos = () => values().filter((url) => { try { return new URL(url).protocol === 'https:'; } catch { return false; } });
+  const filesInput = $('[data-image-files]');
+  const pendingContainer = $('[data-pending-photos]');
+  function releasePreviews() {
+    pendingPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    pendingPreviewUrls = [];
+  }
+  function showPendingFiles() {
+    releasePreviews();
+    pendingContainer.replaceChildren();
+    pendingFiles.forEach((file) => {
+      const figure = document.createElement('figure');
+      const image = document.createElement('img');
+      const caption = document.createElement('figcaption');
+      const objectUrl = URL.createObjectURL(file);
+      pendingPreviewUrls.push(objectUrl);
+      image.src = objectUrl;
+      image.alt = 'Foto selecionada aguardando envio';
+      caption.textContent = file.name;
+      figure.append(image, caption);
+      pendingContainer.append(figure);
+    });
+  }
+  filesInput.addEventListener('change', () => {
+    const files = [...filesInput.files];
+    if (!binaryUpload || !imagePermission) {
+      filesInput.value = '';
+      return;
+    }
+    const combined = values().length + files.length;
+    if (combined > 12 || files.some((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+        || file.size < 1 || file.size > 3 * 1024 * 1024)) {
+      filesInput.value = '';
+      const note = $('[data-image-capability]');
+      note.textContent = 'Selecione até 12 imagens no total, JPG, PNG ou WebP, com no máximo 3 MB cada.';
+      return;
+    }
+    pendingFiles = files;
+    showPendingFiles();
+  });
   function refresh() {
     const urls = photos();
     imageIndex = Math.max(0, Math.min(imageIndex, urls.length - 1));
@@ -204,8 +252,12 @@
   }
   window.AnaProductEditor = {
     reset() {
+      pendingFiles = [];
+      filesInput.value = '';
+      releasePreviews();
+      pendingContainer.replaceChildren();
       generation++;
-      ready = false; busy = false; savedProduct = null; imagePermission = false; revision = null; imageIndex = 0;
+      ready = false; busy = false; savedProduct = null; imagePermission = false; binaryUpload = false; revision = null; imageIndex = 0;
       form.querySelectorAll('[data-was-disabled]').forEach((el) => { el.disabled = el.dataset.wasDisabled === 'true'; delete el.dataset.wasDisabled; });
       $('[data-editor-variants]').replaceChildren();
       form.images.value = ''; form.images.disabled = true;
@@ -219,7 +271,7 @@
       $('[data-save-draft]').hidden = false;
       setBusy(true);
     },
-    cancel() { generation++; },
+    cancel() { pendingFiles = []; filesInput.value = ''; releasePreviews(); pendingContainer.replaceChildren(); generation++; },
     setBusy,
     async load(id, listing) {
       const request = generation;
@@ -229,7 +281,8 @@
       savedProduct = id ? p : null;
       revision = response.revision || null;
       imagePermission = response.capabilities?.images === true;
-      for (const k of ['nome', 'sku', 'preco', 'marca', 'descricaoCurta', 'descricaoComplementar', 'pesoLiquido', 'pesoBruto', 'volumes']) {
+      binaryUpload = imagePermission && response.capabilities?.binaryUpload === true;
+      for (const k of ['nome', 'sku', 'preco', 'marca', 'unidade', 'gtin', 'descricaoCurta', 'descricaoComplementar', 'pesoLiquido', 'pesoBruto', 'volumes']) {
         if (p[k] != null) form.elements[k].value = p[k];
       }
       if (id) { form.ativo.checked = p.ativo; form.categoriaId.value = p.categoriaId || ''; }
@@ -239,7 +292,11 @@
       for (const v of p.variacoes || []) row({ ...v, stock: listing?.variants?.find((item) => String(item.blingId) === String(v.id))?.stock });
       form.images.value = (p.images || []).join('\n');
       form.images.dataset.wasDisabled = String(!imagePermission);
-      $('[data-image-capability]').textContent = imagePermission ? 'Reordene as fotos pelos botões ou arraste. Salve o produto para confirmar as alterações.' : 'Galeria em leitura: a conexão Bling ainda não autorizou a gravação de imagens.';
+      filesInput.dataset.wasDisabled = String(!binaryUpload);
+      $('[data-image-capability]').textContent = !imagePermission
+        ? 'Galeria em leitura: o Bling ainda não autorizou gravar imagens.'
+        : binaryUpload ? 'Selecione fotos do aparelho ou use links HTTPS; o envio ocorrerá ao salvar.'
+        : 'As URLs podem ser usadas, mas o upload de arquivos ainda precisa ser habilitado no Supabase.';
       $('[data-editor-loading]').hidden = true;
       $('[data-editor-breadcrumb]').textContent = id ? 'Editar produto' : 'Novo produto';
       $('[data-product-form-submit]').textContent = id ? 'Salvar alterações' : 'Publicar produto';
@@ -254,6 +311,27 @@
       return true;
     },
     fail() { $('[data-editor-loading]').hidden = true; $('[data-product-status]').textContent = 'Não carregado'; $('[data-product-status-note]').textContent = 'Não foi possível consultar o produto. Reabra o cadastro para tentar novamente.'; },
+    async uploadSelectedPhotos() {
+      if (!pendingFiles.length) return imagePermission ? values() : undefined;
+      if (!binaryUpload || !imagePermission) throw new ProductEditorValidationError('Envio de arquivos não está habilitado nesta integração.');
+      if (values().length + pendingFiles.length > 12) throw new ProductEditorValidationError('Máximo de 12 fotos por produto.');
+      // Concluídos são retirados da fila. Uma falha posterior não reenvia a mesma imagem no retry.
+      while (pendingFiles.length) {
+        const photo = pendingFiles[0];
+        const result = await window.GestaoApi.uploadProductImage(photo);
+        if (!result?.url || !result.url.startsWith('https://')) {
+          throw new ProductEditorValidationError('Não foi possível receber o link da foto enviada.');
+        }
+        const urls = values();
+        if (!urls.includes(result.url)) urls.push(result.url);
+        form.images.value = urls.join('\n');
+        pendingFiles.shift();
+        showPendingFiles();
+        gallery();
+      }
+      filesInput.value = '';
+      return values();
+    },
     read() {
       if (!ready || busy) throw new ProductEditorValidationError('Aguarde o carregamento do produto.');
       const skus = new Set([form.sku.value.trim().toLowerCase()]), combinations = new Set();
@@ -269,7 +347,8 @@
       });
       if (imagePermission && (values().length > 12 || values().some((url) => !photos().includes(url) || url.length > 1000))) throw new ProductEditorValidationError('Use até 12 links HTTPS válidos, com no máximo 1000 caracteres cada.');
       return {
-        revision, descricaoComplementar: form.descricaoComplementar.value,
+        revision, unidade: form.unidade.value, gtin: form.gtin.value,
+        descricaoComplementar: form.descricaoComplementar.value,
         pesoLiquido: form.pesoLiquido.value, pesoBruto: form.pesoBruto.value, volumes: form.volumes.value,
         dimensoes: Object.fromEntries(['largura', 'altura', 'profundidade'].map((k) => [k, form.elements[k].value])),
         tributacao: Object.fromEntries(['origem', 'ncm', 'cest'].map((k) => [k, form.elements[k].value])),

@@ -1,6 +1,7 @@
 import type { Handler } from './context.ts';
 import { requireAdminUser } from './admin-user-auth.ts';
 import { buildProductEditorPayload, productRevision } from './product-editor.ts';
+import { canWriteProductImages } from './product-image-permission.ts';
 import { json, methodNotAllowed } from './responses.ts';
 import { ValidationError } from './errors.ts';
 import { syncProductById } from './sync-service.ts';
@@ -31,7 +32,7 @@ export function productSave(update: boolean): Handler {
       const payload = buildProductEditorPayload(
         body,
         current,
-        Deno.env.get('BLING_PRODUCT_IMAGES_ENABLED') === 'true',
+        await canWriteProductImages(ctx.tokenStore),
       );
       if (body.categoriaId && !await ctx.repo.findCategoryIdByBlingId(body.categoriaId)) {
         throw new ValidationError('Categoria não encontrada.');
