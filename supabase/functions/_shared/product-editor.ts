@@ -9,6 +9,8 @@ export function productEditorView(raw: Row) {
     preco: raw.preco,
     categoriaId: raw.categoria?.id ? String(raw.categoria.id) : '',
     marca: raw.marca ?? '',
+    unidade: raw.unidade ?? 'UN',
+    gtin: raw.gtin ?? '',
     descricaoCurta: raw.descricaoCurta ?? '',
     descricaoComplementar: raw.descricaoComplementar ?? '',
     ativo: raw.situacao === 'A',
@@ -21,9 +23,11 @@ export function productEditorView(raw: Row) {
       ncm: raw.tributacao?.ncm ?? '',
       cest: raw.tributacao?.cest ?? '',
     },
-    images: [...(raw.midia?.imagens?.externas ?? []), ...(raw.midia?.imagens?.internas ?? [])].map((i) =>
-      i.link
-    ).filter(Boolean),
+    images: [...new Set([
+      ...(raw.midia?.imagens?.imagensURL ?? []),
+      ...(raw.midia?.imagens?.externas ?? []),
+      ...(raw.midia?.imagens?.internas ?? []),
+    ].map((i: Row | string) => typeof i === 'string' ? i : i?.link).filter(Boolean))],
     variacoes: (raw.variacoes ?? []).map((v: Row) => ({
       id: String(v.id),
       nome: v.variacao?.nome ?? v.nome,
@@ -45,6 +49,25 @@ export function buildProductEditorPayload(raw: Row, current: Row | null = null, 
     marca: b.marca ?? '',
     descricaoCurta: b.descricaoCurta ?? '',
   };
+  if (raw.unidade != null && String(raw.unidade).trim() !== '') {
+    const unidade = String(raw.unidade).trim().toUpperCase();
+    if (!/^[A-Z]{1,6}$/.test(unidade)) throw new ValidationError('Unidade de venda inválida.');
+    out.unidade = unidade;
+  }
+  if (raw.gtin != null && String(raw.gtin).trim() !== '') {
+    const gtin = String(raw.gtin).trim();
+    const previous = String(current?.gtin ?? '').trim();
+    if (gtin !== previous && gtin !== 'SEM GTIN') {
+      if (!/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(gtin)) {
+        throw new ValidationError('GTIN/EAN inválido. Não use código interno no lugar do EAN.');
+      }
+      const digits = [...gtin].map(Number);
+      let sum = 0, factor = 3;
+      for (let i = digits.length - 2; i >= 0; i--, factor = factor === 3 ? 1 : 3) sum += digits[i] * factor;
+      if ((10 - sum % 10) % 10 !== digits[digits.length - 1]) throw new ValidationError('GTIN/EAN inválido: dígito verificador incorreto.');
+    }
+    out.gtin = gtin;
+  }
   if (!current) Object.assign(out, { tipo: 'P', formato: 'S', condicao: 0 });
   if (b.categoriaId) out.categoria = { id: Number(b.categoriaId) };
   if (raw.descricaoComplementar !== undefined) {
@@ -96,6 +119,9 @@ export function buildProductEditorPayload(raw: Row, current: Row | null = null, 
       if (
         raw.images.some((u: unknown) => typeof u !== 'string' || !/^https:\/\//i.test(u) || u.length > 1000)
       ) throw new ValidationError('Use URLs HTTPS de imagens.');
+      if (Array.isArray(current?.midia?.imagens?.internas) && current.midia.imagens.internas.length) {
+        throw new ValidationError('Este produto possui imagens internas no Bling. Edite as fotos diretamente no Bling para não remover imagens existentes.');
+      }
       out.midia = {
         ...(current?.midia ?? {}),
         imagens: { imagensURL: raw.images.map((link: string) => ({ link })) },
