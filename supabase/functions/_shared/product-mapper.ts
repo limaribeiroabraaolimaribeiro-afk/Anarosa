@@ -171,6 +171,9 @@ export function extractImages(raw: BlingRaw): StoreProductRow['images'] {
   for (const img of Array.isArray(imagens?.externas) ? imagens.externas : []) {
     push(img?.link ?? img?.url ?? img, 'external');
   }
+  for (const img of Array.isArray(imagens?.imagensURL) ? imagens.imagensURL : []) {
+    push(img?.link ?? img?.url ?? img, 'external');
+  }
   if (typeof raw?.imagemURL === 'string') push(raw.imagemURL, 'unknown');
   if (Array.isArray(raw?.imagemURL)) for (const i of raw.imagemURL) push(i, 'unknown');
   return out;
