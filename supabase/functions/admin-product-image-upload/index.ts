@@ -2,6 +2,7 @@
  * Segurança: JWT + store_admins.active, limite de bytes, assinatura de formato,
  * throttling por admin e bucket somente com leitura pública. */
 import { requireAdminUser } from '../_shared/admin-user-auth.ts';
+import { canWriteProductImages } from '../_shared/product-image-permission.ts';
 import { serve } from '../_shared/context.ts';
 import { ValidationError } from '../_shared/errors.ts';
 import { json, methodNotAllowed } from '../_shared/responses.ts';
@@ -25,9 +26,8 @@ function detect(bytes: Uint8Array): keyof typeof MAGIC | null {
 serve(async (req, ctx) => {
   if (req.method !== 'POST') return methodNotAllowed(req, ['POST']);
   const admin = await requireAdminUser(req, ctx.db);
-  if (Deno.env.get('BLING_PRODUCT_IMAGES_ENABLED') !== 'true' ||
-      Deno.env.get('ANAROSA_IMAGE_UPLOAD_ENABLED') !== 'true') {
-    throw new ValidationError('Envio de imagens não foi habilitado nesta integração.');
+  if (!await canWriteProductImages(ctx.tokenStore)) {
+    throw new ValidationError('A conexão do Bling não possui a autorização atual de imagens.');
   }
   const rate = await ctx.db.rpc('rl_check_and_increment', {
     p_bucket: `admin-image-upload:${admin.id}`, p_limit: 20, p_window_seconds: 60,
