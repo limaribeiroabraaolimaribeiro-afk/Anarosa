@@ -1,4 +1,5 @@
 import { serve } from '../_shared/context.ts';
+import { canWriteProductImages } from '../_shared/product-image-permission.ts';
 import { requireAdminUser } from '../_shared/admin-user-auth.ts';
 import { productEditorView, productRevision } from '../_shared/product-editor.ts';
 import { json, methodNotAllowed } from '../_shared/responses.ts';
@@ -6,10 +7,10 @@ import { ValidationError } from '../_shared/errors.ts';
 serve(async (req, ctx) => {
   if (req.method !== 'GET') return methodNotAllowed(req, ['GET']);
   await requireAdminUser(req, ctx.db);
+  const imagesEnabled = await canWriteProductImages(ctx.tokenStore);
   const capabilities = {
-    images: Deno.env.get('BLING_PRODUCT_IMAGES_ENABLED') === 'true',
-    binaryUpload: Deno.env.get('BLING_PRODUCT_IMAGES_ENABLED') === 'true' &&
-      Deno.env.get('ANAROSA_IMAGE_UPLOAD_ENABLED') === 'true',
+    images: imagesEnabled,
+    binaryUpload: imagesEnabled,
   };
   const id = new URL(req.url).searchParams.get('id') || '';
   if (!id) return json(req, { ok: true, product: {}, revision: null, capabilities });
