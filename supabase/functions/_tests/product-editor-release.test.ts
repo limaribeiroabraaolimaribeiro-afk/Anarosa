@@ -115,3 +115,16 @@ Deno.test('administration: lost remote response enters review, explicit rejectio
     assert.equal(calls.at(-1), `gestao_finish_operation:${state}`);
   }
 });
+
+Deno.test('editor: valida GTIN, unidade e preserva fotos internas em edições', () => {
+  const valid = buildProductEditorPayload({ ...basic, gtin: '7891234567895', unidade: 'UN' });
+  assert.equal(valid.unidade, 'UN');
+  assert.equal(valid.gtin, '7891234567895');
+  assert.throws(() => buildProductEditorPayload({ ...basic, gtin: '00456100100575E' }), /GTIN/);
+  assert.throws(() => buildProductEditorPayload({ ...basic, gtin: '00031643' }), /GTIN/);
+  const current = { midia: { imagens: { internas: [{ link: 'https://example.test/antiga.jpg' }] } } };
+  assert.throws(
+    () => buildProductEditorPayload({ ...basic, images: ['https://example.test/nova.jpg'] }, current, true),
+    /imagens internas/
+  );
+});
