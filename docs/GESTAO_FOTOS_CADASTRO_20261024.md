@@ -16,12 +16,10 @@
 4. Redeploy `admin-product-detail`, `admin-product-create`, `admin-product-update`, `bling-sync-product` e funções de sincronização que importam `_shared/product-mapper.ts` ou `_shared/product-editor.ts`, conforme o pipeline.
 5. Confirmar escopo OAuth de imagem no Bling ("Salvar imagens dos Produtos"); reautorizar o app se necessário.
 6. Configurar o Bling para trabalhar com URLs de imagens externas e verificar gravação via API no ambiente real.
-7. Configurar segredos/variáveis de ambiente no projeto correto:
-   - `BLING_PRODUCT_IMAGES_ENABLED=true` **somente** após validar permissão real de mídia no Bling.
-   - `ANAROSA_IMAGE_UPLOAD_ENABLED=true` **somente** após criar o bucket e implantar a função.
+7. A capacidade de imagens é verificada no backend contra a **conexão OAuth mais recente** do Bling. A reconexão de 24/10/2026 adicionou os escopos `106168710` e `199272829`; exigimos ambos. Não há necessidade de ativar flags de ambiente para este fluxo.
 8. Executar testes e validar em uma peça de teste: login admin, upload, salvar no Bling, leitura na Gestão, sincronização e vitrine.
 
-Se qualquer dependência faltar, o painel deixa o envio de arquivos desabilitado: não promete sucesso falso.
+Se qualquer dependência faltar ou um escopo for revogado, o painel deixa o envio de arquivos desabilitado. Confirme via teste real que o Bling aceita a mídia no payload antes de considerar o recurso concluído.
 
 ## Limites conhecidos
 
