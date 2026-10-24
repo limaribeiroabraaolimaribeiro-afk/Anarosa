@@ -23,7 +23,11 @@ function resultRedirect(base: string, params: Record<string, string>): Response 
 serve(async (req, ctx) => {
   if (req.method !== 'GET') return methodNotAllowed(req, ['GET']);
 
-  const successUrl = ctx.appConfig.oauthSuccessRedirectUrl;
+  // O retorno OAuth é sempre o painel publicado em GitHub Pages.
+  // A antiga OAUTH_SUCCESS_REDIRECT_URL pode apontar para
+  // /integration-status.html (arquivo interno deliberadamente NÃO publicado),
+  // o que gerava 404 APÓS salvar os tokens com sucesso.
+  const successUrl = 'https://www.lojaanarosa.com.br/gestao/#/integracao';
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
