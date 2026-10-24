@@ -823,7 +823,36 @@
   // ---------------------------------------------------------------
   // INTEGRAÇÃO
   // ---------------------------------------------------------------
+  const blingReconnectButton = $('[data-bling-reconnect]');
+  blingReconnectButton?.addEventListener('click', async () => {
+    if (blingReconnectButton.disabled) return;
+    const note = $('[data-bling-reconnect-note]');
+    blingReconnectButton.disabled = true;
+    blingReconnectButton.textContent = 'Preparando autorização…';
+    try {
+      const data = await window.GestaoApi.reconnectBling();
+      const url = new URL(data.authorizeUrl);
+      if (url.protocol !== 'https:' || url.hostname !== 'www.bling.com.br' || !url.pathname.startsWith('/Api/v3/oauth/authorize')) {
+        throw new Error('URL de autorização Bling inesperada. Reconexão cancelada.');
+      }
+      window.location.assign(url.toString());
+    } catch (err) {
+      if (err.status === 401) return handleSessionExpired('integração');
+      note.textContent = friendlyErrorMessage(err, 'Não foi possível iniciar a autorização. Tente novamente.');
+      blingReconnectButton.disabled = false;
+      blingReconnectButton.textContent = 'Reconectar Bling';
+    }
+  });
   async function loadIntegration() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('bling')) {
+      const outcome = params.get('bling');
+      showToast(outcome === 'connected' ? 'Bling autorizado. Atualizando status…' : 'A autorização Bling não foi concluída. Revise o aplicativo e tente novamente.');
+      const updatedUrl = new URL(window.location.href);
+      updatedUrl.searchParams.delete('bling');
+      updatedUrl.searchParams.delete('reason');
+      window.history.replaceState(null, '', updatedUrl.toString());
+    }
     renderState('integracao', 'loading');
     $('[data-integration-card]').hidden = true;
     try {
