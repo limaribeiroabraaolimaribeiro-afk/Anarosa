@@ -4,6 +4,8 @@
 # apenas mantenha as seções [functions.*] abaixo.
 project_id = "anarosa"
 
+[functions.admin-bling-reconnect]
+verify_jwt = true
 [functions.admin-product-detail]
 verify_jwt = true
 

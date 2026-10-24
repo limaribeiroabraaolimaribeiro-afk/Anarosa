@@ -64,6 +64,7 @@
     listProducts: (params) => call('admin-products', { params }),
     listCustomers: (params) => call('admin-customers', { params }),
     getIntegrationStatus: () => call('admin-integration-status'),
+    reconnectBling: () => call('admin-bling-reconnect', { method: 'POST' }),
     createProduct: (body) => call('admin-product-create', { body }),
     updateProduct: (body) => call('admin-product-update', { body }),
     changeProductSituation: (body) => call('admin-product-situacao', { body }),
