@@ -1,10 +1,17 @@
 {
   "compilerOptions": {
     "strict": true,
-    "lib": ["deno.window", "deno.ns"]
+    "lib": [
+      "deno.window",
+      "deno.ns"
+    ]
   },
   "lint": {
-    "rules": { "tags": ["recommended"] }
+    "rules": {
+      "tags": [
+        "recommended"
+      ]
+    }
   },
   "fmt": {
     "singleQuote": true,
