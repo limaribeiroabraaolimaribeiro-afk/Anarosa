@@ -8,7 +8,8 @@ serve(async (req, ctx) => {
   await requireAdminUser(req, ctx.db);
   const capabilities = {
     images: Deno.env.get('BLING_PRODUCT_IMAGES_ENABLED') === 'true',
-    binaryUpload: false,
+    binaryUpload: Deno.env.get('BLING_PRODUCT_IMAGES_ENABLED') === 'true' &&
+      Deno.env.get('ANAROSA_IMAGE_UPLOAD_ENABLED') === 'true',
   };
   const id = new URL(req.url).searchParams.get('id') || '';
   if (!id) return json(req, { ok: true, product: {}, revision: null, capabilities });
