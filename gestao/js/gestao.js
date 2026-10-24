@@ -610,6 +610,10 @@
         ativo: e.submitter?.hasAttribute('data-save-draft') ? false : editingBlingId ? fd.get('ativo') === 'on' : true,
       };
       window.AnaProductEditor.setBusy(true);
+      submitBtn.textContent = 'Enviando fotos...';
+      const uploadedImages = await window.AnaProductEditor.uploadSelectedPhotos();
+      if (uploadedImages !== undefined) body.images = uploadedImages;
+      submitBtn.textContent = 'Salvando no Bling...';
       const operation=await operationIdentity(`product:${editingBlingId||body.sku}`,body);
       body.operationKey=operation.key;
       if (editingBlingId) {
