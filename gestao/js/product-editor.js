@@ -50,6 +50,8 @@
             <label class="field-name">Nome do produto <em>*</em><input name="nome" required minlength="2" maxlength="120" placeholder="Ex.: Conjunto feminino de linho"></label>
             ${field('sku', 'SKU <em>*</em>', 'required maxlength="60" pattern="[A-Za-z0-9._\\-]+" title="Use letras, números, ponto, hífen ou sublinhado" placeholder="Código único"')}
             ${field('marca', 'Marca', 'maxlength="100" placeholder="Informe a marca"')}
+            ${field('unidade', 'Unidade de venda', 'maxlength="6" placeholder="UN"')}
+            ${field('gtin', 'GTIN/EAN da etiqueta oficial', 'maxlength="14" placeholder="SEM GTIN ou código do fabricante"')}
             <label>Categoria<select name="categoriaId" data-product-category-select><option value="">Sem categoria</option></select></label>
             <label>Coleção<input disabled placeholder="Não disponível na integração"></label>
             <label class="field-segment">Segmento / gênero<input disabled placeholder="Gerenciado pelas categorias no Bling"></label>
@@ -280,7 +282,7 @@
       revision = response.revision || null;
       imagePermission = response.capabilities?.images === true;
       binaryUpload = imagePermission && response.capabilities?.binaryUpload === true;
-      for (const k of ['nome', 'sku', 'preco', 'marca', 'descricaoCurta', 'descricaoComplementar', 'pesoLiquido', 'pesoBruto', 'volumes']) {
+      for (const k of ['nome', 'sku', 'preco', 'marca', 'unidade', 'gtin', 'descricaoCurta', 'descricaoComplementar', 'pesoLiquido', 'pesoBruto', 'volumes']) {
         if (p[k] != null) form.elements[k].value = p[k];
       }
       if (id) { form.ativo.checked = p.ativo; form.categoriaId.value = p.categoriaId || ''; }
@@ -345,7 +347,8 @@
       });
       if (imagePermission && (values().length > 12 || values().some((url) => !photos().includes(url) || url.length > 1000))) throw new ProductEditorValidationError('Use até 12 links HTTPS válidos, com no máximo 1000 caracteres cada.');
       return {
-        revision, descricaoComplementar: form.descricaoComplementar.value,
+        revision, unidade: form.unidade.value, gtin: form.gtin.value,
+        descricaoComplementar: form.descricaoComplementar.value,
         pesoLiquido: form.pesoLiquido.value, pesoBruto: form.pesoBruto.value, volumes: form.volumes.value,
         dimensoes: Object.fromEntries(['largura', 'altura', 'profundidade'].map((k) => [k, form.elements[k].value])),
         tributacao: Object.fromEntries(['origem', 'ncm', 'cest'].map((k) => [k, form.elements[k].value])),
