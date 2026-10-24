@@ -158,3 +158,11 @@ Deno.test('storefront: serialização pública não vaza campos internos e calcu
   const inactive = serializePublicProduct({ ...product, active: false }, [], [], [], null);
   assert.equal(inactive.available, false);
 });
+
+Deno.test('mapper: extrai URLs externas no campo imagensURL da API Bling', () => {
+  const mapped = mapBlingProduct({
+    id: 913, nome: 'Bermuda', preco: 81.90,
+    midia: { imagens: { imagensURL: [{ link: 'https://example.test/bermuda.jpg' }] } },
+  });
+  assert.equal(mapped.product.images[0].url, 'https://example.test/bermuda.jpg');
+});
