@@ -225,3 +225,15 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .catalog-pending-photos figure { margin: 0; min-width: 0; }
 .catalog-pending-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
 .catalog-pending-photos figcaption { overflow-wrap: anywhere; font-size: 11px; color: #675647; margin-top: 4px; }
+
+/* Photos queued from the native picker can be removed before upload. */
+.catalog-pending-photos button {
+  margin-top: 5px;
+  border: 1px solid var(--admin-line);
+  background: transparent;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.catalog-pending-photos button:hover { background: #f5f0e8; }
