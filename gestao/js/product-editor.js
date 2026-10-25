@@ -126,26 +126,49 @@
       image.src = objectUrl;
       image.alt = 'Foto selecionada aguardando envio';
       caption.textContent = file.name;
-      figure.append(image, caption);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Remover';
+      remove.dataset.pendingPhotoRemove = String(pendingContainer.childElementCount);
+      remove.setAttribute('aria-label', `Remover foto ${file.name} da seleção`);
+      figure.append(image, caption, remove);
       pendingContainer.append(figure);
     });
   }
+  pendingContainer.addEventListener('click', (event) => {
+    const remove = event.target.closest('[data-pending-photo-remove]');
+    if (!remove || busy) return;
+    pendingFiles.splice(Number(remove.dataset.pendingPhotoRemove), 1);
+    $('[data-image-capability]').textContent = pendingFiles.length
+      ? `${pendingFiles.length} foto(s) pronta(s) para enviar. Clique em Salvar para publicar.`
+      : 'Selecione fotos do aparelho ou use links HTTPS; o envio ocorrerá ao salvar.';
+    showPendingFiles();
+    refresh();
+  });
   filesInput.addEventListener('change', () => {
     const files = [...filesInput.files];
     if (!binaryUpload || !imagePermission) {
       filesInput.value = '';
       return;
     }
-    const combined = values().length + files.length;
-    if (combined > 12 || files.some((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+    filesInput.value = ''; // permite selecionar a mesma foto novamente após removê-la
+    if (!files.length) return;
+    const unique = files.filter((file) => !pendingFiles.some((existing) =>
+      existing.name === file.name && existing.size === file.size &&
+      existing.lastModified === file.lastModified));
+    const combined = values().length + pendingFiles.length + unique.length;
+    if (combined > 12 || unique.some((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
         || file.size < 1 || file.size > 3 * 1024 * 1024)) {
-      filesInput.value = '';
       const note = $('[data-image-capability]');
       note.textContent = 'Selecione até 12 imagens no total, JPG, PNG ou WebP, com no máximo 3 MB cada.';
       return;
     }
-    pendingFiles = files;
+    pendingFiles.push(...unique);
+    $('[data-image-capability]').textContent = pendingFiles.length
+      ? `${pendingFiles.length} foto(s) pronta(s) para enviar. Clique em Salvar para publicar.`
+      : 'Selecione fotos do aparelho ou use links HTTPS; o envio ocorrerá ao salvar.';
     showPendingFiles();
+    refresh();
   });
   function refresh() {
     const urls = photos();
@@ -162,7 +185,7 @@
     $('[data-variant-empty]').hidden = rows.length > 0;
     const checks = [
       ['Informações básicas', form.nome.value.trim().length >= 2 && form.sku.validity.valid && !!form.sku.value, 'product-basics'],
-      ['Fotos do produto', urls.length > 0 && urls.length === values().length && urls.length <= 12, 'product-photos'],
+      ['Fotos do produto', (urls.length + pendingFiles.length) > 0 && urls.length === values().length && (urls.length + pendingFiles.length) <= 12, 'product-photos'],
       ['Descrição completa', !!form.descricaoComplementar.value.trim(), 'product-description'],
       ['Preço de venda', !!form.preco.value && form.preco.validity.valid, 'product-pricing'],
       ['Variações ou produto simples', !rows.length || rows.every((r) => [...r.querySelectorAll('input')].every((i) => i.validity.valid) && (r.querySelector('[data-v-size]').value.trim() || r.querySelector('[data-v-color]').value.trim())), 'product-variants'],
@@ -182,7 +205,7 @@
         <button type="button" class="photo-open" data-photo-open="${i}" aria-label="Visualizar foto ${i + 1}"><img src="${esc(url)}" alt="Foto ${i + 1} do produto"></button>
         ${i === 0 ? '<span class="primary-photo">♔ &nbsp; Imagem principal</span>' : ''}
         <div class="photo-actions"><button type="button" data-photo-main="${i}" ${!imagePermission || busy || i === 0 ? 'disabled' : ''} aria-label="Tornar foto ${i + 1} principal">☆</button><button type="button" data-photo-left="${i}" ${!imagePermission || busy || i === 0 ? 'disabled' : ''} aria-label="Mover foto ${i + 1} para a esquerda">←</button><button type="button" data-photo-right="${i}" ${!imagePermission || busy || i === photos().length - 1 ? 'disabled' : ''} aria-label="Mover foto ${i + 1} para a direita">→</button><button type="button" data-photo-remove="${i}" ${!imagePermission || busy ? 'disabled' : ''} aria-label="Excluir foto ${i + 1}">×</button></div>
-      </figure>`).join('') + `<button type="button" class="photo-add" data-photo-add ${!imagePermission || busy ? 'disabled' : ''}><span>＋</span><strong>Adicionar fotos</strong><small>Inserir links de imagens</small></button>`;
+      </figure>`).join('') + `<button type="button" class="photo-add" data-photo-add ${!imagePermission || busy ? 'disabled' : ''}><span>＋</span><strong>Adicionar fotos</strong><small>${binaryUpload ? 'Selecionar da galeria ou computador' : 'Inserir links de imagens'}</small></button>`;
     refresh();
   }
   function changePhotos(list) { form.images.value = list.join('\n'); gallery(); }
@@ -231,7 +254,10 @@
     if (button.hasAttribute('data-preview-prev') || button.hasAttribute('data-preview-next')) {
       imageIndex = (imageIndex + (button.hasAttribute('data-preview-prev') ? -1 : 1) + photos().length) % Math.max(photos().length, 1); refresh();
     }
-    if (button.hasAttribute('data-photo-add')) { $('.image-url-editor').open = true; form.images.focus(); }
+    if (button.hasAttribute('data-photo-add')) {
+      if (binaryUpload && !filesInput.disabled) filesInput.click();
+      else { $('.image-url-editor').open = true; form.images.focus(); }
+    }
     if (!imagePermission || busy) return;
     const action = ['Main', 'Left', 'Right', 'Remove'].find((key) => button.dataset['photo' + key] !== undefined);
     if (action) {
@@ -330,6 +356,7 @@
         gallery();
       }
       filesInput.value = '';
+      $('[data-image-capability]').textContent = 'Fotos enviadas. Salve o cadastro para vinculá-las ao produto no Bling.';
       return values();
     },
     read() {
