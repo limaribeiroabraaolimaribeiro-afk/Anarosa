@@ -109,6 +109,50 @@ test('stock balance targets selected size, allows zero, and retries with same co
   await expect(page.locator('[data-stock-drawer]')).toBeHidden();
 });
 
+test('native file picker uploads multiple photos selected on separate occasions before saving', async ({ page }) => {
+  const uploads = [];
+  let saved;
+  await page.route('**/admin-product-detail*', (r) => r.fulfill({
+    json: { ok: true, product: {}, revision: null, capabilities: { images: true, binaryUpload: true } },
+  }));
+  await page.route('**/admin-product-image-upload', (r) => {
+    expect(r.request().headers()['content-type']).toContain('multipart/form-data');
+    uploads.push(r.request().postData());
+    return r.fulfill({
+      status: 201,
+      json: { ok: true, url: `https://images.example.invalid/${uploads.length}.jpg` },
+    });
+  });
+  await page.route('**/admin-product-create', (r) => {
+    saved = r.request().postDataJSON();
+    return r.fulfill({ json: { ok: true, blingId: '901', message: 'Produto salvo.' } });
+  });
+  await page.goto('/gestao/#/produtos');
+  await page.locator('[data-product-new]').click();
+  await fillProduct(page);
+  const photo = (name) => ({
+    name,
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRt8AAAAASUVORK5CYII=', 'base64'),
+  });
+  const chooser1 = page.waitForEvent('filechooser');
+  await page.locator('[data-photo-add]').click();
+  await (await chooser1).setFiles(photo('celular.png'));
+  await expect(page.locator('[data-pending-photos] figure')).toHaveCount(1);
+  const chooser2 = page.waitForEvent('filechooser');
+  await page.locator('[data-photo-add]').click();
+  await (await chooser2).setFiles(photo('notebook.png'));
+  await expect(page.locator('[data-pending-photos] figure')).toHaveCount(2);
+  await expect(page.locator('[data-checklist-count]')).toContainText('de 5 completos');
+  await page.locator('[data-save-draft]').click();
+  await expect.poll(() => uploads.length).toBe(2);
+  await expect.poll(() => saved?.images).toEqual([
+    'https://images.example.invalid/1.jpg',
+    'https://images.example.invalid/2.jpg',
+  ]);
+  await expect(page.locator('[data-product-drawer]')).toBeHidden();
+});
+
 async function newProduct(page, images = false) {
   await page.route('**/admin-product-detail*', (r) => r.fulfill({
     json: { ok: true, product: {}, revision: null, capabilities: { images, binaryUpload: false } },
