@@ -135,6 +135,43 @@ body {
   margin-bottom: 10px;
 }
 
+/* Recuperação de acesso e alteração da senha da conta */
+.gestao-login-card[hidden] { display: none; }
+.gestao-forgot-link { margin-top: 16px; }
+.gestao-login-card .gestao-forgot-link { width: auto; }
+.gestao-password-form {
+  max-width: 420px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-soft);
+}
+.gestao-password-form h3 { color: var(--brown-dark); font-size: 15px; margin: 0 0 6px; }
+.gestao-password-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.gestao-password-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--beige-light);
+  font: inherit;
+}
+.gestao-feedback {
+  padding: 10px 12px;
+  margin: 10px 0;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  background: #e9f5ec;
+  color: #205d36;
+}
+.gestao-feedback[data-kind="error"] { background: #fbe5e2; color: #a1352b; }
+.gestao-feedback[hidden] { display: none; }
+
 /* ---------------------------------------------------------
    App shell
    --------------------------------------------------------- */
