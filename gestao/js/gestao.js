@@ -262,7 +262,7 @@
     $('[data-view="app"]').classList.toggle('is-products-route', page === 'produtos');
     $('.gestao-main').scrollTop = 0;
     if (page === 'produtos') $('[data-products-scroll]').scrollTop = 0;
-    $('[data-page]').forEach((el) => { el.hidden = el.dataset.page !== page; });
+    $$('[data-page]').forEach((el) => { el.hidden = el.dataset.page !== page; });
     $$('[data-nav]').forEach((el) => el.classList.toggle('is-active', el.dataset.nav === page));
     $('[data-page-title]').textContent = PAGE_TITLES[page];
     sidebar.classList.remove('is-open');
