@@ -165,10 +165,7 @@
       item=await catalog.getProductBySlug(slug);
       if(!item){status('Não encontramos essa peça no momento. Volte ao catálogo para escolher outra.',true);return;}
       render();
-      Promise.allSettled([
-        catalog.getProducts(),
-        (async()=>{const cfg=window.ANAROSA_CONFIG;const base=cfg.functionsBaseUrl||cfg.supabaseUrl.replace(/\/+$/,'')+'/functions/v1';const res=await fetch(base+'/storefront-settings',{headers:cfg.supabaseAnonKey?{apikey:cfg.supabaseAnonKey}:{}});if(!res.ok)return;const data=await res.json();const number=data.settings?.whatsapp;if(/^\d{10,15}$/.test(String(number||''))){whatsapp=String(number);$('[data-whatsapp]').href='https://wa.me/'+whatsapp+'?text='+encodeURIComponent('Olá! Tenho interesse na peça '+item.name+': '+productURL());}})(),
-      ]).then(results=>{if(results[0].status==='fulfilled')renderRelated(results[0].value);});
+      catalog.getProducts().then(renderRelated).catch(() => { /* sugestões opcionais */ });
     }catch {status('Não foi possível carregar os detalhes agora. Verifique sua conexão e tente novamente.',true);}
   }
   $('[data-thumbnails]').addEventListener('click',e=>{const b=e.target.closest('[data-thumbnail]');if(b)setMain(Number(b.dataset.thumbnail));});
