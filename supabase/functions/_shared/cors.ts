@@ -5,9 +5,21 @@ import { getAppConfig } from './config.ts';
 
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
+/**
+ * Domínios oficiais publicados da ANAROSA. Não dependem da variável
+ * STOREFRONT_URL (também usada por redirects da integração Bling),
+ * que pode estar vazia ou apontar para outra URL no backend.
+ * Lista explícita: nenhum subdomínio arbitrário ganha CORS.
+ */
+const PRODUCTION_ORIGINS = new Set([
+  'https://www.lojaanarosa.com.br',
+  'https://lojaanarosa.com.br',
+]);
+
 export function resolveAllowedOrigin(requestOrigin: string | null): string | null {
   const { storefrontUrl } = getAppConfig();
   if (!requestOrigin) return storefrontUrl;
+  if (PRODUCTION_ORIGINS.has(requestOrigin)) return requestOrigin;
   if (requestOrigin === storefrontUrl) return requestOrigin;
   // www ↔ apex da mesma loja
   try {
