@@ -25,6 +25,8 @@
   const originalPrice = (p,v) => Number(v?.price??p.price);
   const variantName = (v) => [v.color,v.size].filter(Boolean).join(' • ') || v.name || 'Opção';
   const productURL = () => new URL('produto.html?slug='+encodeURIComponent(slug||''),location.href).href;
+  // Página estática com OG individual; bots de mensagens não executam JS.
+  const shareURL = () => new URL('p/'+encodeURIComponent(slug||'')+'.html',location.href).href;
   const feedback = (message,bad=false) => {
     const target=$('[data-feedback]');
     target.textContent=message;
@@ -134,7 +136,7 @@
     if(show)$('[data-lightbox-close]').focus();
   }
   async function share() {
-    const link=productURL();
+    const link=shareURL();
     const data={title:item.name,text:'Olha essa peça da ANAROSA: '+item.name,url:link};
     if(navigator.share) {
       try {await navigator.share(data);return;} catch(e){if(e.name==='AbortError')return;}
@@ -154,7 +156,7 @@
     renderImages();
     renderVariants();
     updateBuy();
-    $('[data-whatsapp]').href='https://wa.me/'+whatsapp+'?text='+encodeURIComponent('Olá! Tenho interesse na peça '+item.name+'. Gostaria de saber mais: '+productURL());
+    $('[data-whatsapp]').href='https://wa.me/'+whatsapp+'?text='+encodeURIComponent('Olá! Tenho interesse na peça '+item.name+'. Gostaria de saber mais: '+shareURL());
     $('[data-product-status]').hidden=true;
     $('[data-product-content]').hidden=false;
   }
