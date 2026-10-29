@@ -377,3 +377,28 @@ test('login shows invalid credentials only when Supabase rejects the password', 
   await page.locator('[data-login-submit]').click();
   await expect(page.locator('[data-login-error]')).toHaveText('E-mail ou senha inválidos.');
 });
+
+test('valid login opens the dashboard instead of returning to the login form', async ({ page }) => {
+  await page.route('**/gestao-auth.js*', (r) => r.fulfill({
+    contentType: 'text/javascript',
+    body: `window.GestaoAuth={
+      isConfigured:()=>true,
+      getSession:async()=>window.__signedIn?{access_token:'test-session',user:{id:'test-user',email:'conta@exemplo.invalid'}}:null,
+      onAuthStateChange:()=>()=>{},
+      signIn:async()=>{window.__signedIn=true;return {access_token:'test-session'}},
+      signOut:async()=>{window.__signedIn=false}
+    };`,
+  }));
+  await page.goto('/gestao/');
+  await expect(page.locator('[data-view="login"]')).toBeVisible();
+  await page.locator('[data-login-form] input[name="email"]').fill('conta@exemplo.invalid');
+  await page.locator('[data-login-form] input[name="password"]').fill('senha-ficticia');
+  await page.locator('[data-login-submit]').click();
+  await expect(page.locator('[data-view="app"]')).toBeVisible();
+  await expect(page.locator('[data-view="login"]')).toBeHidden();
+  await expect(page.locator('[data-page="dashboard"]')).toBeVisible();
+  await expect(page.locator('[data-page="pedidos"]')).toBeHidden();
+  await page.locator('[data-nav="pedidos"]').click();
+  await expect(page.locator('[data-page="pedidos"]')).toBeVisible();
+  await expect(page.locator('[data-page="dashboard"]')).toBeHidden();
+});
