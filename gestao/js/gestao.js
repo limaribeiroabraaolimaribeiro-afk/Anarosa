@@ -482,13 +482,19 @@
       renderState('produtos', null);
       $('[data-products-grid]').innerHTML = items.map(productCardHTML).join('');
       $('[data-products-grid]').hidden = false;
-      $$('[data-product-edit]').forEach((btn) => btn.addEventListener('click', (e) => {
+      $('[data-product-variant]').forEach((select) => select.addEventListener('change', () => {
+        const card = select.closest('[data-product-bling-id]');
+        const p = productsByBlingId.get(card.dataset.productBlingId);
+        if (p) updateCardVariantPreview(card, p);
+      }));
+      $('[data-product-edit]').forEach((btn) => btn.addEventListener('click', (e) => {
         const { blingId } = productDataset(e.target.closest('[data-product-bling-id]'));
         openProductDrawer('edit', productsByBlingId.get(blingId));
       }));
       $$('[data-product-stock]').forEach((btn) => btn.addEventListener('click', (e) => {
-        const { blingId } = productDataset(e.target.closest('[data-product-bling-id]'));
-        openStockDrawer(productsByBlingId.get(blingId));
+        const card = e.target.closest('[data-product-bling-id]');
+        const { blingId } = productDataset(card);
+        openStockDrawer(productsByBlingId.get(blingId), card.querySelector('[data-product-variant]')?.value || null);
       }));
       $$('[data-product-toggle-active]').forEach((btn) => btn.addEventListener('click', (e) => {
         const card = e.target.closest('[data-product-bling-id]');
@@ -718,16 +724,18 @@
     }catch{box.textContent='Não foi possível carregar o histórico agora.';}
   }
 
-  async function openStockDrawer(product) {
+  async function openStockDrawer(product, selectedVariantId = null) {
     stockAdjustBlingId = product.blingId;
     const skuSelect=$('[data-stock-sku]');
     const choices=product.variants.length?product.variants:[{blingId:product.blingId,name:product.name,sku:product.sku}];
     skuSelect.innerHTML=choices.map(v=>`<option value="${escapeHtml(v.blingId)}">${escapeHtml(v.name)} · ${escapeHtml(v.sku||'')} · saldo ${v.stock??'a confirmar'}</option>`).join('');
     skuSelect.onchange=()=>{stockAdjustBlingId=skuSelect.value;loadStockHistory(stockAdjustBlingId);};
-    stockAdjustBlingId=choices[0].blingId;
     $('[data-stock-drawer-product-name]').textContent = product.name;
     $('[data-stock-form-error]').hidden = true;
     stockForm.reset();
+    const chosen = choices.find((v) => String(v.blingId) === String(selectedVariantId)) || choices[0];
+    skuSelect.value = String(chosen.blingId);
+    stockAdjustBlingId = String(chosen.blingId);
     applyStockMode(''); // sempre reabre no modo padrão (definir estoque atual)
     stockDrawer.hidden = false;
     stockDrawerOverlay.hidden = false;
