@@ -197,7 +197,10 @@
   function renderRoute() {
     closeProductDrawer();
     const page = currentPage();
-    $$('[data-page]').forEach((el) => { el.hidden = el.dataset.page !== page; });
+    $('[data-view="app"]').classList.toggle('is-products-route', page === 'produtos');
+    $('.gestao-main').scrollTop = 0;
+    if (page === 'produtos') $('[data-products-scroll]').scrollTop = 0;
+    $('[data-page]').forEach((el) => { el.hidden = el.dataset.page !== page; });
     $$('[data-nav]').forEach((el) => el.classList.toggle('is-active', el.dataset.nav === page));
     $('[data-page-title]').textContent = PAGE_TITLES[page];
     sidebar.classList.remove('is-open');
@@ -426,7 +429,10 @@
   let productsByBlingId = new Map();
 
   async function loadProducts(resetOffset) {
-    if (resetOffset !== false) productsOffset = 0;
+    if (resetOffset !== false) {
+      productsOffset = 0;
+      $('[data-products-scroll]').scrollTop = 0;
+    }
     renderState('produtos', 'loading');
     $('[data-products-grid]').hidden = true;
     $('[data-products-pagination]').hidden = true;
@@ -466,8 +472,16 @@
         <button type="button" class="btn btn-outline" data-products-prev ${productsOffset === 0 ? 'disabled' : ''}>‹ Anterior</button>
         <span>${productsOffset + 1}–${productsOffset + items.length} de ${total}</span>
         <button type="button" class="btn btn-outline" data-products-next ${productsOffset + items.length >= total ? 'disabled' : ''}>Próxima ›</button>`;
-      $('[data-products-prev]')?.addEventListener('click', () => { productsOffset = Math.max(0, productsOffset - PRODUCTS_PAGE_SIZE); loadProducts(false); });
-      $('[data-products-next]')?.addEventListener('click', () => { productsOffset += PRODUCTS_PAGE_SIZE; loadProducts(false); });
+      $('[data-products-prev]')?.addEventListener('click', () => {
+        productsOffset = Math.max(0, productsOffset - PRODUCTS_PAGE_SIZE);
+        $('[data-products-scroll]').scrollTop = 0;
+        loadProducts(false);
+      });
+      $('[data-products-next]')?.addEventListener('click', () => {
+        productsOffset += PRODUCTS_PAGE_SIZE;
+        $('[data-products-scroll]').scrollTop = 0;
+        loadProducts(false);
+      });
     } catch (err) {
       if (err.status === 401) return handleSessionExpired('produtos');
       renderState('produtos', 'error', 'Não foi possível carregar os produtos agora.');
