@@ -285,6 +285,18 @@ export class CatalogRepository {
       if (verr) fail('variant_upsert_failed', verr);
       for (const v of vdata ?? []) variantIds.set(String(v.bling_id), v.id);
 
+      // Dados sincronizados em versões anteriores podem ter salvo as
+      // variações também como produtos independentes. Mantê-las na tabela
+      // para preservar referências históricas, mas vincular ao produto pai
+      // para que nunca apareçam como cards duplicados na vitrine.
+      const linkedVariationIds = mapped.variants.map((v) => v.bling_id);
+      const { error: linkError } = await this.db
+        .from('store_products')
+        .update({ parent_bling_id: p.bling_id, synced_at: now })
+        .in('bling_id', linkedVariationIds)
+        .neq('bling_id', p.bling_id);
+      if (linkError) fail('variant_product_link_failed', linkError);
+
       // variações que sumiram do Bling → soft-disable
       const keep = mapped.variants.map((v) => v.bling_id);
       const { error: derr } = await this.db
