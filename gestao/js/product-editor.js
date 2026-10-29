@@ -79,6 +79,12 @@
         </section>
         <section class="product-section" id="product-variants" aria-labelledby="variants-title">
           <div class="section-heading"><div><h2 id="variants-title"><b>4.</b> Variações (Tamanhos e Cores)</h2><p>SKU e preço próprios para cada combinação.</p></div><button type="button" class="btn btn-outline btn-small" data-size-grid>Criar grade P a XG</button></div>
+          <div class="variant-matrix-generator">
+            <label>Cores (separadas por vírgula)<input type="text" data-matrix-colors placeholder="Preto, Branco, Bege" maxlength="240"></label>
+            <label>Tamanhos (separados por vírgula)<input type="text" data-matrix-sizes placeholder="P, M, G, GG" maxlength="180"></label>
+            <button type="button" class="btn btn-outline" data-generate-matrix>Gerar combinações</button>
+          </div>
+          <p class="field-note">Ex.: Preto, Branco × P, M, G cria seis variações, cada uma com SKU e preço próprios. As variações existentes são preservadas. Depois de salvar o produto no Bling, configure fotos específicas por cor em Anúncios.</p>
           <p class="field-note" data-product-form-variant-note hidden>Desative variações existentes para preservar o histórico e o estoque.</p>
           <div class="variant-table-wrap"><div data-editor-variants></div></div>
           <p class="variant-empty" data-variant-empty>Produto sem variações. Adicione os tamanhos e cores disponíveis.</p>
@@ -258,6 +264,43 @@
       const existing = new Set([...form.querySelectorAll('[data-v-size]')].map((input) => input.value.trim().toUpperCase()));
       for (const size of ['P', 'M', 'G', 'GG', 'XG']) if (!existing.has(size)) row({ nome: `Tamanho:${size}`, sku: form.sku.value ? `${form.sku.value}-${size}` : '' });
     }
+    if (button.hasAttribute('data-generate-matrix')) {
+      const parse = (text,limit) => [...new Set(text.split(',').map(v=>v.trim()).filter(Boolean))].slice(0,limit);
+      const colors=parse($('[data-matrix-colors]').value,20);
+      const sizes=parse($('[data-matrix-sizes]').value,20);
+      if (!colors.length && !sizes.length) {
+        alert('Informe pelo menos uma cor ou um tamanho.');
+        return;
+      }
+      if ([...colors,...sizes].some(v=>v.length>30||/[;:]/.test(v))) {
+        alert('Use nomes com até 30 caracteres e sem : ou ;');
+        return;
+      }
+      const possible=(colors.length||1)*(sizes.length||1);
+      if (possible>100) { alert('Máximo de 100 combinações no cadastro.');return; }
+      const already=new Set([...form.querySelectorAll('.variant-edit-row')].map(el=>[
+        el.querySelector('[data-v-size]').value.trim().toLocaleLowerCase('pt-BR'),
+        el.querySelector('[data-v-color]').value.trim().toLocaleLowerCase('pt-BR'),
+      ].join('|')));
+      const existingSkus=new Set([...form.querySelectorAll('[data-v-sku]')].map(el=>el.value.toUpperCase()));
+      const slug=(v)=>v.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').toUpperCase();
+      let created=0;
+      for (const color of colors.length?colors:['']) {
+        for (const size of sizes.length?sizes:['']) {
+          const key=[size.toLocaleLowerCase('pt-BR'),color.toLocaleLowerCase('pt-BR')].join('|');
+          if(already.has(key))continue;
+          const suffix=[color,size].filter(Boolean).map(slug).join('-');
+          const sku=[form.sku.value.trim(),suffix].filter(Boolean).join('-').slice(0,60);
+          if (!sku||existingSkus.has(sku.toUpperCase())) continue;
+          row({ nome:[size?`Tamanho:${size}`:'',color?`Cor:${color}`:''].filter(Boolean).join(';'),
+            sku,preco:form.preco.value||0 });
+          already.add(key);existingSkus.add(sku.toUpperCase());created++;
+        }
+      }
+      if(!created)alert('Todas as combinações já estão cadastradas ou usam SKUs repetidos.');
+      refresh();
+    }
     if (button.hasAttribute('data-v-remove')) { button.closest('.variant-edit-row').remove(); refresh(); }
     if (button.dataset.checkTarget) document.getElementById(button.dataset.checkTarget)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     if (button.hasAttribute('data-preview-open')) { $('[data-product-preview]').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('[data-product-preview]').focus({ preventScroll: true }); }
@@ -298,6 +341,8 @@
       form.querySelectorAll('[data-was-disabled]').forEach((el) => { el.disabled = el.dataset.wasDisabled === 'true'; delete el.dataset.wasDisabled; });
       $('[data-editor-variants]').replaceChildren();
       form.images.value = ''; form.images.disabled = true;
+      $('[data-matrix-colors]').value = '';
+      $('[data-matrix-sizes]').value = '';
       form.colecao.value = '';
       form.segmento.value = '';
       form.precoPromocional.value = '';

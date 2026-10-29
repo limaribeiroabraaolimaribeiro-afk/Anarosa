@@ -69,6 +69,7 @@
         <a href="#/dashboard" data-nav="dashboard"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
         <a href="#/produtos" data-nav="produtos"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4Z M3 7l9 4 9-4 M12 11v10 M7 5l10 5v4"/></svg>Produtos<span class="nav-chevron">⌄</span></a>
         <div class="gestao-subnav"><a href="#/produtos">Todos os produtos</a><button type="button" data-nav-new>Novo produto</button><button type="button" data-nav-attributes>Tamanhos e cores</button></div>
+        <a href="#/anuncios" data-nav="anuncios"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v14H4z M7 7V4h10v3 M9 13h6 M12 10v6"/></svg>Anúncios<span class="nav-chevron">›</span></a>
         <a href="#/pedidos" data-nav="pedidos"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l1 14H4Z M8 8V6a4 4 0 0 1 8 0v2"/></svg>Pedidos<span class="nav-chevron">›</span></a>
         <a href="#/clientes" data-nav="clientes"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3Z"/></svg>Clientes<span class="nav-chevron">›</span></a>
         <a href="#/integracao" data-nav="integracao"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12 5-5a4 4 0 0 1 6 6l-3 3 M16 12l-5 5a4 4 0 0 1-6-6l3-3"/></svg>Integrações<span class="nav-chevron">›</span></a>
@@ -177,6 +178,43 @@
         <div class="gestao-products-scroll" data-products-scroll role="region" tabindex="0" aria-label="Lista de produtos — role para ver mais">
           <div class="gestao-product-grid" data-products-grid hidden></div>
           <div class="gestao-pagination" data-products-pagination hidden></div>
+        </div>
+      </section>
+
+      <!-- ---------------- ANÚNCIOS MARKETPLACE ---------------- -->
+      <section class="gestao-view" data-page="anuncios" hidden>
+        <div data-marketplace-root>
+          <div class="gestao-audit-heading">
+            <div>
+              <h2>Central de anúncios — Mercado Livre e Shopee</h2>
+              <p class="gestao-note">Cadastre uma vez no Bling; prepare título, categoria, preço, imagens e variações para cada canal. A publicação exige autorização própria do marketplace.</p>
+            </div>
+            <div class="gestao-actions">
+              <button type="button" class="btn btn-outline" data-listing-refresh>Atualizar</button>
+              <button type="button" class="btn btn-primary" data-listing-new>Novo anúncio</button>
+            </div>
+          </div>
+          <p class="gestao-note" data-marketplace-message role="status" aria-live="polite"></p>
+          <div class="gestao-card">
+            <h2>Anúncios salvos</h2>
+            <div data-marketplace-list><p class="gestao-note">Carregando…</p></div>
+          </div>
+          <div class="gestao-card">
+            <h2>Preparar anúncio multicanal</h2>
+            <p class="gestao-note">Produto pai + variações compõem um anúncio. Os IDs, SKUs e saldos seguem os produtos do Bling; fotos e atributos específicos são guardados por canal no rascunho.</p>
+            <form data-marketplace-form class="listing-form"></form>
+          </div>
+          <details class="gestao-card listing-help">
+            <summary>Como cadastrar, revisar e publicar anúncios</summary>
+            <ol>
+              <li>Cadastre na aba Produtos o modelo principal, incluindo cada combinação de cor/tamanho, SKU próprio, fotos gerais e preço. Ajuste o estoque de cada SKU usando o depósito do Bling.</li>
+              <li>Nesta aba, selecione o produto e o marketplace. Informe a categoria oficial do canal, título, atributos obrigatórios, forma de envio e fotos principais.</li>
+              <li>Selecione quais variações entrarão no anúncio e associe uma foto da cor a cada combinação. O preço exibido no marketplace é independente do preço-base cadastrado no ERP.</li>
+              <li>Salve o rascunho ou clique em Verificar para publicar. Campos faltantes aparecerão acima. Um status “Pronto para revisão” ainda NÃO significa “Publicado”.</li>
+              <li>Para publicar diretamente pela Gestão é necessária uma integração oficial de anúncios com acesso autorizado ao Mercado Livre/Shopee e validação dos endpoints. Sem isso o sistema bloqueia o envio e informa a pendência, sem criar anúncio falso.</li>
+            </ol>
+            <p>Importante: categorias variam entre Mercado Livre, Shopee e Bling. Produtos completamente diferentes não devem ser anunciados como cores/tamanhos do mesmo modelo.</p>
+          </details>
         </div>
       </section>
 
@@ -337,6 +375,7 @@
   <script src="js/gestao-api.js"></script>
   <script src="js/product-editor.js"></script>
   <script src="../js/services/ui-service.js"></script>
+  <script src="js/marketplace-listings.js"></script>
   <script src="js/gestao.js"></script>
 </body>
 </html>

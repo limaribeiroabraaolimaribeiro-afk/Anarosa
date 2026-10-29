@@ -243,11 +243,11 @@
   // Roteamento por hash
   // ---------------------------------------------------------------
   const PAGE_TITLES = {
-    dashboard: 'Visão geral', pedidos: 'Pedidos', produtos: 'Produtos',
+    dashboard: 'Visão geral', pedidos: 'Pedidos', produtos: 'Produtos', anuncios: 'Anúncios',
     clientes: 'Clientes', integracao: 'Integração', configuracoes: 'Configurações',
   };
   const LOADERS = {
-    dashboard: loadDashboard, pedidos: loadOrders, produtos: loadProducts,
+    dashboard: loadDashboard, pedidos: loadOrders, produtos: loadProducts, anuncios: () => window.MarketplaceListings?.load(),
     clientes: loadCustomers, integracao: loadIntegration, configuracoes: loadSettings,
   };
 

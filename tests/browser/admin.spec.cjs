@@ -542,3 +542,54 @@ test('mobile product cards keep the original two-column layout', async ({ page }
   expect(result.columns).toBe(2);
   expect(result.aspectRatio.replace(/\s+/g, '')).toBe('4/5');
 });
+
+test('marketplace announcement drafts are created without falsely claiming publication', async ({ page }) => {
+  await page.route('**/admin-marketplace-listings', async (route) => {
+    if (route.request().method() === 'GET') return route.fulfill({
+      json: { ok: true,items:[], connections:[
+        { marketplace:'mercado_livre',status:'disconnected' },
+        { marketplace:'shopee',status:'disconnected' },
+      ] },
+    });
+    const body=route.request().postDataJSON();
+    expect(body.marketplace).toBe('mercado_livre');
+    expect(body.blingId).toBe('101');
+    expect(body.action).toBe('save');
+    return route.fulfill({ json: { ok:true,item:{id:'123',status:'draft'},missing:['Categoria do marketplace'],message:'Rascunho salvo.' } });
+  });
+  await page.goto('/gestao/#/anuncios');
+  await expect(page.locator('[data-marketplace-form]')).toBeVisible();
+  await page.locator('[name="listing-product"]').selectOption('101');
+  await page.locator('[name="listing-category"]').fill('MLB1234');
+  await page.locator('[name="listing-shipping"]').fill('Mercado Envios');
+  await page.locator('[data-listing-save]').click();
+  await expect(page.locator('[data-marketplace-message]')).toContainText('Rascunho salvo');
+  await expect(page.locator('[data-marketplace-message]')).not.toContainText('Publicado com sucesso');
+});
+
+test('marketplace publication is blocked if no authorized marketplace channel exists', async ({ page }) => {
+  await page.route('**/admin-marketplace-listings', async (route) => {
+    if (route.request().method()==='GET') return route.fulfill({json:{ok:true,items:[],connections:[]}});
+    expect(route.request().postDataJSON().action).toBe('publish');
+    return route.fulfill({status:409,json:{ok:false,message:'Conecte e autorize a conta deste marketplace antes de publicar.'}});
+  });
+  await page.goto('/gestao/#/anuncios');
+  await page.locator('[name="listing-product"]').selectOption('101');
+  await page.locator('[data-listing-publish]').click();
+  await expect(page.locator('[data-marketplace-message]')).toContainText('Conecte e autorize');
+});
+
+test('product generator creates all combinations without repeating SKUs', async ({ page }) => {
+  await page.goto('/gestao/#/produtos');
+  await page.locator('[data-nav-new]').click();
+  await page.locator('[name="sku"]').fill('VESTIDO');
+  await page.locator('[name="preco"]').fill('100');
+  await page.locator('[data-matrix-colors]').fill('Branco, Preto');
+  await page.locator('[data-matrix-sizes]').fill('P, M, G');
+  await page.locator('[data-generate-matrix]').click();
+  await expect(page.locator('.variant-edit-row')).toHaveCount(6);
+  await page.locator('[data-generate-matrix]').click();
+  await expect(page.locator('.variant-edit-row')).toHaveCount(6);
+  const skus=await page.locator('[data-v-sku]').allInputValues();
+  expect(new Set(skus).size).toBe(6);
+});

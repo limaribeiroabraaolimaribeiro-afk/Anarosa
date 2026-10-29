@@ -33,6 +33,7 @@ const files = [
   'gestao/js/gestao-auth.js',
   'gestao/js/password-reset.js',
   'gestao/js/gestao-api.js',
+  'gestao/js/marketplace-listings.js',
   'gestao/js/gestao.js',
   'gestao/js/product-editor.js',
 ];
