@@ -52,23 +52,29 @@
             ${field('marca', 'Marca', 'maxlength="100" placeholder="Informe a marca"')}
             ${field('unidade', 'Unidade de venda', 'maxlength="6" placeholder="UN"')}
             ${field('gtin', 'GTIN/EAN da etiqueta oficial', 'maxlength="14" placeholder="SEM GTIN ou código do fabricante"')}
-            <label>Categoria<select name="categoriaId" data-product-category-select><option value="">Sem categoria</option></select></label>
-            <label>Coleção<input disabled placeholder="Não disponível na integração"></label>
-            <label class="field-segment">Segmento / gênero<input disabled placeholder="Gerenciado pelas categorias no Bling"></label>
+            <label>Categoria do Bling<select name="categoriaId" data-product-category-select><option value="">Sem categoria</option></select><button type="button" class="category-refresh" data-refresh-categories>↻ Atualizar do Bling</button></label>
+            <label>Coleção da loja<input name="colecao" maxlength="80" placeholder="Ex.: Verão 2027"></label>
+            <label class="field-segment">Segmento / gênero da loja<input name="segmento" maxlength="80" placeholder="Ex.: Feminino, infantil, unissex"></label>
             <label class="field-full short-description">Descrição curta<textarea name="descricaoCurta" maxlength="500" rows="2" placeholder="Apresente os detalhes que tornam esta peça especial."></textarea><span data-description-count>0/500</span></label>
             <label class="field-description" id="product-description">Descrição completa e medidas<textarea name="descricaoComplementar" rows="5" maxlength="10000" placeholder="Descreva o tecido, a modelagem, a composição e as medidas reais."></textarea></label>
-            <div class="field-tags"><span>Tags e atributos</span><div class="unavailable-field">Tags ainda não são editáveis nesta integração.<br><br>Tamanhos e cores são cadastrados na grade abaixo.</div></div>
+            <fieldset class="field-tags"><legend>Tags de destaque na loja</legend>
+              <div class="merchandising-tag-list">
+                ${[['novo','Novidade'],['mais-vendido','Mais vendido'],['oferta','Oferta'],['escolha-da-semana','Escolha da semana'],['destaque','Destaque']].map(([value,label]) =>
+                  `<label class="merchandising-tag"><input type="checkbox" name="storeTag" value="${value}"><span>${label}</span></label>`).join('')}
+              </div>
+              <small>Marcadores da vitrine ANAROSA, vinculados ao produto do Bling. Não alteram as tags internas do ERP.</small>
+            </fieldset>
           </div>
         </section>
         <section class="product-section" id="product-pricing" aria-labelledby="pricing-title">
           <h2 id="pricing-title"><b>3.</b> Preço e vendas</h2>
           <div class="product-price-grid">
             ${field('preco', 'Preço de venda (R$) <em>*</em>', 'type="number" required min="0" step="0.01" placeholder="0,00"')}
-            <label>Preço promocional<input disabled placeholder="Gerenciado no Bling"></label>
+            <label>Preço promocional da loja (R$)<input type="number" name="precoPromocional" min="0.01" step="0.01" placeholder="Opcional, menor que o preço normal"></label>
             <div class="price-note"><strong>Pagamento na loja</strong><span>Condições e parcelamento são apresentados no checkout.</span></div>
           </div>
           <label class="product-switch"><input type="checkbox" name="ativo" checked><span></span>Produto ativo após salvar</label>
-          <p class="field-note">Rascunho salva o produto como inativo no Bling. Promoções, períodos e destaque ainda não são editáveis por aqui.</p>
+          <p class="field-note">Rascunho deixa o produto inativo no Bling. Preço promocional e destaques são usados na loja ANAROSA; a tabela de preços do Bling não será alterada.</p>
         </section>
         <section class="product-section" id="product-variants" aria-labelledby="variants-title">
           <div class="section-heading"><div><h2 id="variants-title"><b>4.</b> Variações (Tamanhos e Cores)</h2><p>SKU e preço próprios para cada combinação.</p></div><button type="button" class="btn btn-outline btn-small" data-size-grid>Criar grade P a XG</button></div>
@@ -177,7 +183,11 @@
     $('[data-preview-image]').alt = form.nome.value || 'Produto sem foto';
     $('[data-preview-name]').textContent = form.nome.value || 'Nome do produto';
     $('[data-preview-description]').textContent = form.descricaoCurta.value || 'Os detalhes da sua peça aparecem aqui.';
-    $('[data-preview-price]').textContent = money(form.preco.value);
+    const price = Number(form.preco.value) || 0;
+    const sale = Number(form.precoPromocional.value);
+    $('[data-preview-price]').textContent = form.precoPromocional.value && sale > 0 && sale < price
+      ? `${money(sale)} · de ${money(price)}`
+      : money(price);
     $('[data-description-count]').textContent = `${form.descricaoCurta.value.length}/500`;
     $('[data-preview-prev]').disabled = $('[data-preview-next]').disabled = urls.length < 2;
     $('[data-preview-dots]').textContent = urls.map((_, i) => i === imageIndex ? '●' : '○').join(' ');
@@ -287,6 +297,10 @@
       form.querySelectorAll('[data-was-disabled]').forEach((el) => { el.disabled = el.dataset.wasDisabled === 'true'; delete el.dataset.wasDisabled; });
       $('[data-editor-variants]').replaceChildren();
       form.images.value = ''; form.images.disabled = true;
+      form.colecao.value = '';
+      form.segmento.value = '';
+      form.precoPromocional.value = '';
+      form.querySelectorAll('[name="storeTag"]').forEach((input) => { input.checked = false; });
       $('[data-editor-stock]').disabled = true;
       $('[data-stock-availability]').textContent = 'Salve o produto para cadastrar estoque no depósito existente.';
       $('[data-editor-loading]').hidden = false;
@@ -312,6 +326,13 @@
         if (p[k] != null) form.elements[k].value = p[k];
       }
       if (id) { form.ativo.checked = p.ativo; form.categoriaId.value = p.categoriaId || ''; }
+      form.colecao.value = p.merchandising?.colecao ?? '';
+      form.segmento.value = p.merchandising?.segmento ?? '';
+      form.precoPromocional.value = p.merchandising?.precoPromocional ?? '';
+      const selectedTags = new Set(p.merchandising?.tags ?? []);
+      form.querySelectorAll('[name="storeTag"]').forEach((input) => {
+        input.checked = selectedTags.has(input.value);
+      });
       const factor = Number(p.dimensoes?.unidadeMedida) === 0 ? 100 : Number(p.dimensoes?.unidadeMedida) === 2 ? 0.1 : 1;
       for (const k of ['largura', 'altura', 'profundidade']) form.elements[k].value = p.dimensoes?.[k] != null ? Number(p.dimensoes[k]) * factor : '';
       for (const k of ['origem', 'ncm', 'cest']) form.elements[k].value = p.tributacao?.[k] ?? '';
@@ -375,6 +396,12 @@
       if (imagePermission && (values().length > 12 || values().some((url) => !photos().includes(url) || url.length > 1000))) throw new ProductEditorValidationError('Use até 12 links HTTPS válidos, com no máximo 1000 caracteres cada.');
       return {
         revision, unidade: form.unidade.value, gtin: form.gtin.value,
+        merchandising: {
+          tags: [...form.querySelectorAll('[name="storeTag"]:checked')].map((el) => el.value),
+          colecao: form.colecao.value.trim(),
+          segmento: form.segmento.value.trim(),
+          precoPromocional: form.precoPromocional.value ? Number(form.precoPromocional.value) : null,
+        },
         descricaoComplementar: form.descricaoComplementar.value,
         pesoLiquido: form.pesoLiquido.value, pesoBruto: form.pesoBruto.value, volumes: form.volumes.value,
         dimensoes: Object.fromEntries(['largura', 'altura', 'profundidade'].map((k) => [k, form.elements[k].value])),
