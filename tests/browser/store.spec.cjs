@@ -58,25 +58,45 @@ test.beforeEach(async ({ page }) => {
     return r.fulfill({ json: data });
   });
 });
-test('variation: sold-out P does not block M; keyboard modal and persistent cart', async ({ page }) => {
+test('product card opens a dedicated page, variant stock blocks P and cart persists', async ({ page }) => {
   await page.goto('/');
-  await page.locator('[data-product-detail]:visible').first().click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.locator('[data-variant-option="v1"]')).toBeDisabled();
-  await expect(page.locator('[data-detail-add]')).toBeDisabled();
-  await page.locator('[data-variant-option="v2"]').click();
-  await expect(page.locator('[data-detail-price]')).toContainText('110,00');
-  await page.locator('[data-detail-add]').click();
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anarosa_cart_v2'))[0].variantBlingId))
-    .toBe('202');
+  const card = page.locator('.product-card').first();
+  await expect(card).toBeVisible();
+  await expect(card.locator('.product-card-media')).toBeVisible();
+  await expect(card.locator('.product-info')).toBeVisible();
+  await expect(card.locator('.product-card-link')).toHaveAttribute('href', /produto\.html\?slug=bermuda-teste/);
+  await card.locator('[data-product-detail]').click();
+  await expect(page).toHaveURL(/produto\.html\?slug=bermuda-teste/);
+  await expect(page.locator('[data-title]')).toHaveText('Bermuda de teste');
+  await expect(page.locator('[data-product-content]')).toBeVisible();
+  await expect(page.locator('[data-variant="v1"]')).toBeDisabled();
+  await expect(page.locator('[data-add-cart]')).toBeDisabled();
+  await page.locator('[data-variant="v2"]').click();
+  await expect(page.locator('[data-price]')).toContainText('110,00');
+  await expect(page.locator('[data-availability]')).toContainText('2 unidades disponíveis');
+  await page.locator('[data-add-cart]').click();
+  await expect(page.locator('[data-cart-drawer]')).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anarosa_cart_v2'))[0].variantBlingId)).toBe('202');
   await page.reload();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anarosa_cart_v2'))[0].quantity)).toBe(1);
-  await page.locator('[data-product-detail]:visible').first().click();
+  await page.locator('[data-cart-toggle]').click();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('[data-cart-drawer]')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-  await page.screenshot({ path: `tmp/store-${test.info().project.name}.png`, fullPage: false });
 });
+
+test('product page exposes all photos, description, share and WhatsApp link', async ({ page }) => {
+  await page.goto('/produto.html?slug=bermuda-teste');
+  await expect(page.locator('[data-description]')).toContainText('Composição e medidas');
+  await expect(page.locator('[data-main-image]')).toBeVisible();
+  await expect(page.locator('[data-whatsapp]')).toHaveAttribute('href', /wa\.me\/\d+\?text=/);
+  await expect(page.locator('[data-share]')).toBeVisible();
+  await page.locator('[data-zoom]').click();
+  await expect(page.locator('[data-lightbox]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-lightbox]')).toBeHidden();
+});
+
 test('catalog failure shows an error and no demo product', async ({ page }) => {
   await page.route('**/storefront-products?*', (r) => r.fulfill({ status: 503, json: { ok: false } }));
   await page.goto('/');
