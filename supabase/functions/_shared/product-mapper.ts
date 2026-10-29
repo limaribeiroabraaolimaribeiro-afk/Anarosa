@@ -246,6 +246,9 @@ export function mapBlingProduct(raw: BlingRaw): MappedProduct {
       type: toText(raw?.tipo),
       unit: toText(raw?.unidade),
       gtin: toText(raw?.gtin),
+      // Guardamos o identificador ERP para diagnosticar categorias removidas
+      // ou não sincronizadas, sem atribuir uma categoria arbitrária à loja.
+      categoryBlingId: toId(raw?.categoria),
       hasVariations: format === 'V' || variationsRaw.length > 0,
       variationCount: variationsRaw.length,
       stockTotals: raw?.estoque && typeof raw.estoque === 'object'
