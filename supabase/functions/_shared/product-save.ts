@@ -1,6 +1,6 @@
 import type { Handler } from './context.ts';
 import { requireAdminUser } from './admin-user-auth.ts';
-import { buildProductEditorPayload, productRevision } from './product-editor.ts';
+import { buildProductEditorPayload, productRevision, validateMerchandising } from './product-editor.ts';
 import { canWriteProductImages } from './product-image-permission.ts';
 import { json, methodNotAllowed } from './responses.ts';
 import { ValidationError } from './errors.ts';
@@ -19,6 +19,8 @@ export function productSave(update: boolean): Handler {
     });
     if (rate.error || rate.data !== true) throw new ValidationError('Aguarde antes de salvar novamente.');
     if (update && !/^[1-9]\d{0,15}$/.test(body.blingId ?? '')) throw new ValidationError('Produto inválido.');
+    // Validar a curadoria antes de qualquer escrita no Bling.
+    const merchandising = validateMerchandising(body);
     const saved = await runAdminMutation(ctx, {
       key: body.operationKey,
       resource: update ? `product:${body.blingId}` : `sku:${String(body.sku).trim().toLowerCase()}`,
@@ -66,6 +68,7 @@ export function productSave(update: boolean): Handler {
           id,
           { syncStock: true },
         );
+        if (merchandising) await ctx.repo.saveMerchandisingByBlingId(id, merchandising);
       } catch {
         return {
           ok: true,
