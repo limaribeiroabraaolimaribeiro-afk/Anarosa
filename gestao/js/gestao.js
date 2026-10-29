@@ -635,7 +635,7 @@
     if (mode === 'edit' && product) {
       productForm.nome.value = product.name || '';
       productForm.sku.value = product.sku || '';
-      productForm.preco.value = product.promotionalPrice ?? product.price ?? 0;
+      productForm.preco.value = product.price ?? 0; // preço base sempre vem do Bling
       productForm.ativo.checked = product.active !== false;
       // marca/descricaoCurta não vêm da listagem administrativa — ficam em
       // branco; o backend preserva o valor atual no Bling quando o campo
