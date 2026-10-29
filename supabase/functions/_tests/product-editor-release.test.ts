@@ -128,3 +128,7 @@ Deno.test('editor: valida GTIN, unidade e preserva fotos internas em edições',
     /imagens internas/
   );
 });
+
+Deno.test('editor: separa tags, coleção, segmento e promoção da loja do payload nativo Bling', () => {
+  const { validateMerchandising } = awaitImportEditor();
+});
