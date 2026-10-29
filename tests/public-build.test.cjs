@@ -72,5 +72,5 @@ test('Gestão keeps navigation fixed while the products grid scrolls separately'
 test('admin route updates every page using querySelectorAll, not a single Element', () => {
  const js=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
  assert(js.includes("$$('[data-page]').forEach("));
- assert(!js.includes("$('[data-page]').forEach("));
+ assert(!/(?<!\$)\$\('\[data-page\]'\)\.forEach\(/.test(js));
 });
