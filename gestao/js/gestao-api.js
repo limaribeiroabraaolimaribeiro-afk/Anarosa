@@ -64,6 +64,7 @@
     listProducts: (params) => call('admin-products', { params }),
     listCustomers: (params) => call('admin-customers', { params }),
     getIntegrationStatus: () => call('admin-integration-status'),
+    getCatalogAudit: () => call('admin-catalog-audit'),
     reconnectBling: () => call('admin-bling-reconnect', { method: 'POST' }),
     createProduct: (body) => call('admin-product-create', { body }),
     uploadProductImage: (file) => { const body = new FormData(); body.append('photo', file); return call('admin-product-image-upload', { body }); },
