@@ -63,6 +63,7 @@
                   `<label class="merchandising-tag"><input type="checkbox" name="storeTag" value="${value}"><span>${label}</span></label>`).join('')}
               </div>
               <small>Marcadores da vitrine ANAROSA, vinculados ao produto do Bling. Não alteram as tags internas do ERP.</small>
+              <button type="button" class="btn btn-soft" data-save-merchandising hidden>Salvar tags e informações da loja</button>
             </fieldset>
           </div>
         </section>
@@ -309,6 +310,7 @@
       $('[data-image-capability]').textContent = 'Verificando permissão de imagens…';
       $('[data-store-channel]').textContent = 'Consultando cadastro…';
       $('[data-save-draft]').hidden = false;
+      $('[data-save-merchandising]').hidden = true;
       setBusy(true);
     },
     cancel() { pendingFiles = []; filesInput.value = ''; releasePreviews(); pendingContainer.replaceChildren(); generation++; },
@@ -348,6 +350,7 @@
       $('[data-editor-breadcrumb]').textContent = id ? 'Editar produto' : 'Novo produto';
       $('[data-product-form-submit]').textContent = id ? 'Salvar alterações' : 'Publicar produto';
       $('[data-save-draft]').hidden = !!id;
+      $('[data-save-merchandising]').hidden = !id;
       $('.product-switch').hidden = !id;
       $('[data-product-status]').textContent = id ? (p.ativo ? 'Ativo no Bling' : 'Inativo no Bling') : 'Não salvo';
       $('[data-product-status-note]').textContent = id ? 'Situação do último cadastro carregado. Alterações aguardam salvamento.' : 'Este produto ainda não foi cadastrado. Salve como rascunho ou publique na loja.';
@@ -380,6 +383,20 @@
       $('[data-image-capability]').textContent = 'Fotos enviadas. Salve o cadastro para vinculá-las ao produto no Bling.';
       return values();
     },
+    readMerchandising() {
+      if (!ready || busy) throw new ProductEditorValidationError('Aguarde o carregamento do produto.');
+      const sale = form.precoPromocional.value ? Number(form.precoPromocional.value) : null;
+      const price = Number(form.preco.value);
+      if (sale != null && (!Number.isFinite(sale) || sale <= 0 || sale >= price)) {
+        throw new ProductEditorValidationError('O preço promocional precisa ser positivo e menor que o preço de venda.');
+      }
+      return {
+        tags: [...form.querySelectorAll('[name="storeTag"]:checked')].map(el => el.value),
+        colecao: form.colecao.value.trim(),
+        segmento: form.segmento.value.trim(),
+        precoPromocional: sale,
+      };
+    },
     read() {
       if (!ready || busy) throw new ProductEditorValidationError('Aguarde o carregamento do produto.');
       if (form.precoPromocional.value) {
@@ -403,12 +420,7 @@
       if (imagePermission && (values().length > 12 || values().some((url) => !photos().includes(url) || url.length > 1000))) throw new ProductEditorValidationError('Use até 12 links HTTPS válidos, com no máximo 1000 caracteres cada.');
       return {
         revision, unidade: form.unidade.value, gtin: form.gtin.value,
-        merchandising: {
-          tags: [...form.querySelectorAll('[name="storeTag"]:checked')].map((el) => el.value),
-          colecao: form.colecao.value.trim(),
-          segmento: form.segmento.value.trim(),
-          precoPromocional: form.precoPromocional.value ? Number(form.precoPromocional.value) : null,
-        },
+        merchandising: this.readMerchandising(),
         descricaoComplementar: form.descricaoComplementar.value,
         pesoLiquido: form.pesoLiquido.value, pesoBruto: form.pesoBruto.value, volumes: form.volumes.value,
         dimensoes: Object.fromEntries(['largura', 'altura', 'profundidade'].map((k) => [k, form.elements[k].value])),
