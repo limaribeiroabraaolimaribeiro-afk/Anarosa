@@ -169,8 +169,8 @@
       const response=await window.GestaoApi.saveMarketplaceListing({...collect(),action});
       if (response.item?.id) state.editing=response.item.id;
       const missing=response.missing||[];
-      message(response.message+(missing.length?' Pendências: '+missing.join('; '):''),'success');
       await load();
+      message(response.message+(missing.length?' Pendências: '+missing.join('; '):''),'success');
     }catch(err){
       const missing=Array.isArray(err.payload?.missing)?err.payload.missing:[];
       message((err.message||'Não foi possível salvar.')+(missing.length?' Pendências: '+missing.join('; '):''),'error');
