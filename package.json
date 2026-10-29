@@ -10,7 +10,7 @@
     "lint:js": "node scripts/check-javascript.cjs",
     "secrets:scan": "node scripts/secrets-scan.js",
     "build:public": "node scripts/build-public.cjs",
-    "test:public": "node scripts/build-public.cjs && node --test tests/public-build.test.cjs",
+    "test:public": "node scripts/build-public.cjs && node --test tests/public-build.test.cjs tests/product-grouping.test.cjs",
     "test:browser": "node scripts/build-public.cjs && node scripts/run-browser-tests.cjs",
     "test:gestao:db": "node --test tests/gestao-operations.test.cjs"
   },

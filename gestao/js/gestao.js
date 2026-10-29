@@ -394,12 +394,47 @@
   let productsOffset = 0;
   const PRODUCTS_PAGE_SIZE = 24;
 
+  const SIZE_ORDER = ['RN', 'PP', 'P', 'M', 'G', 'GG', 'XG', 'EXG'];
+  function variantChoices(p) {
+    return [...(p.variants || [])].sort((a, b) => {
+      const rank = (v) => { const n = SIZE_ORDER.indexOf(String(v.size || '').toUpperCase()); return n < 0 ? 100 : n; };
+      return rank(a) - rank(b) || String(a.color || '').localeCompare(String(b.color || ''), 'pt-BR');
+    });
+  }
+  function variantLabel(v) {
+    return [v.size ? `Tam. ${v.size}` : '', v.color ? `Cor ${v.color}` : ''].filter(Boolean).join(' · ') || v.name || v.sku || 'Variação';
+  }
+  function stockLabelFor(quantity) {
+    return quantity == null ? 'Estoque não informado' : Number(quantity) <= 0 ? 'Esgotado' : `${quantity} em estoque`;
+  }
+  function updateCardVariantPreview(card, product) {
+    const selectedId = card.querySelector('[data-product-variant]')?.value || '';
+    const variant = (product.variants || []).find((v) => String(v.blingId) === selectedId);
+    const quantity = variant ? variant.availableStock : product.availableStock;
+    const badge = card.querySelector('[data-card-stock]');
+    badge.textContent = stockLabelFor(quantity);
+    badge.classList.toggle('is-out', quantity != null && Number(quantity) <= 0);
+    badge.classList.toggle('is-low', quantity != null && Number(quantity) > 0 && Number(quantity) <= 5);
+    const info = card.querySelector('[data-card-selection]');
+    if (info) info.textContent = variant ? `SKU ${variant.sku || '—'} · ${variant.active === false ? 'Variação inativa' : 'Variação ativa'}` : 'Estoque total das variações';
+  }
+
   function productCardHTML(p) {
     const stockLabel = p.availableStock == null ? 'Sem info. de estoque'
       : p.availableStock <= 0 ? 'Esgotado'
       : `${p.availableStock} em estoque`;
     const stockClass = p.availableStock == null ? '' : p.availableStock <= 0 ? 'is-out' : p.availableStock <= 5 ? 'is-low' : '';
     const hasVariants = p.variants.length > 0;
+    const choices = hasVariants ? variantChoices(p) : [];
+    const variantsMarkup = hasVariants ? `
+      <div class="gestao-variant-picker">
+        <label for="gestao-variation-${escapeHtml(p.blingId)}">Escolher tamanho / cor</label>
+        <select id="gestao-variation-${escapeHtml(p.blingId)}" data-product-variant>
+          <option value="">Todas as opções (${choices.length})</option>
+          ${choices.map(v => `<option value="${escapeHtml(v.blingId)}">${escapeHtml(variantLabel(v))} · ${escapeHtml(stockLabelFor(v.availableStock))}${v.active === false ? ' · Inativa' : ''}</option>`).join('')}
+        </select>
+        <p class="gestao-product-meta" data-card-selection>Estoque total das variações</p>
+      </div>` : '';
     return `
       <div class="gestao-product-card" data-product-bling-id="${escapeHtml(p.blingId)}" data-product-has-variants="${hasVariants ? '1' : '0'}">
         <figure><img src="${escapeHtml(p.image || '../assets/products/placeholder.svg')}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.onerror=null;this.src='../assets/products/placeholder.svg';"></figure>
@@ -407,8 +442,8 @@
           <p class="gestao-product-name">${escapeHtml(p.name)}</p>
           <p class="gestao-product-meta">SKU ${escapeHtml(p.sku || '—')} · ${escapeHtml(p.category || 'Sem categoria')}</p>
           <p class="gestao-product-price">${fmtMoney(p.promotionalPrice ?? p.price)}${p.promotionalPrice != null ? ` <s>${fmtMoney(p.price)}</s>` : ''}</p>
-          <p class="gestao-stock-pill ${stockClass}">${escapeHtml(stockLabel)}</p>
-          ${hasVariants ? `<p class="gestao-product-meta">${escapeHtml(p.variants.length)} variação(ões)</p>` : ''}
+          <p class="gestao-stock-pill ${stockClass}" data-card-stock>${escapeHtml(stockLabel)}</p>
+          ${variantsMarkup}
           <p class="gestao-product-meta">${p.active ? 'Ativo' : 'Inativo'} · atualizado ${fmtDate(p.updatedAt)}</p>
           <div class="gestao-product-actions">
             <button type="button" class="btn btn-outline" data-product-edit>Editar</button>
@@ -447,13 +482,19 @@
       renderState('produtos', null);
       $('[data-products-grid]').innerHTML = items.map(productCardHTML).join('');
       $('[data-products-grid]').hidden = false;
-      $$('[data-product-edit]').forEach((btn) => btn.addEventListener('click', (e) => {
+      $('[data-product-variant]').forEach((select) => select.addEventListener('change', () => {
+        const card = select.closest('[data-product-bling-id]');
+        const p = productsByBlingId.get(card.dataset.productBlingId);
+        if (p) updateCardVariantPreview(card, p);
+      }));
+      $('[data-product-edit]').forEach((btn) => btn.addEventListener('click', (e) => {
         const { blingId } = productDataset(e.target.closest('[data-product-bling-id]'));
         openProductDrawer('edit', productsByBlingId.get(blingId));
       }));
       $$('[data-product-stock]').forEach((btn) => btn.addEventListener('click', (e) => {
-        const { blingId } = productDataset(e.target.closest('[data-product-bling-id]'));
-        openStockDrawer(productsByBlingId.get(blingId));
+        const card = e.target.closest('[data-product-bling-id]');
+        const { blingId } = productDataset(card);
+        openStockDrawer(productsByBlingId.get(blingId), card.querySelector('[data-product-variant]')?.value || null);
       }));
       $$('[data-product-toggle-active]').forEach((btn) => btn.addEventListener('click', (e) => {
         const card = e.target.closest('[data-product-bling-id]');
@@ -683,16 +724,18 @@
     }catch{box.textContent='Não foi possível carregar o histórico agora.';}
   }
 
-  async function openStockDrawer(product) {
+  async function openStockDrawer(product, selectedVariantId = null) {
     stockAdjustBlingId = product.blingId;
     const skuSelect=$('[data-stock-sku]');
     const choices=product.variants.length?product.variants:[{blingId:product.blingId,name:product.name,sku:product.sku}];
     skuSelect.innerHTML=choices.map(v=>`<option value="${escapeHtml(v.blingId)}">${escapeHtml(v.name)} · ${escapeHtml(v.sku||'')} · saldo ${v.stock??'a confirmar'}</option>`).join('');
     skuSelect.onchange=()=>{stockAdjustBlingId=skuSelect.value;loadStockHistory(stockAdjustBlingId);};
-    stockAdjustBlingId=choices[0].blingId;
     $('[data-stock-drawer-product-name]').textContent = product.name;
     $('[data-stock-form-error]').hidden = true;
     stockForm.reset();
+    const chosen = choices.find((v) => String(v.blingId) === String(selectedVariantId)) || choices[0];
+    skuSelect.value = String(chosen.blingId);
+    stockAdjustBlingId = String(chosen.blingId);
     applyStockMode(''); // sempre reabre no modo padrão (definir estoque atual)
     stockDrawer.hidden = false;
     stockDrawerOverlay.hidden = false;
