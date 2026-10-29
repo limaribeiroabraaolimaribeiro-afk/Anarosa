@@ -74,3 +74,20 @@ test('admin route updates every page using querySelectorAll, not a single Elemen
  assert(js.includes("$$('[data-page]').forEach("));
  assert(!/(?<!\$)\$\('\[data-page\]'\)\.forEach\(/.test(js));
 });
+
+test('Gestão contains marketplace announcements route and explicit publication safeguards', () => {
+ const html=fs.readFileSync(path.join(root,'gestao/index.html'),'utf8');
+ const js=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
+ const client=fs.readFileSync(path.join(root,'gestao/js/marketplace-listings.js'),'utf8');
+ const editor=fs.readFileSync(path.join(root,'gestao/js/product-editor.js'),'utf8');
+ assert.match(html,/data-nav="anuncios"/);
+ assert.match(html,/data-page="anuncios"/);
+ assert.match(html,/js\/marketplace-listings\.js/);
+ assert.match(js,/anuncios: \(\) => window\.MarketplaceListings/);
+ assert.match(client,/listMarketplaceListings/);
+ assert.match(client,/saveMarketplaceListing/);
+ assert.match(client,/data-listing-variant-photo/);
+ assert.match(editor,/data-generate-matrix/);
+ assert.match(editor,/data-matrix-colors/);
+ assert.match(editor,/data-matrix-sizes/);
+});
