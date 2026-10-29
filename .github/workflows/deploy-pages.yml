@@ -30,6 +30,9 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch: {}
+  schedule:
+    # Atualiza as prévias dos produtos sem depender de um novo commit.
+    - cron: "*/30 * * * *"
 
 permissions:
   contents: read
@@ -63,6 +66,9 @@ jobs:
 
       - name: Montar artefato público (_site)
         run: node scripts/build-public.cjs
+
+      - name: Gerar páginas de compartilhamento com foto individual
+        run: node scripts/build-product-previews.cjs
 
       - name: Validar artefato público e compatibilidade
         run: node --test tests/public-build.test.cjs
