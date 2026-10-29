@@ -626,3 +626,21 @@ body {
 .customer-history{color:#795943;text-decoration:underline;background:none;border:0;font:inherit;cursor:pointer}
 :focus-visible{outline:3px solid #9b7655;outline-offset:3px}
 @media(max-width:600px){.editor-grid{grid-template-columns:1fr}.gestao-drawer{width:100%;max-width:100vw}.gestao-actions{flex-wrap:wrap}.gestao-table{min-width:650px}.gestao-drawer-body{overflow-x:auto}.variant-edit-row{grid-template-columns:1fr 1fr}}
+
+
+/* Um produto principal por card, com seleção acessível de tamanhos e cores. */
+.gestao-variant-picker { margin: 9px 0 7px; }
+.gestao-variant-picker label { display:block; font-size: 12px; font-weight: 600; color: var(--brown-dark); margin-bottom: 5px; }
+.gestao-variant-picker select {
+  width: 100%; max-width: 100%; padding: 9px 28px 9px 10px;
+  border: 1px solid var(--border-soft); border-radius: 8px;
+  background: var(--white); color: var(--brown-dark); font: inherit; font-size: 13px;
+}
+.gestao-variant-picker select:focus-visible { outline: 2px solid #936a3a; outline-offset: 2px; }
+.gestao-variant-picker [data-card-selection] { margin-top: 6px; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .gestao-product-grid { grid-template-columns: minmax(0, 1fr); }
+  .gestao-product-info { padding: 14px 16px; }
+  .gestao-product-name { font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
+  .gestao-product-actions { gap: 8px; }
+}
