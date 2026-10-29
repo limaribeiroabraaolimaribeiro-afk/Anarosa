@@ -37,6 +37,42 @@ export function productEditorView(raw: Row) {
     })),
   };
 }
+/**
+ * A API Bling v3 não documenta gravação de tags comerciais, coleção ou
+ * preço promocional no cadastro base. Não enviar campos arbitrários ao
+ * Bling: persistir a curadoria apenas no cache vinculado ao bling_id.
+ */
+export function validateMerchandising(raw: Row): {
+  tags: string[]; colecao: string; segmento: string; precoPromocional: number | null;
+} | null {
+  if (raw.merchandising === undefined) return null; // clientes antigos
+  const data = raw.merchandising;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new ValidationError('Dados comerciais inválidos.');
+  }
+  const allowed = new Set(['novo', 'mais-vendido', 'oferta', 'escolha-da-semana', 'destaque']);
+  if (!Array.isArray(data.tags) || data.tags.length > allowed.size ||
+    data.tags.some((tag: unknown) => typeof tag !== 'string' || !allowed.has(tag)) ||
+    new Set(data.tags).size !== data.tags.length) {
+    throw new ValidationError('Tags da loja inválidas.');
+  }
+  const colecao = String(data.colecao ?? '').trim();
+  const segmento = String(data.segmento ?? '').trim();
+  if (colecao.length > 80 || segmento.length > 80 || /[<>]/.test(colecao + segmento)) {
+    throw new ValidationError('Coleção ou segmento inválidos (máximo 80 caracteres).');
+  }
+  // As tags editoriais não entram no payload de produtos do Bling.
+  const provided = data.precoPromocional !== null && data.precoPromocional !== undefined &&
+    String(data.precoPromocional).trim() !== '';
+  const precoPromocional = provided ? Number(data.precoPromocional) : null;
+  const basePrice = Number(raw.preco);
+  if (precoPromocional !== null && (!Number.isFinite(precoPromocional) ||
+    precoPromocional <= 0 || precoPromocional >= basePrice)) {
+    throw new ValidationError('Preço promocional deve ser maior que zero e menor que o preço normal.');
+  }
+  return { tags: [...data.tags], colecao, segmento, precoPromocional };
+}
+
 export const productRevision = (raw: Row) => sha256Hex(JSON.stringify(productEditorView(raw)));
 export function buildProductEditorPayload(raw: Row, current: Row | null = null, imagesAllowed = false): Row {
   const b = validateProductAdminInput(raw);

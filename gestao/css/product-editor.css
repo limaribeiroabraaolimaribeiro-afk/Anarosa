@@ -237,3 +237,14 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   cursor: pointer;
 }
 .catalog-pending-photos button:hover { background: #f5f0e8; }
+
+/* Curadoria comercial da vitrine, vinculada ao cadastro Bling */
+.field-tags { min-width: 0; border: 1px solid var(--border-soft, #e6ded1); padding: 13px; border-radius: 8px; }
+.field-tags legend { font-size: 12px; font-weight: 700; padding: 0 6px; }
+.field-tags small { display: block; margin-top: 9px; color: #665f57; line-height: 1.5; }
+.merchandising-tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+.merchandising-tag { display: inline-flex !important; align-items: center; flex-direction: row !important; gap: 7px; min-height: 37px; padding: 7px 11px; border: 1px solid #d3c6b2; border-radius: 20px; background: #fbf8f3; font-weight: 500; cursor: pointer; }
+.merchandising-tag input { width: 16px; height: 16px; margin: 0; accent-color: #79552b; }
+.merchandising-tag:has(input:checked) { background: #e8dcc6; border-color: #79552b; }
+.category-refresh { display: inline-block; margin-top: 7px; padding: 4px 0; background: transparent; border: 0; color: #6d4e2a; text-decoration: underline; font-size: 11px; text-align: left; cursor: pointer; }
+.category-refresh:disabled { opacity: .55; cursor: wait; }

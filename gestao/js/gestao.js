@@ -577,12 +577,12 @@
   }));
   productDrawerOverlay?.addEventListener('click', closeProductDrawer);
 
-  async function loadCategoryOptions(selectedName) {
+  async function loadCategoryOptions(selectedName, forceRefresh = false) {
     const select = $('[data-product-category-select]');
     select.innerHTML = '<option value="">Carregando categorias…</option>';
     try {
-      if (!categoriesCache) {
-        const { items } = await window.GestaoApi.listCategories();
+      if (!categoriesCache || forceRefresh) {
+        const { items } = await window.GestaoApi.listCategories(forceRefresh);
         categoriesCache = items;
       }
       const options = ['<option value="">Sem categoria</option>']
@@ -603,6 +603,25 @@
     }
   }
 
+  $('[data-refresh-categories]')?.addEventListener('click', async (e) => {
+    const control = e.currentTarget;
+    const selected = $('[data-product-category-select]').value;
+    const errorEl = $('[data-product-form-error]');
+    control.disabled = true;
+    errorEl.hidden = true;
+    try {
+      await loadCategoryOptions(null, true);
+      if (selected && [...$('[data-product-category-select]').options].some(o => o.value === selected)) {
+        $('[data-product-category-select]').value = selected;
+      }
+    } catch (error) {
+      errorEl.textContent = friendlyErrorMessage(error, 'Falha ao consultar categorias do Bling.');
+      errorEl.hidden = false;
+    } finally {
+      control.disabled = false;
+    }
+  });
+
   async function openProductDrawer(mode, product) {
     if (productSubmitInFlight) return;
     const sequence = ++productOpenSequence;
@@ -616,7 +635,7 @@
     if (mode === 'edit' && product) {
       productForm.nome.value = product.name || '';
       productForm.sku.value = product.sku || '';
-      productForm.preco.value = product.promotionalPrice ?? product.price ?? 0;
+      productForm.preco.value = product.price ?? 0; // preço base sempre vem do Bling
       productForm.ativo.checked = product.active !== false;
       // marca/descricaoCurta não vêm da listagem administrativa — ficam em
       // branco; o backend preserva o valor atual no Bling quando o campo

@@ -38,6 +38,8 @@ export interface PublicProduct {
   stock: number | null;
   available: boolean;
   tags: string[];
+  collection: string | null;
+  segment: string | null;
   updatedAt: string | null;
 }
 
@@ -127,6 +129,8 @@ export function serializePublicProduct(
     stock,
     available,
     tags,
+    collection: typeof product.metadata?.colecao === 'string' ? product.metadata.colecao : null,
+    segment: typeof product.metadata?.segmento === 'string' ? product.metadata.segmento : null,
     updatedAt: product.updated_at ?? null,
   };
 }

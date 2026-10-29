@@ -71,6 +71,6 @@
     changeProductSituation: (body) => call('admin-product-situacao', { body }),
     adjustStock: (body) => call('admin-stock-adjust', { body }),
     listDeposits: () => call('admin-deposits'),
-    listCategories: () => call('admin-categories'),
+    listCategories: (refresh = false) => call('admin-categories', { params: refresh ? { refresh: 1 } : {} }),
   };
 })();

@@ -115,3 +115,38 @@ carregada de `GET /depositos` — nunca um id assumido/hardcoded.
    saldo no Bling e no cache.
 4. Ativar/desativar esse mesmo produto de teste, confirmar refletido.
 5. Só depois, com confiança, usar em produtos reais do catálogo.
+
+
+## Atualização — Cadastro completo na Gestão (29/10/2026)
+
+A tela de produto agora distingue **campos oficiais da API Bling** de **curadoria
+comercial da vitrine ANAROSA**:
+
+| Campo | Origem e gravação |
+| --- | --- |
+| Nome, SKU, marca, categoria, unidade, GTIN, descrições, preço normal | Produto no Bling v3 (API autenticada) |
+| Variações, peso, dimensões e classificação fiscal | Produto no Bling v3; sujeito às validações de edição e permissões |
+| Ajuste de estoque | Lançamento no Bling, usando depósito real |
+| Tags de vitrine `novo`, `mais-vendido`, `oferta`, `escolha-da-semana`, `destaque` | Curadoria ANAROSA em `store_products.metadata.tags`; vínculo pelo `bling_id` |
+| Coleção e segmento/gênero | Curadoria ANAROSA em `store_products.metadata`; vínculo pelo `bling_id` |
+| Preço promocional da loja | `store_products.promotional_price`; não altera listas de preços do Bling |
+| Tags internas do Bling, campos customizados e canais de venda | Não são alterados por esse editor: a API v3 não foi validada para essas operações |
+
+**Salvamento:** as alterações de cadastro são enviadas primeiro ao Bling;
+o cache é sincronizado por leitura; só então as informações comerciais
+locais são gravadas. O carregamento do editor faz o inverso, juntando o
+cadastro atual do ERP com a curadoria da vitrine. Webhooks e reimportações
+preservam explicitamente essas chaves comerciais e o preço promocional.
+
+**Atenção:** a edição comercial não promete editar etiquetas internas do
+Bling, anúncios do Mercado Livre/Shopee nem suas regras de preços. Para
+isso, primeiro é necessário validar os endpoints e escopos específicos.
+As alterações do produto não movimentam estoque sem lançamento explícito.
+O botão **Atualizar do Bling** consulta novamente as categorias oficiais.
+
+**Publicação:** alterações em `gestao/js/` exigem deploy GitHub Pages.
+Alterações em `_shared/product-editor.ts`, `_shared/product-save.ts`,
+`_shared/catalog-repo.ts`, `_shared/storefront-serializer.ts`,
+`admin-product-detail` e `admin-categories` precisam de deploy das
+Edge Functions dependentes, inclusive as funções de sincronização e
+webhooks para não perder os campos editoriais em imports posteriores.
