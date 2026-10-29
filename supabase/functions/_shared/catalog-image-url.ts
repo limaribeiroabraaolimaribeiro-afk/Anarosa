@@ -4,12 +4,12 @@
  * O endpoint público storefront-image valida o produto antes de converter
  * a mídia original para um arquivo público estável no Storage da ANAROSA.
  */
-type Picture = { url: string; source?: string };
+type Picture = { url?: string; source?: string };
 type CacheEntry = { sourcePath?: string; publicUrl?: string };
 const S3_HOST = 'orgbling.s3.amazonaws.com';
 
 export function isBlingInternalImage(image: Picture | null | undefined): boolean {
-  if (!image || image.source !== 'internal') return false;
+  if (!image?.url || image.source !== 'internal') return false;
   try {
     const u = new URL(image.url);
     return u.protocol === 'https:' && u.hostname === S3_HOST;
