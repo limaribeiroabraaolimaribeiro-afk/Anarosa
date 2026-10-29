@@ -213,6 +213,21 @@
           </div>
           <p class="gestao-note" data-bling-reconnect-note>Use após alterar permissões do aplicativo no Bling. A autorização abrirá no site oficial do Bling. Não desconecta Shopee ou Mercado Livre.</p>
         </div>
+        <div class="gestao-card">
+          <div class="gestao-audit-heading">
+            <div>
+              <h2>Auditoria do catálogo</h2>
+              <p class="gestao-note">Verifique categorias, fotos, SKU e possíveis duplicações no cadastro sincronizado.</p>
+            </div>
+            <button type="button" class="btn btn-outline" data-run-catalog-audit>Verificar pendências</button>
+          </div>
+          <p class="gestao-note" data-catalog-audit-message role="status" aria-live="polite">Clique em verificar para consultar o estado atual do catálogo.</p>
+          <div data-catalog-audit-results hidden>
+            <ul class="gestao-mini-list gestao-mini-list--big" data-catalog-audit-stats></ul>
+            <div class="gestao-audit-issues" data-catalog-audit-issues></div>
+            <p class="gestao-note">A auditoria é somente leitura. Corrija a categoria, SKU ou fotos no cadastro do produto. Fotos internas temporárias devem ser substituídas por URLs permanentes.</p>
+          </div>
+        </div>
       </section>
 
       <!-- ---------------- CONFIGURAÇÕES ---------------- -->
