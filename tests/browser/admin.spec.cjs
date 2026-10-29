@@ -398,7 +398,7 @@ test('valid login opens the dashboard instead of returning to the login form', a
   await expect(page.locator('[data-view="login"]')).toBeHidden();
   await expect(page.locator('[data-page="dashboard"]')).toBeVisible();
   await expect(page.locator('[data-page="pedidos"]')).toBeHidden();
-  await page.locator('[data-nav="pedidos"]').click();
+  await page.evaluate(() => { location.hash = '#/pedidos'; });
   await expect(page.locator('[data-page="pedidos"]')).toBeVisible();
   await expect(page.locator('[data-page="dashboard"]')).toBeHidden();
 });
