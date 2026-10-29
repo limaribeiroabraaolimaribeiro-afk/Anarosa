@@ -155,20 +155,40 @@
   async function load() {
     if (!node) return;
     message('Consultando anúncios e produtos…');
-    try {
-      const [records,products] = await Promise.all([
-        window.GestaoApi.listMarketplaceListings(), window.GestaoApi.listProducts({limit:100,offset:0}),
-      ]);
-      state.listings=records.items||[];
-      state.products=products.items||[];
-      state.connections=records.connections||[];
+    // Consultas independentes: uma falha temporária nos rascunhos não deve
+    // deixar a página inteira vazia nem bloquear a leitura dos produtos.
+    const [listingsResult, productsResult] = await Promise.allSettled([
+      window.GestaoApi.listMarketplaceListings(),
+      window.GestaoApi.listProducts({ limit: 100, offset: 0 }),
+    ]);
+    if (listingsResult.status === 'fulfilled') {
+      const response = listingsResult.value;
+      state.listings = Array.isArray(response.items) ? response.items : [];
+      state.connections = Array.isArray(response.connections) ? response.connections : [];
       listHTML();
-      renderForm(state.editing ? state.listings.find(x=>x.id===state.editing) : null);
-      state.loaded=true;
-      message('Rascunhos e produtos carregados.');
-    } catch(e) {
-      message(e.message||'Não foi possível carregar os anúncios.','error');
+    } else {
+      // Não afirmar "Nenhum anúncio" se a consulta falhou.
+      $('[data-marketplace-list]').innerHTML =
+        '<p class="gestao-note">Não foi possível consultar os anúncios salvos. Toque em Atualizar para tentar novamente.</p>';
     }
+    if (productsResult.status === 'fulfilled') {
+      const response = productsResult.value;
+      state.products = Array.isArray(response.items) ? response.items : [];
+      renderForm(state.editing ? state.listings.find(x => x.id === state.editing) : null);
+    } else {
+      $('[data-marketplace-form]').innerHTML =
+        '<p class="gestao-note">Os produtos do Bling estão temporariamente indisponíveis. Toque em Atualizar.</p>';
+    }
+    if (listingsResult.status === 'rejected' || productsResult.status === 'rejected') {
+      const missing = [
+        listingsResult.status === 'rejected' ? 'anúncios salvos' : '',
+        productsResult.status === 'rejected' ? 'produtos do Bling' : '',
+      ].filter(Boolean).join(' e ');
+      message('Falha ao carregar ' + missing + '. Confira a conexão e toque em Atualizar.','error');
+      return;
+    }
+    state.loaded = true;
+    message('Rascunhos e produtos carregados.');
   }
   function collect() {
     const f=$('[data-marketplace-form]');
