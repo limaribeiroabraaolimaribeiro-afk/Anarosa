@@ -447,10 +447,9 @@ export class CatalogRepository {
     }
 
     let query = this.db
-      .from('store_products')
+      .from('store_catalog_products')
       .select('*', { count: 'exact' })
-      .eq('active', true)
-      .is('parent_bling_id', null) // variações isoladas não viram cards
+      .eq('active', true) // visão já exclui filhos duplicados da vitrine
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1);
     if (categoryId) query = query.eq('category_id', categoryId);
@@ -470,7 +469,7 @@ export class CatalogRepository {
 
   async getPublicProductBySlug(slug: string): Promise<PublicProduct | null> {
     const { data, error } = await this.db
-      .from('store_products')
+      .from('store_catalog_products')
       .select('*')
       .eq('slug', slug)
       .eq('active', true)
@@ -585,9 +584,8 @@ export class CatalogRepository {
     }
 
     let query = this.db
-      .from('store_products')
+      .from('store_catalog_products')
       .select('*', { count: 'exact' })
-      .is('parent_bling_id', null)
       .order('updated_at', { ascending: false });
 
     query = needsInMemoryPaging ? query.range(0, SAFETY_CAP - 1) : query.range(offset, offset + limit - 1);
@@ -685,8 +683,8 @@ export class CatalogRepository {
    */
   async countProducts(): Promise<{ total: number; active: number }> {
     const [{ count: total, error: e1 }, { count: active, error: e2 }] = await Promise.all([
-      this.db.from('store_products').select('id', { count: 'exact' }).limit(1),
-      this.db.from('store_products').select('id', { count: 'exact' }).eq('active', true).limit(1),
+      this.db.from('store_catalog_products').select('id', { count: 'exact' }).limit(1),
+      this.db.from('store_catalog_products').select('id', { count: 'exact' }).eq('active', true).limit(1),
     ]);
     if (e1) fail('products_count_total_failed', e1);
     if (e2) fail('products_count_active_failed', e2);
