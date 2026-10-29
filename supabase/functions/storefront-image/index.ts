@@ -68,7 +68,25 @@ serve(async (req, ctx) => {
     if (saved.publicUrl.startsWith(allowedPrefix)) return publicRedirect(req, saved.publicUrl);
   }
 
-  // Limite de primeiros downloads por IP. Falha de rate-limit não libera acesso irrestrito.
+  // Uma galeria pode abrir 5 fotos ao mesmo tempo. Cada download pode salvar
+  // metadata.imageCache com snapshot antigo e apagar o registro de outra foto.
+  // O Storage é a fonte de verdade: o nome do objeto deriva do caminho S3
+  // (SEM assinatura/Expires) e continua disponível mesmo após essas corridas.
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sourcePath ?? ''));
+  const photoKey = [...new Uint8Array(digest)].slice(0, 12).map(x => x.toString(16).padStart(2, '0')).join('');
+  const folder = `bling-permanent/${blingId}`;
+  const storage = ctx.db.storage.from(BUCKET);
+  const { data: persisted, error: storageListError } = await storage.list(folder, { limit: 100, search: photoKey });
+  if (!storageListError) {
+    const match = (persisted ?? []).find((p) => ['jpg', 'png', 'webp'].some((ext) =>
+      p.name === `${photoKey}.${ext}`));
+    if (match) {
+      const { data } = storage.getPublicUrl(`${folder}/${match.name}`);
+      if (data?.publicUrl) return publicRedirect(req, data.publicUrl);
+    }
+  }
+
+  // Limite de primeiros downloads. Falha de rate-limit não libera acesso irrestrito.
   // Não use o cabeçalho X-Forwarded-For, que pode ser definido pelo cliente.
   const bucket = `storefront-image:${blingId}`;
   const { data: allowed, error: limitError } = await ctx.db.rpc('rl_check_and_increment', {
@@ -112,10 +130,7 @@ serve(async (req, ctx) => {
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
   const type = validImageType(bytes);
   if (!type) return json(req, { ok: false, message: 'Formato da foto não suportado.' }, 502);
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sourcePath ?? ''));
-  const photoKey = [...new Uint8Array(digest)].slice(0, 12).map(x => x.toString(16).padStart(2, '0')).join('');
-  const objectPath = `bling-permanent/${blingId}/${photoKey}.${type.ext}`;
-  const storage = ctx.db.storage.from(BUCKET);
+  const objectPath = `${folder}/${photoKey}.${type.ext}`;
   const { error: uploadError } = await storage.upload(objectPath, bytes, {
     contentType: type.mime, cacheControl: '31536000', upsert: false,
   });
