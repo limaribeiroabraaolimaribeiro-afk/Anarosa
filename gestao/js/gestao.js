@@ -92,11 +92,15 @@
   const appView = $('[data-view="app"]');
   const loginForm = $('[data-login-form]');
   const loginError = $('[data-login-error]');
+  const recoveryForm = $('[data-recovery-form]');
+  const recoveryMessage = $('[data-recovery-message]');
   const sessionBanner = $('[data-session-banner]');
 
   function showLogin(message) {
     appView.hidden = true;
     loginView.hidden = false;
+    loginForm.hidden = false;
+    recoveryForm.hidden = true;
     if (message) {
       loginError.textContent = message;
       loginError.hidden = false;
@@ -145,6 +149,45 @@
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Entrar';
+    }
+  });
+
+  // Recuperação de senha sem mostrar se o e-mail existe no Supabase Auth.
+  $('[data-forgot-password]')?.addEventListener('click', () => {
+    recoveryForm.email.value = loginForm.email.value.trim();
+    recoveryMessage.hidden = true;
+    recoveryMessage.textContent = '';
+    loginForm.hidden = true;
+    recoveryForm.hidden = false;
+    recoveryForm.email.focus();
+  });
+
+  $('[data-back-to-login]')?.addEventListener('click', () => showLogin());
+
+  recoveryForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const email = recoveryForm.email.value.trim();
+    const submit = $('[data-recovery-submit]');
+    const feedback = (text, kind) => {
+      recoveryMessage.textContent = text;
+      recoveryMessage.dataset.kind = kind;
+      recoveryMessage.hidden = false;
+    };
+    if (!email || !recoveryForm.email.checkValidity()) {
+      feedback('Informe um e-mail válido.', 'error');
+      return;
+    }
+    recoveryMessage.hidden = true;
+    submit.disabled = true;
+    submit.textContent = 'Enviando…';
+    try {
+      await window.GestaoAuth.requestPasswordReset(email);
+      feedback('Se este e-mail estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também o spam.', 'success');
+    } catch (err) {
+      feedback('Não foi possível enviar o link. Verifique sua conexão e tente novamente mais tarde.', 'error');
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Enviar link';
     }
   });
 
@@ -899,6 +942,44 @@
     const email = session?.user?.email || '—';
     $('[data-settings-email]').textContent = email;
   }
+
+  $('[data-password-change-form]')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const currentPassword = form.elements.namedItem('currentPassword').value;
+    const newPassword = form.elements.namedItem('newPassword').value;
+    const confirmation = form.elements.namedItem('confirmPassword').value;
+    const feedback = $('[data-password-feedback]');
+    const submit = $('[data-password-change-submit]');
+    const setFeedback = (message, kind) => {
+      feedback.textContent = message;
+      feedback.dataset.kind = kind;
+      feedback.hidden = false;
+    };
+
+    if (!currentPassword) return setFeedback('Informe sua senha atual.', 'error');
+    if (newPassword.length < 12) return setFeedback('A nova senha precisa ter pelo menos 12 caracteres.', 'error');
+    if (newPassword !== confirmation) return setFeedback('As novas senhas não coincidem.', 'error');
+    if (newPassword === currentPassword) return setFeedback('Escolha uma senha diferente da atual.', 'error');
+    feedback.hidden = true;
+    submit.disabled = true;
+    submit.textContent = 'Salvando…';
+    try {
+      await window.GestaoAuth.changePassword(currentPassword, newPassword);
+      form.reset();
+      setFeedback('Senha alterada com sucesso. Use a nova senha no próximo acesso.', 'success');
+    } catch (err) {
+      const message = err?.message === 'A senha atual está incorreta.'
+        ? 'A senha atual está incorreta.'
+        : err?.message === 'Sua sessão expirou. Entre novamente.'
+          ? err.message
+          : 'Não foi possível alterar sua senha. Tente novamente.';
+      setFeedback(message, 'error');
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Salvar nova senha';
+    }
+  });
 
   // ---------------------------------------------------------------
   // Boot

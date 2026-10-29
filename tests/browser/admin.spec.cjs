@@ -24,7 +24,7 @@ test.beforeEach(async ({ page }) => {
     r.fulfill({
       contentType: 'text/javascript',
       body:
-        `window.GestaoAuth={isConfigured:()=>true,getSession:async()=>({access_token:'test-session',user:{id:'test-user',email:'test@example.invalid'}}),onAuthStateChange:()=>{},signOut:async()=>{},signIn:async()=>{}};`,
+        `window.GestaoAuth={isConfigured:()=>true,getSession:async()=>({access_token:'test-session',user:{id:'test-user',email:'test@example.invalid'}}),onAuthStateChange:(callback)=>{if(location.hash.includes('type=recovery'))queueMicrotask(()=>callback('PASSWORD_RECOVERY',{access_token:'test-session'}));return()=>{}},signOut:async()=>{},signIn:async()=>{},requestPasswordReset:async(email)=>{window.__resetEmail=email},changePassword:async(oldPassword,newPassword)=>{window.__changedPassword={oldPassword,newPassword}},finishPasswordRecovery:async(password)=>{window.__recoveredPassword=password}};`,
     }));
   await page.route('**/functions/v1/**', (r) => {
     const name = new URL(r.request().url()).pathname.split('/').pop();
@@ -293,4 +293,50 @@ test('product preview, navigation and responsive layout use only the entered dat
   await expect(page.locator('[data-product-drawer]')).toBeHidden();
   await expect(page.locator('[data-page="pedidos"]')).toBeVisible();
   expect(scriptErrors).toEqual([]);
+});
+
+test('admin can request a password recovery email without being logged in', async ({ page }) => {
+  await page.route('**/admin-dashboard-summary', (r) => r.fulfill({ status: 401, json: { ok: false } }));
+  await page.goto('/gestao/');
+  await page.locator('[data-forgot-password]').click();
+  await expect(page.locator('[data-recovery-form]')).toBeVisible();
+  await page.locator('[data-recovery-form] input[name="email"]').fill('conta@exemplo.invalid');
+  await page.locator('[data-recovery-submit]').click();
+  await expect(page.locator('[data-recovery-message]')).toContainText('Se este e-mail estiver cadastrado');
+  expect(await page.evaluate(() => window.__resetEmail)).toBe('conta@exemplo.invalid');
+});
+
+test('account settings confirm current password and prevent mismatched new passwords', async ({ page }) => {
+  await page.goto('/gestao/#/configuracoes');
+  const form = page.locator('[data-password-change-form]');
+  await expect(form).toBeVisible();
+  await form.locator('[name="currentPassword"]').fill('senha-atual-exemplo');
+  await form.locator('[name="newPassword"]').fill('senha-nova-segura-2026');
+  await form.locator('[name="confirmPassword"]').fill('senhas-nao-coincidem');
+  await form.locator('[data-password-change-submit]').click();
+  await expect(form.locator('[data-password-feedback]')).toContainText('não coincidem');
+  expect(await page.evaluate(() => window.__changedPassword)).toBeUndefined();
+  await form.locator('[name="confirmPassword"]').fill('senha-nova-segura-2026');
+  await form.locator('[data-password-change-submit]').click();
+  await expect(form.locator('[data-password-feedback]')).toContainText('alterada com sucesso');
+  expect(await page.evaluate(() => window.__changedPassword)).toEqual({
+    oldPassword: 'senha-atual-exemplo',
+    newPassword: 'senha-nova-segura-2026',
+  });
+});
+
+test('recovery link requires a session and sets a new password only after confirmation', async ({ page }) => {
+  await page.goto('/gestao/redefinir-senha.html');
+  await expect(page.locator('[data-reset-password-form]')).toBeHidden();
+  await page.goto('/gestao/redefinir-senha.html#access_token=test-recovery&type=recovery');
+  const form = page.locator('[data-reset-password-form]');
+  await expect(form).toBeVisible();
+  await form.locator('[name="password"]').fill('nova-senha-segura-2026');
+  await form.locator('[name="confirmation"]').fill('nova-senha-segura-2025');
+  await form.locator('[data-reset-submit]').click();
+  await expect(page.locator('[data-reset-status]')).toContainText('não coincidem');
+  await form.locator('[name="confirmation"]').fill('nova-senha-segura-2026');
+  await form.locator('[data-reset-submit]').click();
+  await expect(page.locator('[data-reset-status]')).toContainText('redefinida com sucesso');
+  expect(await page.evaluate(() => window.__recoveredPassword)).toBe('nova-senha-segura-2026');
 });
