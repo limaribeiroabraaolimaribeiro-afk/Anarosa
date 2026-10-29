@@ -39,7 +39,7 @@
     const search = new URLSearchParams(window.location.search);
     window.ANAROSA_RECOVERY_LINK =
       (hash.get('type') === 'recovery' && hash.has('access_token')) ||
-      search.has('code');
+      false;
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script src="../js/config.js"></script>
