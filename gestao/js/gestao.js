@@ -577,12 +577,12 @@
   }));
   productDrawerOverlay?.addEventListener('click', closeProductDrawer);
 
-  async function loadCategoryOptions(selectedName) {
+  async function loadCategoryOptions(selectedName, forceRefresh = false) {
     const select = $('[data-product-category-select]');
     select.innerHTML = '<option value="">Carregando categorias…</option>';
     try {
-      if (!categoriesCache) {
-        const { items } = await window.GestaoApi.listCategories();
+      if (!categoriesCache || forceRefresh) {
+        const { items } = await window.GestaoApi.listCategories(forceRefresh);
         categoriesCache = items;
       }
       const options = ['<option value="">Sem categoria</option>']
@@ -602,6 +602,25 @@
       select.innerHTML = '<option value="">Sem categoria</option>';
     }
   }
+
+  $('[data-refresh-categories]')?.addEventListener('click', async (e) => {
+    const control = e.currentTarget;
+    const selected = $('[data-product-category-select]').value;
+    const errorEl = $('[data-product-form-error]');
+    control.disabled = true;
+    errorEl.hidden = true;
+    try {
+      await loadCategoryOptions(null, true);
+      if (selected && [...$('[data-product-category-select]').options].some(o => o.value === selected)) {
+        $('[data-product-category-select]').value = selected;
+      }
+    } catch (error) {
+      errorEl.textContent = friendlyErrorMessage(error, 'Falha ao consultar categorias do Bling.');
+      errorEl.hidden = false;
+    } finally {
+      control.disabled = false;
+    }
+  });
 
   async function openProductDrawer(mode, product) {
     if (productSubmitInFlight) return;
