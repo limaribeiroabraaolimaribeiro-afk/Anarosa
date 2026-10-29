@@ -505,3 +505,40 @@ test('integration audit identifies catalog problems and never writes to Bling', 
   await expect(page.locator('[data-catalog-audit-issues]')).toContainText('Produto sem foto');
   expect(calls).toBe(1);
 });
+
+test('desktop product cards use a dense grid with small photos and keep actions accessible', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/gestao/#/produtos');
+  const card = page.locator('.gestao-product-card').first();
+  await expect(card).toBeVisible();
+  const metrics = await card.evaluate((node) => {
+    const figure = node.querySelector('figure');
+    const grid = node.parentElement;
+    return {
+      cardWidth: node.getBoundingClientRect().width,
+      photoHeight: figure.getBoundingClientRect().height,
+      gridColumns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+      nameTitle: node.querySelector('.gestao-product-name').title,
+    };
+  });
+  expect(metrics.cardWidth).toBeLessThan(180);
+  expect(metrics.photoHeight).toBeLessThanOrEqual(120);
+  expect(metrics.gridColumns).toBeGreaterThanOrEqual(5);
+  expect(metrics.nameTitle).toBe(product.name);
+  await expect(card.locator('[data-product-stock]')).toHaveAttribute('aria-label', /Ajustar estoque/);
+  await card.locator('[data-product-stock]').click();
+  await expect(page.locator('[data-stock-drawer]')).toBeVisible();
+});
+
+test('mobile product cards keep the original two-column layout', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/gestao/#/produtos');
+  const card = page.locator('.gestao-product-card').first();
+  await expect(card).toBeVisible();
+  const result = await card.evaluate((node) => ({
+    columns: getComputedStyle(node.parentElement).gridTemplateColumns.split(' ').length,
+    aspectRatio: getComputedStyle(node.querySelector('figure')).aspectRatio,
+  }));
+  expect(result.columns).toBe(2);
+  expect(result.aspectRatio.replace(/\s+/g, '')).toBe('4/5');
+});
