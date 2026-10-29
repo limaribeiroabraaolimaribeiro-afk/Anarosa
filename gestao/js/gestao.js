@@ -394,12 +394,47 @@
   let productsOffset = 0;
   const PRODUCTS_PAGE_SIZE = 24;
 
+  const SIZE_ORDER = ['RN', 'PP', 'P', 'M', 'G', 'GG', 'XG', 'EXG'];
+  function variantChoices(p) {
+    return [...(p.variants || [])].sort((a, b) => {
+      const rank = (v) => { const n = SIZE_ORDER.indexOf(String(v.size || '').toUpperCase()); return n < 0 ? 100 : n; };
+      return rank(a) - rank(b) || String(a.color || '').localeCompare(String(b.color || ''), 'pt-BR');
+    });
+  }
+  function variantLabel(v) {
+    return [v.size ? `Tam. ${v.size}` : '', v.color ? `Cor ${v.color}` : ''].filter(Boolean).join(' · ') || v.name || v.sku || 'Variação';
+  }
+  function stockLabelFor(quantity) {
+    return quantity == null ? 'Estoque não informado' : Number(quantity) <= 0 ? 'Esgotado' : `${quantity} em estoque`;
+  }
+  function updateCardVariantPreview(card, product) {
+    const selectedId = card.querySelector('[data-product-variant]')?.value || '';
+    const variant = (product.variants || []).find((v) => String(v.blingId) === selectedId);
+    const quantity = variant ? variant.availableStock : product.availableStock;
+    const badge = card.querySelector('[data-card-stock]');
+    badge.textContent = stockLabelFor(quantity);
+    badge.classList.toggle('is-out', quantity != null && Number(quantity) <= 0);
+    badge.classList.toggle('is-low', quantity != null && Number(quantity) > 0 && Number(quantity) <= 5);
+    const info = card.querySelector('[data-card-selection]');
+    if (info) info.textContent = variant ? `SKU ${variant.sku || '—'} · ${variant.active === false ? 'Variação inativa' : 'Variação ativa'}` : 'Estoque total das variações';
+  }
+
   function productCardHTML(p) {
     const stockLabel = p.availableStock == null ? 'Sem info. de estoque'
       : p.availableStock <= 0 ? 'Esgotado'
       : `${p.availableStock} em estoque`;
     const stockClass = p.availableStock == null ? '' : p.availableStock <= 0 ? 'is-out' : p.availableStock <= 5 ? 'is-low' : '';
     const hasVariants = p.variants.length > 0;
+    const choices = hasVariants ? variantChoices(p) : [];
+    const variantsMarkup = hasVariants ? `
+      <div class="gestao-variant-picker">
+        <label for="gestao-variation-${escapeHtml(p.blingId)}">Escolher tamanho / cor</label>
+        <select id="gestao-variation-${escapeHtml(p.blingId)}" data-product-variant>
+          <option value="">Todas as opções (${choices.length})</option>
+          ${choices.map(v => `<option value="${escapeHtml(v.blingId)}">${escapeHtml(variantLabel(v))} · ${escapeHtml(stockLabelFor(v.availableStock))}${v.active === false ? ' · Inativa' : ''}</option>`).join('')}
+        </select>
+        <p class="gestao-product-meta" data-card-selection>Estoque total das variações</p>
+      </div>` : '';
     return `
       <div class="gestao-product-card" data-product-bling-id="${escapeHtml(p.blingId)}" data-product-has-variants="${hasVariants ? '1' : '0'}">
         <figure><img src="${escapeHtml(p.image || '../assets/products/placeholder.svg')}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.onerror=null;this.src='../assets/products/placeholder.svg';"></figure>
@@ -407,8 +442,8 @@
           <p class="gestao-product-name">${escapeHtml(p.name)}</p>
           <p class="gestao-product-meta">SKU ${escapeHtml(p.sku || '—')} · ${escapeHtml(p.category || 'Sem categoria')}</p>
           <p class="gestao-product-price">${fmtMoney(p.promotionalPrice ?? p.price)}${p.promotionalPrice != null ? ` <s>${fmtMoney(p.price)}</s>` : ''}</p>
-          <p class="gestao-stock-pill ${stockClass}">${escapeHtml(stockLabel)}</p>
-          ${hasVariants ? `<p class="gestao-product-meta">${escapeHtml(p.variants.length)} variação(ões)</p>` : ''}
+          <p class="gestao-stock-pill ${stockClass}" data-card-stock>${escapeHtml(stockLabel)}</p>
+          ${variantsMarkup}
           <p class="gestao-product-meta">${p.active ? 'Ativo' : 'Inativo'} · atualizado ${fmtDate(p.updatedAt)}</p>
           <div class="gestao-product-actions">
             <button type="button" class="btn btn-outline" data-product-edit>Editar</button>
