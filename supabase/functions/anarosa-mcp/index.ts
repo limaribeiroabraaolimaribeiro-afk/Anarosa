@@ -81,7 +81,7 @@ function jsonParams(args: Args, names: string[]): Args {
 }
 async function requestAdmin(endpoint: string, token: string, params?: Args, body?: Args): Promise<unknown> {
   const allowed = new Set([
-    'admin-dashboard-summary','admin-products','admin-product-detail','admin-categories',
+    'admin-dashboard-summary','admin-products','admin-product-detail','admin-categories','admin-customers',
     'admin-orders','admin-stock-history','admin-deposits','admin-integration-status',
     'admin-product-create','admin-product-update','admin-stock-adjust','admin-marketplace-listings',
     'admin-marketplace-channels','admin-product-image-upload','admin-catalog-audit',
@@ -199,6 +199,12 @@ const actions: Record<string,Tool> = {
     description:'Consultar pedidos administrativos existentes na Gestão ANAROSA sem edição.',
     schema:properties({limit:{type:'integer',minimum:1,maximum:100},offset:{type:'integer',minimum:0},status:S.str('novos, processando, concluidos ou cancelados',30)}),readOnly:true,
     action:(a,t)=>requestAdmin('admin-orders',t,jsonParams(a,['limit','offset','status'])),
+  },
+  listar_clientes: {
+    description:'Consultar clientes da Gestão ANAROSA sob autenticação administrativa. Evite compartilhar dados pessoais fora da necessidade comercial.',
+    schema:properties({limit:{type:'integer',minimum:1,maximum:50},offset:{type:'integer',minimum:0},
+      search:S.str('Nome ou contato para buscar',80)}),readOnly:true,
+    action:(a,t)=>requestAdmin('admin-customers',t,jsonParams(a,['limit','offset','search'])),
   },
   listar_anuncios: {
     description:'Consultar anúncios rascunhos, status, Mercado Livre e Shopee. Publicado é somente o estado confirmado.',
