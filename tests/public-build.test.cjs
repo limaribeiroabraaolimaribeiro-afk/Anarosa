@@ -124,3 +124,22 @@ test('ANAROSA MCP is restricted to commercial tools and private authentication',
  assert.match(panel,/data-copy-mcp-url/);
  assert.doesNotMatch(oauth,/service_role|BLING_CLIENT_SECRET|OPENAI_API_KEY/);
 });
+
+
+test('product share pages expose bot-readable product metadata with permanent image URLs', () => {
+  const previews = path.join(root, 'p');
+  assert(fs.existsSync(previews), 'Missing individual Open Graph preview pages');
+  const htmlFiles = fs.readdirSync(previews).filter((name) => name.endsWith('.html'));
+  assert(htmlFiles.length > 0, 'Public catalog generated no product previews');
+  for (const name of htmlFiles) {
+    assert(/^[a-z0-9-]+\.html$/.test(name), 'Unsafe preview path: ' + name);
+    const html = fs.readFileSync(path.join(previews, name), 'utf8');
+    assert.match(html, /<meta property="og:type" content="product">/, name);
+    assert.match(html, /<meta property="og:title" content="[^"]+">/, name);
+    assert.match(html, /<meta property="og:image" content="https:\/\/[^"]+">/, name);
+    assert.match(html, /<meta property="og:url" content="https:\/\/www\.lojaanarosa\.com\.br\/p\//, name);
+    assert(!html.includes('orgbling.s3.amazonaws.com'), 'Expired Bling image must not be published: ' + name);
+    assert(!html.includes('AWSAccessKeyId='), 'Signed URLs must never be used for social previews: ' + name);
+    assert.match(html, /window\.location\.replace\(/, 'Visitors must reach the product page: ' + name);
+  }
+});
