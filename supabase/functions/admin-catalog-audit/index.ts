@@ -12,6 +12,7 @@ type ProductRow = {
   price: number | string; active: boolean; parent_bling_id: string | null;
   category_id: string | null; short_description: string | null;
   description: string | null; images: Array<{ url?: string }> | null;
+  metadata?: { imageCache?: Record<string, { sourcePath?: string; publicUrl?: string }> };
 };
 type VariantRow = { bling_id: string; product_id: string };
 type Issue = { blingId: string; sku: string | null; name: string; issues: string[] };
@@ -30,7 +31,7 @@ serve(async (req, ctx) => {
   await requireAdminUser(req, ctx.db);
   const [productsResult, variantsResult, categoriesResult] = await Promise.all([
     ctx.db.from('store_products')
-      .select('id, bling_id, sku, name, price, active, parent_bling_id, category_id, short_description, description, images')
+      .select('id, bling_id, sku, name, price, active, parent_bling_id, category_id, short_description, description, images, metadata')
       .eq('active', true).range(0, 1999),
     ctx.db.from('store_product_variants').select('bling_id,product_id').range(0, 1999),
     ctx.db.from('store_categories').select('id,bling_id').eq('active', true).range(0, 499),
@@ -57,7 +58,15 @@ serve(async (req, ctx) => {
     if (!p.description?.trim() && !p.short_description?.trim()) found.push('Descrição ausente');
     const images = Array.isArray(p.images) ? p.images : [];
     if (!images.length) found.push('Sem fotos');
-    else if (images.some((img) => isExpiredImage(String(img.url ?? ''), nowSeconds))) {
+    else if (images.some((img, slot) => {
+      const cached = (p as ProductRow & { metadata?: { imageCache?: Record<string, { sourcePath?: string; publicUrl?: string }> } })
+        .metadata?.imageCache?.[String(slot)];
+      const original = String(img.url ?? '');
+      let path = '';
+      try { path = new URL(original).pathname; } catch { /* URL inválida */ }
+      return isExpiredImage(original, nowSeconds) && !(cached?.sourcePath === path &&
+        cached?.publicUrl?.startsWith('https://'));
+    })) {
       found.push('Foto temporária vencida ou perto de vencer');
     }
     if (/^teste(?:$|[\s_-])/i.test(p.name.trim())) found.push('Produto de teste ativo');
