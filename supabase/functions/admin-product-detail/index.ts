@@ -16,9 +16,12 @@ serve(async (req, ctx) => {
   if (!id) return json(req, { ok: true, product: {}, revision: null, capabilities });
   if (!/^[1-9]\d{0,15}$/.test(id)) throw new ValidationError('Produto inválido.');
   const { data } = await ctx.client().getProductById(id);
+  const merchandising = await ctx.repo.getMerchandisingByBlingId(id);
   return json(req, {
     ok: true,
-    product: productEditorView(data),
+    product: { ...productEditorView(data), merchandising: merchandising ?? {
+      tags: [], colecao: '', segmento: '', precoPromocional: null,
+    } },
     revision: await productRevision(data),
     capabilities,
   });
