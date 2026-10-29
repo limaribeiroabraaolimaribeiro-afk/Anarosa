@@ -24,7 +24,7 @@ test.beforeEach(async ({ page }) => {
     r.fulfill({
       contentType: 'text/javascript',
       body:
-        `window.GestaoAuth={isConfigured:()=>true,getSession:async()=>({access_token:'test-session',user:{id:'test-user',email:'test@example.invalid'}}),onAuthStateChange:()=>{},signOut:async()=>{},signIn:async()=>{},requestPasswordReset:async(email)=>{window.__resetEmail=email},changePassword:async(oldPassword,newPassword)=>{window.__changedPassword={oldPassword,newPassword}},finishPasswordRecovery:async(password)=>{window.__recoveredPassword=password}};`,
+        `window.GestaoAuth={isConfigured:()=>true,getSession:async()=>({access_token:'test-session',user:{id:'test-user',email:'test@example.invalid'}}),onAuthStateChange:(callback)=>{if(location.hash.includes('type=recovery'))queueMicrotask(()=>callback('PASSWORD_RECOVERY',{access_token:'test-session'}));return()=>{}},signOut:async()=>{},signIn:async()=>{},requestPasswordReset:async(email)=>{window.__resetEmail=email},changePassword:async(oldPassword,newPassword)=>{window.__changedPassword={oldPassword,newPassword}},finishPasswordRecovery:async(password)=>{window.__recoveredPassword=password}};`,
     }));
   await page.route('**/functions/v1/**', (r) => {
     const name = new URL(r.request().url()).pathname.split('/').pop();
