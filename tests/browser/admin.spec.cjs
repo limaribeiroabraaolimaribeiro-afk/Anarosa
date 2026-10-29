@@ -440,5 +440,6 @@ test('editor prevents a promotional price higher than the base price', async ({ 
   // Backend blocks invalid promotions even when a browser has permissive
   // validation; UI feedback should not silently save them.
   await page.locator('[data-product-form-submit]').click();
-  expect(calls).toBe(1);
+  expect(calls).toBe(0);
+  await expect(page.locator('[data-product-form-error]')).toContainText('preço promocional');
 });
