@@ -340,3 +340,40 @@ test('recovery link requires a session and sets a new password only after confir
   await expect(page.locator('[data-reset-status]')).toContainText('redefinida com sucesso');
   expect(await page.evaluate(() => window.__recoveredPassword)).toBe('nova-senha-segura-2026');
 });
+
+test('login distinguishes dashboard errors from incorrect credentials', async ({ page }) => {
+  await page.route('**/gestao-auth.js*', (r) => r.fulfill({
+    contentType: 'text/javascript',
+    body: `window.GestaoAuth={
+      isConfigured:()=>true,
+      getSession:async()=>window.__hasSession?{access_token:'fake-session',user:{id:'test-user',email:'conta@exemplo.invalid'}}:null,
+      onAuthStateChange:()=>()=>{},
+      signIn:async()=>{window.__hasSession=true;return {access_token:'fake-session'}},
+      signOut:async()=>{window.__hasSession=false}
+    };`,
+  }));
+  await page.route('**/functions/v1/admin-dashboard-summary', (r) =>
+    r.fulfill({ status: 503, json: { message: 'backend temporariamente indisponível' } }));
+  await page.goto('/gestao/');
+  await page.locator('[data-login-form] input[name="email"]').fill('conta@exemplo.invalid');
+  await page.locator('[data-login-form] input[name="password"]').fill('senha-exemplo');
+  await page.locator('[data-login-submit]').click();
+  await expect(page.locator('[data-login-error]')).toContainText('Senha aceita, mas não foi possível abrir o painel');
+  await expect(page.locator('[data-login-error]')).not.toContainText('senha inválidos');
+});
+
+test('login shows invalid credentials only when Supabase rejects the password', async ({ page }) => {
+  await page.route('**/gestao-auth.js*', (r) => r.fulfill({
+    contentType: 'text/javascript',
+    body: `window.GestaoAuth={
+      isConfigured:()=>true,getSession:async()=>null,onAuthStateChange:()=>()=>{},
+      signIn:async()=>{throw Object.assign(new Error('Invalid login credentials'),{status:400,code:'invalid_credentials'})},
+      signOut:async()=>{}
+    };`,
+  }));
+  await page.goto('/gestao/');
+  await page.locator('[data-login-form] input[name="email"]').fill('conta@exemplo.invalid');
+  await page.locator('[data-login-form] input[name="password"]').fill('senha-incorreta');
+  await page.locator('[data-login-submit]').click();
+  await expect(page.locator('[data-login-error]')).toHaveText('E-mail ou senha inválidos.');
+});

@@ -131,19 +131,38 @@
     const email = loginForm.email.value.trim();
     const password = loginForm.password.value;
 
+    let passwordAccepted = false;
     try {
       await window.GestaoAuth.signIn(email, password);
-      // login válido no Supabase Auth não basta: confirma no backend
-      // que este usuário está na allowlist store_admins.
+      passwordAccepted = true;
+      // Um login válido no Supabase Auth não basta: a Edge Function
+      // verifica separadamente a permissão em store_admins.
       await window.GestaoApi.getDashboardSummary();
       loginForm.reset();
       showApp();
       startApp();
     } catch (err) {
-      await window.GestaoAuth.signOut();
-      const message = (err && err.status === 401)
-        ? 'Usuário não autorizado a acessar este painel.'
-        : 'E-mail ou senha inválidos.';
+      // Nunca dizer "senha inválida" quando a autenticação já passou
+      // e o problema foi a autorização ou a conexão com o dashboard.
+      let message;
+      if (passwordAccepted) {
+        if (err?.status === 401 || err?.status === 403) {
+          message = 'Senha aceita, mas esta conta não tem acesso ao painel. Verifique a permissão administrativa.';
+        } else {
+          message = 'Senha aceita, mas não foi possível abrir o painel. Verifique sua conexão e tente novamente.';
+        }
+      } else if (err?.code === 'invalid_credentials' || err?.status === 400) {
+        message = 'E-mail ou senha inválidos.';
+      } else if (err?.status === 429 || err?.code === 'over_request_rate_limit') {
+        message = 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.';
+      } else {
+        message = 'Não foi possível contatar o serviço de login. Verifique a conexão e tente novamente.';
+      }
+      try {
+        await window.GestaoAuth.signOut();
+      } catch (_) {
+        // Não substituir o diagnóstico original por erro no logout.
+      }
       loginError.textContent = message;
       loginError.hidden = false;
     } finally {
