@@ -99,3 +99,14 @@ select id, email from auth.users where email = '<email da cliente>';
   DADOS atrás dela são protegidos por autenticação real + allowlist,
   não por a página estar "escondida". Se preferir manter `/gestao/`
   fora de um domínio público mesmo assim, isso pode ser revisto depois.
+
+## Recuperação e alteração de senha (2026-10-29)
+
+- Na tela de login, **Esqueci minha senha** envia um link por meio do Supabase Auth.
+- Com login ativo, **Configurações → Alterar senha** valida a senha atual e confirma a nova senha, sem colocar credenciais no código.
+- A página de retorno pública é `https://www.lojaanarosa.com.br/gestao/redefinir-senha.html`.
+- No Supabase do projeto ANAROSA, abrir **Authentication → URL Configuration → Redirect URLs** e autorizar essa URL exata (via dashboard). Isso é necessário para o link redirecionar à página correta.
+- Confirmar que o provedor **Email** e o serviço de envio de e-mails transacionais estão ativos. Em projetos com SMTP padrão, limites de envio podem ser aplicados.
+- Caso o e-mail cadastrado esteja inacessível, o proprietário do projeto pode atualizar a senha via **Authentication → Users**, após validar a titularidade da conta. Nunca versionar senhas, tokens ou `service_role`.
+- Após publicar no GitHub Pages, testar a recuperação com acesso ao inbox da conta, verificar spam e confirmar que o login exige a nova senha. Links inválidos ou expirados não habilitam a redefinição.
+- Não é necessário alterar migrações, criar novas Edge Functions nem modificar a allowlist `store_admins`.
