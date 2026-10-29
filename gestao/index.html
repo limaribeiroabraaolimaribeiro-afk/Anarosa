@@ -36,6 +36,19 @@
       <p class="gestao-error" data-login-error hidden></p>
 
       <button type="submit" class="btn btn-primary" data-login-submit>Entrar</button>
+      <button type="button" class="gestao-link-btn gestao-forgot-link" data-forgot-password>Esqueci minha senha</button>
+    </form>
+
+    <form class="gestao-login-card" data-recovery-form novalidate hidden>
+      <img src="../assets/logo/logo-anarosa.jpg" alt="Anarosa" class="gestao-login-logo">
+      <h1>Recuperar acesso</h1>
+      <p class="gestao-login-sub">Informe o e-mail de acesso ao painel para receber o link de redefinição de senha.</p>
+      <label>E-mail
+        <input type="email" name="email" autocomplete="email" required>
+      </label>
+      <p class="gestao-feedback" data-recovery-message role="status" aria-live="polite" hidden></p>
+      <button type="submit" class="btn btn-primary" data-recovery-submit>Enviar link</button>
+      <button type="button" class="gestao-link-btn gestao-forgot-link" data-back-to-login>Voltar ao login</button>
     </form>
   </main>
 
@@ -210,6 +223,21 @@
           <div class="gestao-actions">
             <button type="button" class="btn btn-outline" data-logout-settings>Sair da conta</button>
           </div>
+          <form class="gestao-password-form" data-password-change-form novalidate>
+            <h3>Alterar senha</h3>
+            <p class="gestao-note">Por segurança, informe sua senha atual. A nova senha deve ter pelo menos 12 caracteres.</p>
+            <label>Senha atual
+              <input type="password" name="currentPassword" autocomplete="current-password" required>
+            </label>
+            <label>Nova senha
+              <input type="password" name="newPassword" autocomplete="new-password" minlength="12" required>
+            </label>
+            <label>Confirmar nova senha
+              <input type="password" name="confirmPassword" autocomplete="new-password" minlength="12" required>
+            </label>
+            <p class="gestao-feedback" data-password-feedback role="status" aria-live="polite" hidden></p>
+            <button type="submit" class="btn btn-primary" data-password-change-submit>Salvar nova senha</button>
+          </form>
         </div>
         <div class="gestao-card">
           <h2>Sobre este painel</h2>
