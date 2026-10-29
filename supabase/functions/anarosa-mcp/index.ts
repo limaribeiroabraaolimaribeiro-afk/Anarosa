@@ -122,7 +122,9 @@ async function uploadImage(args: Args, token: string): Promise<unknown> {
   if (bytes.byteLength < 12 || bytes.byteLength > 3*1024*1024) throw new Error('Foto deve ter até 3 MB.');
   const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
   const form = new FormData();
-  form.append('photo', new File([bytes], 'mcp-photo.' + ext, { type: mime }));
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  form.append('photo', new File([buffer], 'mcp-photo.' + ext, { type: mime }));
   const url = APP_URL + '/functions/v1/admin-product-image-upload';
   const headers: Record<string,string> = { Authorization:'Bearer ' + token };
   if (PUBLIC_KEY) headers.apikey = PUBLIC_KEY;
