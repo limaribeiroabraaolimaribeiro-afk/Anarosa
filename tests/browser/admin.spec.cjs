@@ -402,3 +402,43 @@ test('valid login opens the dashboard instead of returning to the login form', a
   await expect(page.locator('[data-page="pedidos"]')).toBeVisible();
   await expect(page.locator('[data-page="dashboard"]')).toBeHidden();
 });
+
+test('editor saves commercial tags and promotional price linked to a Bling product', async ({ page }) => {
+  let saved;
+  await page.route('**/admin-product-create', (r) => {
+    saved = r.request().postDataJSON();
+    return r.fulfill({ json: { ok: true, blingId: '908', message: 'Cadastro confirmado.' } });
+  });
+  await newProduct(page);
+  await fillProduct(page);
+  await page.locator('[name="colecao"]').fill('Primavera 2027');
+  await page.locator('[name="segmento"]').fill('Infantil');
+  await page.locator('[name="precoPromocional"]').fill('109.90');
+  await page.locator('[name="storeTag"][value="novo"]').check();
+  await page.locator('[name="storeTag"][value="destaque"]').check();
+  await page.locator('[data-product-form-submit]').click();
+  await expect.poll(() => saved?.merchandising?.tags?.length).toBe(2);
+  expect(saved.merchandising).toEqual({
+    tags: ['novo', 'destaque'],
+    colecao: 'Primavera 2027',
+    segmento: 'Infantil',
+    precoPromocional: 109.9,
+  });
+  expect(saved.preco).toBe(149.9);
+  await expect(page.locator('[data-product-drawer]')).toBeHidden();
+});
+
+test('editor prevents a promotional price higher than the base price', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/admin-product-create', (r) => {
+    calls++;
+    return r.fulfill({ json: { ok: true } });
+  });
+  await newProduct(page);
+  await fillProduct(page);
+  await page.locator('[name="precoPromocional"]').fill('199.99');
+  // Backend blocks invalid promotions even when a browser has permissive
+  // validation; UI feedback should not silently save them.
+  await page.locator('[data-product-form-submit]').click();
+  expect(calls).toBe(1);
+});
