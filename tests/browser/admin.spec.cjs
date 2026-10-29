@@ -300,10 +300,10 @@ test('admin can request a password recovery email without being logged in', asyn
   await page.goto('/gestao/');
   await page.locator('[data-forgot-password]').click();
   await expect(page.locator('[data-recovery-form]')).toBeVisible();
-  await page.locator('[data-recovery-form] input[name="email"]').fill('teste@3845gmail.com');
+  await page.locator('[data-recovery-form] input[name="email"]').fill('conta@exemplo.invalid');
   await page.locator('[data-recovery-submit]').click();
   await expect(page.locator('[data-recovery-message]')).toContainText('Se este e-mail estiver cadastrado');
-  expect(await page.evaluate(() => window.__resetEmail)).toBe('teste@3845gmail.com');
+  expect(await page.evaluate(() => window.__resetEmail)).toBe('conta@exemplo.invalid');
 });
 
 test('account settings confirm current password and prevent mismatched new passwords', async ({ page }) => {
