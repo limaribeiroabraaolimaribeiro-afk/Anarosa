@@ -3,6 +3,7 @@
  * navegador — nada de custo, tokens, logs, metadata interna.
  */
 import { computeAvailableStock } from './product-mapper.ts';
+import { displayCatalogImage } from './catalog-image-url.ts';
 
 // deno-lint-ignore no-explicit-any
 type Row = Record<string, any>;
@@ -123,7 +124,10 @@ export function serializePublicProduct(
     price: num(product.price) ?? 0,
     promotionalPrice: num(product.promotional_price),
     images: Array.isArray(product.images)
-      ? (product.images as Row[]).map((i) => ({ url: String(i.url ?? i), alt: i.alt ?? null }))
+      ? (product.images as Row[]).map((i, slot) => ({
+          url: displayCatalogImage(i, String(product.bling_id), slot, product.metadata) ?? '',
+          alt: i.alt ?? null,
+        })).filter((i) => !!i.url)
       : [],
     variants: publicVariants,
     stock,
