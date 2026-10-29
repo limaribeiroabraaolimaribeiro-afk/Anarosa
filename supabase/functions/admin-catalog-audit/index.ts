@@ -41,7 +41,6 @@ serve(async (req, ctx) => {
   const all = productsResult.data as ProductRow[];
   const variants = variantsResult.data as VariantRow[];
   const categories = categoriesResult.data as Array<{ id: string; bling_id: string }>;
-  const byId = new Map(all.map((p) => [p.id, p]));
   const variantOwners = new Map(variants.map((v) => [String(v.bling_id), String(v.product_id)]));
   const categoryIds = new Set(categories.map((c) => c.id));
   const products = all.filter((p) =>
@@ -61,7 +60,7 @@ serve(async (req, ctx) => {
     else if (images.some((img) => isExpiredImage(String(img.url ?? ''), nowSeconds))) {
       found.push('Foto temporária vencida ou perto de vencer');
     }
-    if (/^teste(?:\b|[-_])/i.test(p.name.trim())) found.push('Produto de teste ativo');
+    if (/^teste(?:$|[\s_-])/i.test(p.name.trim())) found.push('Produto de teste ativo');
     if (found.length) issues.push({ blingId: String(p.bling_id), sku: p.sku, name: p.name, issues: found });
   }
   const stats = {
