@@ -40,6 +40,7 @@ Deno.test('mapper: produto simples', () => {
   assert.equal(product.brand, 'Ogochi');
   assert.deepEqual(product.images, [{ url: 'https://img/1.jpg', alt: null, source: 'internal' }]);
   assert.equal(categoryBlingId, '7');
+  assert.equal(product.metadata.categoryBlingId, '7');
   assert.equal(variants.length, 0);
   assert.equal(isVariantOfParent, false);
   assert.equal(product.metadata.hasVariations, false);
