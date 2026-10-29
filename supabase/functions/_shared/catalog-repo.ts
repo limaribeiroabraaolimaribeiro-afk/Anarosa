@@ -219,6 +219,19 @@ export class CatalogRepository {
   async upsertProduct(mapped: MappedProduct, categoryId: string | null): Promise<{ productId: string; variantIds: Map<string, string> }> {
     const now = new Date().toISOString();
     const p = mapped.product;
+    // Campos editoriais são exclusivos da loja, mas sempre vinculados ao
+    // bling_id. Webhooks e sincronizações do ERP não devem apagá-los.
+    const { data: existingMerchandising, error: merchandisingError } = await this.db
+      .from('store_products')
+      .select('metadata, promotional_price')
+      .eq('bling_id', p.bling_id)
+      .maybeSingle();
+    if (merchandisingError) fail('merchandising_lookup_failed', merchandisingError);
+    const stored = existingMerchandising?.metadata ?? {};
+    const metadata = { ...p.metadata };
+    for (const key of ['tags', 'colecao', 'segmento']) {
+      if (Object.prototype.hasOwnProperty.call(stored, key)) metadata[key] = stored[key];
+    }
     const { data, error } = await this.db
       .from('store_products')
       .upsert(
@@ -233,12 +246,12 @@ export class CatalogRepository {
           category_id: categoryId,
           brand: p.brand,
           price: p.price,
-          promotional_price: p.promotional_price,
+          promotional_price: existingMerchandising?.promotional_price ?? p.promotional_price,
           format: p.format,
           condition: p.condition,
           active: p.active,
           images: p.images,
-          metadata: p.metadata,
+          metadata,
           bling_updated_at: p.bling_updated_at,
           synced_at: now,
         },
@@ -283,6 +296,47 @@ export class CatalogRepository {
     }
 
     return { productId, variantIds };
+  }
+
+  /** Curadoria de vitrine, sem escrever campos não suportados na API Bling. */
+  async getMerchandisingByBlingId(blingId: string): Promise<Row | null> {
+    const { data, error } = await this.db
+      .from('store_products')
+      .select('metadata, promotional_price')
+      .eq('bling_id', blingId)
+      .maybeSingle();
+    if (error) fail('merchandising_read_failed', error);
+    if (!data) return null;
+    return {
+      tags: Array.isArray(data.metadata?.tags) ? data.metadata.tags : [],
+      colecao: data.metadata?.colecao ?? '',
+      segmento: data.metadata?.segmento ?? '',
+      precoPromocional: data.promotional_price ?? null,
+    };
+  }
+
+  async saveMerchandisingByBlingId(
+    blingId: string,
+    value: { tags: string[]; colecao: string; segmento: string; precoPromocional: number | null },
+  ): Promise<void> {
+    const { data: existing, error: readError } = await this.db
+      .from('store_products')
+      .select('id, metadata')
+      .eq('bling_id', blingId)
+      .maybeSingle();
+    if (readError) fail('merchandising_read_failed', readError);
+    if (!existing) throw new Error('merchandising_product_not_synced');
+    const metadata = {
+      ...(existing.metadata ?? {}),
+      tags: value.tags,
+      colecao: value.colecao,
+      segmento: value.segmento,
+    };
+    const { error } = await this.db
+      .from('store_products')
+      .update({ metadata, promotional_price: value.precoPromocional })
+      .eq('id', existing.id);
+    if (error) fail('merchandising_save_failed', error);
   }
 
   async findProductByBlingId(blingId: string): Promise<Row | null> {
