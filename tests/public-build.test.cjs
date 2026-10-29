@@ -86,6 +86,7 @@ test('Gestão contains marketplace announcements route and explicit publication 
  assert.match(js,/anuncios: \(\) => window\.MarketplaceListings/);
  assert.match(client,/listMarketplaceListings/);
  assert.match(client,/saveMarketplaceListing/);
+ assert.match(client,/inspectMarketplaceChannels/);
  assert.match(client,/data-listing-variant-photo/);
  assert.match(editor,/data-generate-matrix/);
  assert.match(editor,/data-matrix-colors/);
