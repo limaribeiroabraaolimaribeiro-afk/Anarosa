@@ -39,6 +39,49 @@
     return data.session;
   }
 
+  /**
+   * Envia o link oficial do Supabase Auth. A URL precisa estar autorizada
+   * em Authentication > URL Configuration > Redirect URLs.
+   */
+  async function requestPasswordReset(email) {
+    const redirectTo = new URL('redefinir-senha.html', window.location.href);
+    redirectTo.search = '';
+    redirectTo.hash = '';
+    const { error } = await assertClient().auth.resetPasswordForEmail(email, {
+      redirectTo: redirectTo.toString(),
+    });
+    if (error) throw error;
+  }
+
+  /** Confirma a senha atual antes de permitir a alteração na conta logada. */
+  async function changePassword(currentPassword, newPassword) {
+    const auth = assertClient().auth;
+    const { data: userData, error: userError } = await auth.getUser();
+    const user = userData?.user;
+    if (userError || !user?.id || !user.email) {
+      throw new Error('Sua sessão expirou. Entre novamente.');
+    }
+    const { data: verified, error: verifyError } = await auth.signInWithPassword({
+      email: user.email, password: currentPassword,
+    });
+    if (verifyError || verified?.user?.id !== user.id) {
+      throw new Error('A senha atual está incorreta.');
+    }
+    const { error } = await auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+
+  /** Só pode ser chamado após validar uma sessão de recuperação no link. */
+  async function finishPasswordRecovery(newPassword) {
+    const auth = assertClient().auth;
+    const { data } = await auth.getSession();
+    if (!data?.session) throw new Error('Link de recuperação inválido ou expirado.');
+    const { error } = await auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    // Uma sessão temporária de recuperação não deve manter o painel aberto.
+    await auth.signOut();
+  }
+
   async function signOut() {
     if (!client) return;
     await client.auth.signOut();
@@ -60,6 +103,9 @@
   window.GestaoAuth = {
     isConfigured: () => client !== null,
     signIn,
+    requestPasswordReset,
+    changePassword,
+    finishPasswordRecovery,
     signOut,
     getSession,
     onAuthStateChange,
