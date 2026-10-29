@@ -92,3 +92,11 @@ test('Gestão contains marketplace announcements route and explicit publication 
  assert.match(editor,/data-matrix-colors/);
  assert.match(editor,/data-matrix-sizes/);
 });
+
+test('marketplace database grants backend only, never direct visitors or login users', () => {
+ const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261029211000_fix_marketplace_service_role_permissions.sql'),'utf8');
+ assert.match(sql,/GRANT SELECT, INSERT, UPDATE ON TABLE public\.store_marketplace_listings TO service_role;/);
+ assert.match(sql,/GRANT SELECT ON TABLE public\.store_marketplace_connections TO service_role;/);
+ assert.match(sql,/REVOKE ALL ON TABLE public\.store_marketplace_listings FROM anon, authenticated;/);
+ assert.match(sql,/REVOKE ALL ON TABLE public\.store_marketplace_connections FROM anon, authenticated;/);
+});
