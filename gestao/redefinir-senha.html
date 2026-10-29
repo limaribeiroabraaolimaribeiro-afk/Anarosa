@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#5a3516">
+  <title>Redefinir senha — Gestão Anarosa</title>
+  <link rel="icon" type="image/jpeg" href="../assets/logo/logo-anarosa.jpg">
+  <link rel="stylesheet" href="../css/fonts.css">
+  <link rel="stylesheet" href="../css/reset.css">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="css/gestao.css">
+</head>
+<body>
+  <main class="gestao-login">
+    <div class="gestao-login-card">
+      <img src="../assets/logo/logo-anarosa.jpg" alt="Anarosa" class="gestao-login-logo">
+      <h1>Redefinir senha</h1>
+      <p class="gestao-login-sub">Escolha uma nova senha para acessar o painel Gestão Anarosa.</p>
+      <p class="gestao-feedback" data-reset-status role="status" aria-live="polite">Validando o link de recuperação…</p>
+      <form data-reset-password-form novalidate hidden>
+        <label>Nova senha
+          <input type="password" name="password" autocomplete="new-password" minlength="12" required>
+        </label>
+        <label>Confirmar nova senha
+          <input type="password" name="confirmation" autocomplete="new-password" minlength="12" required>
+        </label>
+        <button type="submit" class="btn btn-primary" data-reset-submit>Redefinir senha</button>
+      </form>
+      <p class="gestao-note">Use pelo menos 12 caracteres. Não reutilize senhas de outros serviços.</p>
+      <a href="index.html" class="gestao-link-btn gestao-forgot-link">Voltar ao login</a>
+    </div>
+  </main>
+  <script>
+    // Capturado antes de o Supabase processar e remover os parâmetros do link.
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const search = new URLSearchParams(window.location.search);
+    window.ANAROSA_RECOVERY_LINK =
+      (hash.get('type') === 'recovery' && hash.has('access_token')) ||
+      search.has('code');
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="js/gestao-auth.js"></script>
+  <script src="js/password-reset.js"></script>
+</body>
+</html>
