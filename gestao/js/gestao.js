@@ -967,6 +967,48 @@
       blingReconnectButton.textContent = 'Reconectar Bling';
     }
   });
+  async function loadCatalogAudit() {
+    const button = $('[data-run-catalog-audit]');
+    const message = $('[data-catalog-audit-message]');
+    const results = $('[data-catalog-audit-results]');
+    button.disabled = true;
+    button.textContent = 'Verificando…';
+    message.textContent = 'Consultando produtos sincronizados…';
+    results.hidden = true;
+    try {
+      const report = await window.GestaoApi.getCatalogAudit();
+      const stats = report.stats;
+      const labels = [
+        ['Produtos na vitrine', stats.storefrontProducts],
+        ['Registros ativos no cache', stats.activeRecords],
+        ['Categorias cadastradas', stats.activeCategories],
+        ['Variações duplicadas na vitrine', stats.duplicateVariationCards],
+        ['Produtos com pendências', stats.productsWithIssues],
+        ['Sem categoria', stats.missingCategory],
+        ['Sem foto', stats.missingImages],
+        ['Fotos temporárias expiradas/próximas do vencimento', stats.expiringImages],
+      ];
+      $('[data-catalog-audit-stats]').innerHTML = labels.map(([label, value]) =>
+        `<li><span>${escapeHtml(label)}</span><strong>${Number(value) || 0}</strong></li>`).join('');
+      const issues = report.issues || [];
+      $('[data-catalog-audit-issues]').innerHTML = issues.length
+        ? issues.map(p =>
+            `<div class="gestao-audit-item"><strong>${escapeHtml(p.name)}</strong> <small>${escapeHtml(p.sku || 'Sem SKU')}</small><ul>${p.issues.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul></div>`
+          ).join('')
+        : '<p class="gestao-note">Nenhuma pendência encontrada nos produtos ativos.</p>';
+      results.hidden = false;
+      message.textContent = `Auditoria concluída em ${fmtDate(report.generatedAt)}.` +
+        (report.truncated ? ' Há mais registros além do limite da consulta.' : '');
+    } catch (err) {
+      if (err.status === 401) return handleSessionExpired('integração');
+      message.textContent = friendlyErrorMessage(err, 'Não foi possível consultar as pendências. Tente novamente.');
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Verificar pendências';
+    }
+  }
+  $('[data-run-catalog-audit]')?.addEventListener('click', loadCatalogAudit);
+
   async function loadIntegration() {
     const params = new URLSearchParams(window.location.search);
     if (params.has('bling')) {

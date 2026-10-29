@@ -483,3 +483,25 @@ test('manual category refresh calls the Bling sync endpoint and retains current 
   expect(requests).toEqual([null, '1']);
   await expect(page.locator('[name="categoriaId"]')).toHaveValue('1');
 });
+
+test('integration audit identifies catalog problems and never writes to Bling', async ({ page }) => {
+  const audit = {
+    ok: true,
+    generatedAt: '2026-10-29T17:00:00Z',
+    stats: {
+      activeRecords: 20, storefrontProducts: 9, activeCategories: 1,
+      duplicateVariationCards: 0, productsWithIssues: 1,
+      missingCategory: 1, missingImages: 1, expiringImages: 0,
+    },
+    issues: [{ blingId: '123', name: 'Produto sem foto', sku: 'ABC', issues: ['Categoria não vinculada', 'Sem fotos'] }],
+  };
+  let calls = 0;
+  await page.route('**/admin-catalog-audit', (r) => { calls++; return r.fulfill({ json: audit }); });
+  await page.goto('/gestao/#/integracao');
+  await page.locator('[data-run-catalog-audit]').click();
+  await expect(page.locator('[data-catalog-audit-results]')).toBeVisible();
+  await expect(page.locator('[data-catalog-audit-stats]')).toContainText('Variações duplicadas na vitrine');
+  await expect(page.locator('[data-catalog-audit-issues]')).toContainText('Categoria não vinculada');
+  await expect(page.locator('[data-catalog-audit-issues]')).toContainText('Produto sem foto');
+  expect(calls).toBe(1);
+});
