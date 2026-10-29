@@ -53,3 +53,18 @@ test('each local script and stylesheet has a content-specific cache version',()=
   }
  }
 });
+
+
+test('Gestão keeps navigation fixed while the products grid scrolls separately', () => {
+ const html=fs.readFileSync(path.join(root,'gestao/index.html'),'utf8');
+ const css=fs.readFileSync(path.join(root,'gestao/css/gestao.css'),'utf8');
+ const js=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
+ assert.match(html, /class="gestao-products-scroll" data-products-scroll/);
+ assert.match(html, /data-products-grid hidden/);
+ assert.match(css, /\.gestao-app\s*\{[^}]*height:\s*100dvh;[^}]*overflow:\s*hidden;/);
+ assert.match(css, /\.gestao-main\s*\{[^}]*flex-direction:\s*column;[^}]*overflow-y:\s*auto;/);
+ assert.match(css, /\.gestao-products-scroll\s*\{[^}]*overflow-y:\s*auto;/);
+ assert.match(css, /\.gestao-app\.is-products-route \.gestao-main\s*\{\s*overflow-y:\s*hidden;/);
+ assert.match(js, /classList\.toggle\('is-products-route', page === 'produtos'\)/);
+ assert.match(js, /\['data-products-scroll'\]/);
+});
