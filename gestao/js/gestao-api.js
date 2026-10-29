@@ -62,6 +62,8 @@
     listOrders: (params) => call('admin-orders', { params }),
     getOrder: (id) => call('admin-orders', { params: { id } }),
     listProducts: (params) => call('admin-products', { params }),
+    listMarketplaceListings: () => call('admin-marketplace-listings'),
+    saveMarketplaceListing: (body) => call('admin-marketplace-listings', { body }),
     listCustomers: (params) => call('admin-customers', { params }),
     getIntegrationStatus: () => call('admin-integration-status'),
     getCatalogAudit: () => call('admin-catalog-audit'),
