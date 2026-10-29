@@ -469,15 +469,15 @@
       <div class="gestao-product-card" data-product-bling-id="${escapeHtml(p.blingId)}" data-product-has-variants="${hasVariants ? '1' : '0'}">
         <figure><img src="${escapeHtml(p.image || '../assets/products/placeholder.svg')}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.onerror=null;this.src='../assets/products/placeholder.svg';"></figure>
         <div class="gestao-product-info">
-          <p class="gestao-product-name">${escapeHtml(p.name)}</p>
-          <p class="gestao-product-meta">SKU ${escapeHtml(p.sku || '—')} · ${escapeHtml(p.category || 'Sem categoria')}</p>
+          <p class="gestao-product-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</p>
+          <p class="gestao-product-meta" title="SKU ${escapeHtml(p.sku || '—')} · ${escapeHtml(p.category || 'Sem categoria')}">SKU ${escapeHtml(p.sku || '—')} · ${escapeHtml(p.category || 'Sem categoria')}</p>
           <p class="gestao-product-price">${fmtMoney(p.promotionalPrice ?? p.price)}${p.promotionalPrice != null ? ` <s>${fmtMoney(p.price)}</s>` : ''}</p>
           <p class="gestao-stock-pill ${stockClass}">${escapeHtml(stockLabel)}</p>
           ${hasVariants ? `<p class="gestao-product-meta">${escapeHtml(p.variants.length)} variação(ões)</p>` : ''}
           <p class="gestao-product-meta">${p.active ? 'Ativo' : 'Inativo'} · atualizado ${fmtDate(p.updatedAt)}</p>
           <div class="gestao-product-actions">
             <button type="button" class="btn btn-outline" data-product-edit>Editar</button>
-            <button type="button" class="btn btn-outline" data-product-stock>Ajustar estoque</button>
+            <button type="button" class="btn btn-outline" data-product-stock aria-label="Ajustar estoque de ${escapeHtml(p.name)}" title="Ajustar estoque no Bling">Estoque</button>
             <button type="button" class="btn btn-outline" data-product-toggle-active>${p.active ? 'Desativar' : 'Ativar'}</button>
           </div>
         </div>
