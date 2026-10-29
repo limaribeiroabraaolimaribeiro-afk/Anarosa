@@ -616,3 +616,35 @@ test('Bling channels discovery reports detected stores without claiming publicat
   await expect(page.locator('[data-listing-channel-list]')).toContainText('Não identificado');
   expect(inspected).toBe(1);
 });
+
+test('marketplace page loads with empty listings and products once backend grants are correct', async ({ page }) => {
+  await page.route('**/admin-marketplace-listings', (route) => route.fulfill({
+    json: { ok:true, items:[], connections:[
+      {marketplace:'mercado_livre',status:'disconnected'},
+      {marketplace:'shopee',status:'disconnected'},
+    ] },
+  }));
+  await page.goto('/gestao/#/anuncios');
+  await expect(page.locator('[data-marketplace-message]')).toContainText('Rascunhos e produtos carregados.');
+  await expect(page.locator('[data-marketplace-list]')).toContainText('Nenhum anúncio preparado');
+  await expect(page.locator('[name="listing-product"]')).toBeVisible();
+  await expect(page.locator('[name="listing-product"] option[value="101"]')).toHaveCount(1);
+  await expect(page.locator('[data-listing-save]')).toBeVisible();
+});
+
+test('marketplace form and retry remain available if listing service temporarily returns 500', async ({ page }) => {
+  let calls=0;
+  await page.route('**/admin-marketplace-listings', (route) => {
+    calls++;
+    return route.fulfill(calls===1
+      ? {status:500,json:{ok:false,message:'Erro interno na integração.'}}
+      : {status:200,json:{ok:true,items:[],connections:[]}});
+  });
+  await page.goto('/gestao/#/anuncios');
+  await expect(page.locator('[data-marketplace-message]')).toContainText('Falha ao carregar anúncios salvos');
+  await expect(page.locator('[data-marketplace-list]')).toContainText('Não foi possível consultar');
+  await expect(page.locator('[name="listing-product"]')).toBeVisible();
+  await page.locator('[data-listing-refresh]').click();
+  await expect(page.locator('[data-marketplace-message]')).toContainText('Rascunhos e produtos carregados.');
+  expect(calls).toBe(2);
+});
