@@ -131,6 +131,34 @@ async function uploadImage(args: Args, token: string): Promise<unknown> {
   if (!response.ok) return { ok:false, httpStatus:response.status, message:data.message || 'Falha ao importar foto.' };
   return { ok:true, url:data.url, message:'Imagem recebida no Storage. Inclua esta URL ao salvar o produto ou anúncio; o envio sozinho NÃO altera o Bling.' };
 }
+async function generateImage(args: Args, token: string): Promise<unknown> {
+  yes(args);
+  const key = Deno.env.get('OPENAI_API_KEY');
+  if (!key) return { ok:false, message:'Geração de imagens comerciais não configurada. Para gerar automaticamente pelo servidor, ative uma chave de API no Supabase e confirme os custos de uso. Como alternativa, gere a imagem no ChatGPT e use importar_imagem_gerada.' };
+  const prompt = requiredText(args, 'prompt', 1500);
+  if (prompt.length < 15) throw new Error('Descrição da imagem insuficiente.');
+  const db = getServiceClient();
+  const user = await requireAdminUser(new Request(APP_URL, {headers:{Authorization:'Bearer '+token}}),db);
+  const rate = await db.rpc('rl_check_and_increment',{
+    p_bucket:'anarosa-mcp-image-generation:'+user.id,p_limit:3,p_window_seconds:3600,
+  });
+  if(rate.error || rate.data!==true)return {ok:false,message:'Limite de geração de imagens: até 3 por hora.'};
+  const response=await fetch('https://api.openai.com/v1/images/generations',{
+    method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'gpt-image-2.5-flare',prompt:prompt+' A imagem deve ser original. Não inventar logotipos de marcas, certificados ou características não fornecidas. Não incluir textos inventados.',
+      n:1,quality:'low',size:'1024x1024',output_format:'jpeg',
+      safety_identifier:user.id,
+    }),signal:AbortSignal.timeout(55000),
+  });
+  if(!response.ok)return {ok:false,message:'Serviço de geração de imagens indisponível ou sem crédito. Verifique a chave e o orçamento no provedor.'};
+  const result=await response.json();
+  const photo=result.data?.[0]?.b64_json;
+  if(typeof photo!=='string')return {ok:false,message:'A API não retornou imagem.'};
+  const uploaded=await uploadImage({confirmar:true,mime:'image/jpeg',base64:photo},token);
+  return { ...((uploaded&&typeof uploaded==='object')?uploaded:{}), generated:true,
+    note:'Arte gerada por IA para revisão. Não representa necessariamente a peça real e não é automaticamente anexada ao Bling/anúncio.' };
+}
 const actions: Record<string,Tool> = {
   resumo_da_loja: {
     description:'Consultar indicadores da Gestão ANAROSA, sem modificar dados.',
@@ -236,6 +264,11 @@ const actions: Record<string,Tool> = {
     schema:properties({confirmar:S.bool('Administrador autorizou publicar'),dados:S.obj('Dados e ID do anúncio preparados; o backend recusa se o marketplace não estiver conectado.')},['confirmar','dados']),
     action:(a,t)=>{yes(a);if(!a.dados||typeof a.dados!=='object'||Array.isArray(a.dados))throw Error('Anúncio inválido.');
       return requestAdmin('admin-marketplace-listings',t,undefined,{...(a.dados as Args),action:'publish'});},
+  },
+  gerar_imagem_comercial: {
+    description:'Gerar uma imagem de divulgação original via API paga de imagens, somente quando OPENAI_API_KEY estiver configurada no servidor. Limite 3/h; exige aprovação de custo. Salvar no Storage; NÃO associa automaticamente ao produto.',
+    schema:properties({confirmar:S.bool('Administrador aprovou geração paga desta imagem'),prompt:S.str('Descrição visual detalhada. Não inventar características de peça real',1500)},['confirmar','prompt']),
+    action:generateImage,
   },
   importar_imagem_gerada: {
     description:'Receber foto JÁ criada no ChatGPT ou outra ferramenta, em base64 JPG/PNG/WebP (máximo 3MB), validar pelo backend e guardar no Storage. Não gera imagem aqui; retorno traz URL para usar no cadastro.',
