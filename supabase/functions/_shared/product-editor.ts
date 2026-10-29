@@ -61,6 +61,7 @@ export function validateMerchandising(raw: Row): {
   if (colecao.length > 80 || segmento.length > 80 || /[<>]/.test(colecao + segmento)) {
     throw new ValidationError('Coleção ou segmento inválidos (máximo 80 caracteres).');
   }
+  // As tags editoriais não entram no payload de produtos do Bling.
   const provided = data.precoPromocional !== null && data.precoPromocional !== undefined &&
     String(data.precoPromocional).trim() !== '';
   const precoPromocional = provided ? Number(data.precoPromocional) : null;
