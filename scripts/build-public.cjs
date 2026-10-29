@@ -6,6 +6,7 @@ const out = path.join(root, '_site');
 // Explicit allowlist: new internal files never become public automatically.
 const files = [
   'index.html',
+  'produto.html',
   'checkout.html',
   'pedido-confirmado.html',
   'informacoes.html',
@@ -14,12 +15,14 @@ const files = [
   'css/reset.css',
   'css/variables.css',
   'css/styles.css',
+  'css/product-page.css',
   'css/responsive.css',
   'css/checkout.css',
   'css/pedido-confirmado.css',
   'js/config.js',
   'js/products.js',
   'js/app.js',
+  'js/product-page.js',
   'js/checkout.js',
   'js/pedido-confirmado.js',
   'js/informacoes.js',
