@@ -540,6 +540,7 @@ export class CatalogRepository {
       .select('*')
       .eq('slug', slug)
       .eq('active', true)
+      .is('parent_bling_id', null) // variações não têm páginas independentes na loja
       .maybeSingle();
     if (error) fail('product_slug_lookup_failed', error);
     if (!data) return null;
