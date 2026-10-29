@@ -109,3 +109,8 @@ verify_jwt = false
 
 [functions.storefront-order-status]
 verify_jwt = false
+
+# Servidor MCP público apenas para discovery OAuth. Todas as ferramentas
+# verificam sessão real e store_admins na Edge Function ANAROSA.
+[functions.anarosa-mcp]
+verify_jwt = false
