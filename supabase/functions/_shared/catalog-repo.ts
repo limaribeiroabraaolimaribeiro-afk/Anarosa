@@ -4,6 +4,7 @@
  * Todas as escritas são UPSERTs por bling_id — nunca geram duplicados.
  */
 import { DatabaseError, ValidationError } from './errors.ts';
+import { displayCatalogImage } from './catalog-image-url.ts';
 import type {
   InventoryRow,
   MappedProduct,
@@ -229,7 +230,7 @@ export class CatalogRepository {
     if (merchandisingError) fail('merchandising_lookup_failed', merchandisingError);
     const stored = existingMerchandising?.metadata ?? {};
     const metadata = { ...p.metadata };
-    for (const key of ['tags', 'colecao', 'segmento']) {
+    for (const key of ['tags', 'colecao', 'segmento', 'imageCache']) {
       if (Object.prototype.hasOwnProperty.call(stored, key)) metadata[key] = stored[key];
     }
     const { data, error } = await this.db
@@ -717,7 +718,7 @@ export class CatalogRepository {
         promotionalPrice: p.promotional_price != null ? Number(p.promotional_price) : null,
         availableStock,
         active: p.active,
-        image: images[0]?.url ?? null,
+        image: displayCatalogImage(images[0], String(p.bling_id), 0, p.metadata),
         updatedAt: p.updated_at ?? null,
         syncedAt: p.synced_at ?? null,
         variants: variantItems,
