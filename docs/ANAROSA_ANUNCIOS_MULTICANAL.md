@@ -83,3 +83,15 @@ para Mercado Livre e Shopee. Estoque e SKU sempre pertencem ao Bling.
 Referências: https://developer.bling.com.br/referencia,
 https://ajuda.bling.com.br/hc/pt-br/articles/34366219361047-Como-criar-novos-an%C3%BAncios-com-varia%C3%A7%C3%A3o-no-Bling-e-enviar-para-o-Mercado-Livre,
 https://developers.mercadolivre.com.br/pt_br/variacoes
+
+## Verificar canais no Bling (29/10/2026)
+Na aba **Anúncios**, use **Verificar canais no Bling**. A função
+`admin-marketplace-channels` faz consulta GET autenticada de
+`/canais-venda` pelo OAuth da Gestão, detecta os canais Mercado Livre
+e Shopee e apresenta somente nome e código da loja. Essa consulta não cria,
+edita, publica ou vincula anúncios.
+
+A presença do canal não garante os escopos de publicação nem substitui
+a autorização específica de cada marketplace. Em caso de 403/401 ou
+inexistência de canal, o usuário recebe orientação de autenticação,
+sem exposição de credenciais ou dados brutos.

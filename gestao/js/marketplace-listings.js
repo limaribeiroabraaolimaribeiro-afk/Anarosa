@@ -109,6 +109,38 @@
     const note=$('[data-listing-publication-note]');
     note.textContent=`${label[channel]}: ${status}. Salvar e verificar estão disponíveis. A publicação exige a conexão oficial do canal e confirmação pela API; um rascunho não é anúncio publicado.`;
   }
+  async function inspectBlingChannels() {
+    const button=$('[data-listing-inspect]');
+    const target=$('[data-listing-channel-list]');
+    button.disabled=true;
+    button.textContent='Consultando Bling…';
+    target.textContent='Verificando as integrações de venda existentes…';
+    try {
+      const response=await window.GestaoApi.inspectMarketplaceChannels();
+      if(!response.available) {
+        target.textContent=response.message||'Não foi possível consultar os canais do Bling.';
+        return;
+      }
+      const channels=response.channels||[];
+      const rows=['mercado_livre','shopee'].map(channel=>{
+        const connected=channels.filter(c=>c.marketplace===channel);
+        const description=connected.length
+          ? connected.map(c=>`${esc(c.name)} · Código Bling ${esc(c.blingChannelId)}`).join('; ')
+          : 'Não identificado na API de canais do Bling';
+        return `<div class="listing-record"><div><strong>${esc(label[channel])}</strong>
+          <p>${description}</p>
+          <small>${connected.length?'Canal detectado no ERP; publicação pela Gestão ainda exige autorização específica.':'É necessário integrar a conta de vendedor ao Bling.'}</small>
+        </div></div>`;
+      }).join('');
+      target.innerHTML=rows;
+      message(response.message||'Canais consultados.','success');
+    }catch(err) {
+      target.textContent='Não foi possível consultar os canais. '+(err.message||'Verifique a integração.');
+    }finally{
+      button.disabled=false;
+      button.textContent='Verificar canais no Bling';
+    }
+  }
   function listHTML() {
     const list=$('[data-marketplace-list]');
     list.innerHTML=state.listings.length ? state.listings.map(x=>{
@@ -216,6 +248,7 @@
       if(item){renderForm(item);$('[data-marketplace-form]').scrollIntoView({behavior:'smooth',block:'start'});}
     }
     if(button.matches('[data-listing-new]')){renderForm();message('Novo rascunho. Escolha um produto do Bling.');}
+    if(button.matches('[data-listing-inspect]'))inspectBlingChannels();
     if(button.matches('[data-listing-refresh]'))load();
     if(button.matches('[data-listing-save]'))save('save');
     if(button.matches('[data-listing-prepare]'))save('prepare');

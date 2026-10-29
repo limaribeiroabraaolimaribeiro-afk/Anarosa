@@ -593,3 +593,26 @@ test('product generator creates all combinations without repeating SKUs', async 
   const skus=await page.locator('[data-v-sku]').allInputValues();
   expect(new Set(skus).size).toBe(6);
 });
+
+test('Bling channels discovery reports detected stores without claiming publication access', async ({ page }) => {
+  await page.route('**/admin-marketplace-listings', r => r.fulfill({
+    json: {ok:true,items:[],connections:[
+      {marketplace:'mercado_livre',status:'disconnected'},
+      {marketplace:'shopee',status:'disconnected'},
+    ]}
+  }));
+  let inspected=0;
+  await page.route('**/admin-marketplace-channels', r => {
+    inspected++;
+    return r.fulfill({json:{ok:true,available:true,channels:[
+      {marketplace:'mercado_livre',blingChannelId:'567',name:'Loja Mercado Livre'}
+    ],message:'Canais encontrados no Bling.'}});
+  });
+  await page.goto('/gestao/#/anuncios');
+  await expect(page.locator('[data-listing-inspect]')).toBeVisible();
+  await page.locator('[data-listing-inspect]').click();
+  await expect(page.locator('[data-listing-channel-list]')).toContainText('Loja Mercado Livre');
+  await expect(page.locator('[data-listing-channel-list]')).toContainText('autorização específica');
+  await expect(page.locator('[data-listing-channel-list]')).toContainText('Não identificado');
+  expect(inspected).toBe(1);
+});
