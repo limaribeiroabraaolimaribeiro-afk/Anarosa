@@ -382,6 +382,13 @@
     },
     read() {
       if (!ready || busy) throw new ProductEditorValidationError('Aguarde o carregamento do produto.');
+      if (form.precoPromocional.value) {
+        const sale = Number(form.precoPromocional.value);
+        const price = Number(form.preco.value);
+        if (!Number.isFinite(sale) || sale <= 0 || sale >= price) {
+          throw new ProductEditorValidationError('O preço promocional precisa ser positivo e menor que o preço de venda.');
+        }
+      }
       const skus = new Set([form.sku.value.trim().toLowerCase()]), combinations = new Set();
       const variacoes = [...form.querySelectorAll('.variant-edit-row')].map((el) => {
         const size = el.querySelector('[data-v-size]').value.trim(), color = el.querySelector('[data-v-color]').value.trim();
