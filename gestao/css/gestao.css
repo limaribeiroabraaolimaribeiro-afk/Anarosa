@@ -140,7 +140,10 @@ body {
    --------------------------------------------------------- */
 .gestao-app {
   display: flex;
-  min-height: 100vh;
+  height: 100vh; /* fallback para navegadores sem unidades dinâmicas */
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .gestao-app[hidden] {
@@ -171,6 +174,8 @@ body {
   transition: transform var(--transition-medium);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 .gestao-sidebar.is-open { transform: translateX(0); }
 
@@ -229,6 +234,11 @@ body {
 .gestao-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .gestao-topbar {
@@ -241,6 +251,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
+  flex-shrink: 0;
 }
 
 .gestao-hamburger {
@@ -266,6 +277,38 @@ body {
 
 .gestao-view {
   padding: 20px;
+  flex-shrink: 0;
+}
+
+/* O painel (menu e cabeçalho) não rola junto aos produtos.
+   Somente a listagem rola verticalmente; filtros ficam acessíveis. */
+.gestao-app.is-products-route .gestao-main {
+  overflow-y: hidden;
+}
+body:not(.product-editor-open) .gestao-app.is-products-route .gestao-view[data-page="produtos"] {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.gestao-view[data-page="produtos"] > .gestao-filters,
+.gestao-view[data-page="produtos"] > .gestao-note,
+.gestao-view[data-page="produtos"] > .gestao-state {
+  flex-shrink: 0;
+}
+.gestao-products-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding-bottom: 16px;
+}
+body.product-editor-open .gestao-app.is-products-route .gestao-main {
+  overflow-y: auto;
 }
 
 /* ---------------------------------------------------------
@@ -604,7 +647,7 @@ body {
    --------------------------------------------------------- */
 @media (min-width: 900px) {
   .gestao-sidebar-overlay { display: none; }
-  .gestao-sidebar { position: sticky; top: 0; height: 100vh; transform: none; }
+  .gestao-sidebar { position: relative; top: auto; bottom: auto; height: 100%; transform: none; }
   .gestao-hamburger { display: none; }
   .gestao-stats { grid-template-columns: repeat(5, 1fr); }
   .gestao-dash-grid { grid-template-columns: repeat(2, 1fr); }
