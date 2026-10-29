@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Autorizar ChatGPT | Gestão ANAROSA</title>
+<style>
+:root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#493b29;background:#faf6ef}
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:20px}
+main{width:min(100%,480px);background:white;border:1px solid #e9dfd1;border-radius:16px;padding:28px;box-shadow:0 12px 32px #55401e12}
+h1{font:normal 28px Georgia,serif;margin:0 0 9px}h2{font-size:16px;margin:20px 0 8px}
+p{line-height:1.55;color:#6f6253}label{font-size:13px;display:block;margin:12px 0 4px;font-weight:650}
+input{width:100%;border:1px solid #d5c8b7;border-radius:8px;padding:12px;font:inherit}
+button{background:#70542e;color:white;border:0;border-radius:8px;padding:12px 18px;font-weight:bold;cursor:pointer}
+button.secondary{background:#eee9e1;color:#493b29}.actions{display:flex;gap:10px;margin-top:18px}
+button:disabled{opacity:.5;cursor:wait}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 system-ui;background:#f7f2e9;padding:12px;border-radius:8px}
+small{color:#73665b}.error{color:#ac2929}.hidden{display:none}
+</style></head><body><main>
+<h1>Conectar ChatGPT à ANAROSA</h1>
+<p>Autorize um aplicativo a usar apenas as ferramentas comerciais da Gestão ANAROSA. O acesso ao código, GitHub e chaves de API não é concedido.</p>
+<p id="status" role="status">Verificando autorização…</p>
+<section id="signin" class="hidden"><h2>Entrar como administrador</h2>
+<label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required>
+<div class="actions"><button id="login">Entrar</button></div>
+</section>
+<section id="consent" class="hidden">
+<h2 id="client-name"></h2>
+<p>Este aplicativo solicita acesso às operações da Gestão. Confira as permissões antes de aceitar.</p>
+<p><strong>Endereço de retorno:</strong></p><pre id="redirect"></pre>
+<p><strong>Permissões solicitadas:</strong></p><pre id="scopes"></pre>
+<small>Operações de escrita dependem de aprovação dentro do chat e são novamente verificadas pelo backend. Você pode desconectar a autorização nas configurações de OAuth do Supabase.</small>
+<div class="actions"><button id="approve">Autorizar</button><button class="secondary" id="deny">Cancelar</button></div>
+</section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="../../js/config.js"></script>
+<script src="consent.js"></script>
+</body></html>

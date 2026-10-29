@@ -100,3 +100,27 @@ test('marketplace database grants backend only, never direct visitors or login u
  assert.match(sql,/REVOKE ALL ON TABLE public\.store_marketplace_listings FROM anon, authenticated;/);
  assert.match(sql,/REVOKE ALL ON TABLE public\.store_marketplace_connections FROM anon, authenticated;/);
 });
+
+test('ANAROSA MCP is restricted to commercial tools and private authentication', () => {
+ const mcp=fs.readFileSync(path.join(__dirname,'..','supabase/functions/anarosa-mcp/index.ts'),'utf8');
+ const oauth=fs.readFileSync(path.join(root,'oauth/consent/index.html'),'utf8');
+ const js=fs.readFileSync(path.join(root,'oauth/consent/consent.js'),'utf8');
+ const panel=fs.readFileSync(path.join(root,'gestao/index.html'),'utf8');
+ assert.match(mcp,/requireAdminUser/);
+ assert.match(mcp,/oauth-protected-resource/);
+ assert.match(mcp,/WWW-Authenticate/);
+ assert.match(mcp,/tools\/list/);
+ assert.match(mcp,/confirmar=true/);
+ assert.match(mcp,/cadastrar_produto/);
+ assert.match(mcp,/salvar_anuncio/);
+ assert.match(mcp,/gerar_imagem_comercial/);
+ assert.doesNotMatch(mcp,/exec_shell|execute_sql|run_command|github\.com\/repos\/|service_role\s*[:=]/i);
+ assert.match(oauth,/Autorizar ChatGPT/);
+ assert.match(oauth,/consent\.js/);
+ assert.match(js,/getAuthorizationDetails/);
+ assert.match(js,/approveAuthorization/);
+ assert.match(js,/denyAuthorization/);
+ assert.match(js,/checkAdmin/);
+ assert.match(panel,/data-copy-mcp-url/);
+ assert.doesNotMatch(oauth,/service_role|BLING_CLIENT_SECRET|OPENAI_API_KEY/);
+});

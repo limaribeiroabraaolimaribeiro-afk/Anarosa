@@ -273,6 +273,18 @@
             <p class="gestao-note">A auditoria é somente leitura. Corrija a categoria, SKU ou fotos no cadastro do produto. Fotos internas temporárias devem ser substituídas por URLs permanentes.</p>
           </div>
         </div>
+        <div class="gestao-card">
+          <h2>ChatGPT — Conectar MCP ANAROSA</h2>
+          <p class="gestao-note">Conecte o ChatGPT com sua conta administrativa e autorize somente operações comerciais: leitura do catálogo, pedidos, estoque, cadastro, fotos, títulos e rascunhos de anúncios. O MCP não oferece ferramentas de código, repositórios, SQL ou infraestrutura.</p>
+          <label for="anarosa-mcp-url" class="gestao-note">Endereço do servidor MCP</label>
+          <div class="gestao-actions">
+            <input id="anarosa-mcp-url" readonly aria-label="URL MCP ANAROSA" value="https://gpmbkptimjipqsayrvce.supabase.co/functions/v1/anarosa-mcp" style="flex:1;min-width:220px">
+            <button type="button" class="btn btn-outline" data-copy-mcp-url>Copiar URL</button>
+          </div>
+          <p class="gestao-note">Para habilitar a conexão OAuth no ChatGPT, ative o <strong>OAuth 2.1 Server</strong> e o <strong>registro dinâmico de clientes (DCR)</strong> em Supabase → Authentication → OAuth Server. Configure <strong>Authorization Path</strong> como <code>/oauth/consent</code> e <strong>Site URL</strong> como <code>https://www.lojaanarosa.com.br</code>. Após isso, use Plugins → Adicionar servidor MCP personalizado, cole a URL e escolha OAuth.</p>
+          <p class="gestao-note">A autorização aparece em <a href="../oauth/consent/" target="_blank" rel="noopener">/oauth/consent/</a> durante a conexão. Somente contas da lista de administradores ativos poderão aprovar. Publicação real em Mercado Livre/Shopee depende também dos canais estarem autorizados e do adaptador de anúncios estar ativo.</p>
+          <p data-mcp-copy-status class="gestao-note" aria-live="polite"></p>
+        </div>
       </section>
 
       <!-- ---------------- CONFIGURAÇÕES ---------------- -->

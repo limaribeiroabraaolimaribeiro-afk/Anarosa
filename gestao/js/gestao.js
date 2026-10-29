@@ -1039,6 +1039,20 @@
     }
   }
 
+  $('[data-copy-mcp-url]')?.addEventListener('click', async () => {
+    const input = $('[id="anarosa-mcp-url"]');
+    const feedback = $('[data-mcp-copy-status]');
+    if (!input) return;
+    try {
+      await navigator.clipboard.writeText(input.value);
+      feedback.textContent = 'URL MCP copiada. Cole-a em ChatGPT → Plugins → Adicionar servidor MCP personalizado.';
+    } catch {
+      input.focus();
+      input.select();
+      feedback.textContent = 'Selecione e copie a URL MCP exibida no campo.';
+    }
+  });
+
   // ---------------------------------------------------------------
   // CONFIGURAÇÕES
   // ---------------------------------------------------------------
