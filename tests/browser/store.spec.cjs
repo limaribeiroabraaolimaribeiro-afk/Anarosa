@@ -16,7 +16,7 @@ const product = {
   name: 'Bermuda de teste',
   slug: 'bermuda-teste',
   price: 100,
-  images: [{ url: '/assets/products/placeholder.svg' }],
+  images: [{ url: '/assets/products/placeholder.svg' }, { url: '/assets/products/placeholder.svg?view=costas' }],
   description: 'Composição e medidas informadas pelo fornecedor.',
   category: { slug: 'bermudas', name: 'Bermudas' },
   stock: 2,
@@ -89,6 +89,11 @@ test('product page exposes all photos, description, share and WhatsApp link', as
   await page.goto('/produto.html?slug=bermuda-teste');
   await expect(page.locator('[data-description]')).toContainText('Composição e medidas');
   await expect(page.locator('[data-main-image]')).toBeVisible();
+  await expect(page.locator('[data-thumbnail]')).toHaveCount(2);
+  await page.locator('[data-gallery-next]').click();
+  await expect(page.locator('[data-image-count]')).toHaveText('2 / 2');
+  await page.locator('[data-thumbnail="0"]').click();
+  await expect(page.locator('[data-image-count]')).toHaveText('1 / 2');
   await expect(page.locator('[data-whatsapp]')).toHaveAttribute('href', /wa\.me\/\d+\?text=/);
   await expect(page.locator('[data-share]')).toBeVisible();
   await page.locator('[data-zoom]').click();
