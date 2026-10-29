@@ -68,6 +68,7 @@
     createProduct: (body) => call('admin-product-create', { body }),
     uploadProductImage: (file) => { const body = new FormData(); body.append('photo', file); return call('admin-product-image-upload', { body }); },
     updateProduct: (body) => call('admin-product-update', { body }),
+    saveProductMerchandising: (body) => call('admin-product-merchandising', { body }),
     changeProductSituation: (body) => call('admin-product-situacao', { body }),
     adjustStock: (body) => call('admin-stock-adjust', { body }),
     listDeposits: () => call('admin-deposits'),
