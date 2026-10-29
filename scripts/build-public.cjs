@@ -26,6 +26,8 @@ const files = [
   'js/services/catalog-service.js',
   'js/services/cart-service.js',
   'js/services/ui-service.js',
+  'oauth/consent/index.html',
+  'oauth/consent/consent.js',
   'gestao/index.html',
   'gestao/redefinir-senha.html',
   'gestao/css/gestao.css',
