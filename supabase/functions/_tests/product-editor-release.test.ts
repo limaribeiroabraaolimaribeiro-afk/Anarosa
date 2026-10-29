@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildProductEditorPayload, productRevision} from '../_shared/product-editor.ts';
+import {buildProductEditorPayload, productRevision, validateMerchandising} from '../_shared/product-editor.ts';
 import {runAdminMutation} from '../_shared/admin-mutation.ts';
 import {BlingApiError} from '../_shared/errors.ts';
 import type {AppContext} from '../_shared/context.ts';
@@ -129,6 +129,34 @@ Deno.test('editor: valida GTIN, unidade e preserva fotos internas em edições',
   );
 });
 
-Deno.test('editor: separa tags, coleção, segmento e promoção da loja do payload nativo Bling', () => {
-  const { validateMerchandising } = awaitImportEditor();
+Deno.test('editor: tags e campos comerciais locais não são enviados à API Bling', () => {
+  const merchandising = {
+    tags: ['novo', 'oferta'],
+    colecao: 'Verão 2027',
+    segmento: 'Feminino',
+    precoPromocional: 79.9,
+  };
+  assert.deepEqual(validateMerchandising({ ...basic, merchandising }), merchandising);
+  const payload = buildProductEditorPayload({ ...basic, merchandising });
+  assert.equal(payload.preco, 100);
+  assert.equal(payload.merchandising, undefined);
+  assert.equal(payload.tags, undefined);
+  assert.equal(payload.precoPromocional, undefined);
+});
+
+Deno.test('editor: tags e preço promocional inválidos são rejeitados antes de gravar no Bling', () => {
+  const baseMerchandising = { tags: [], colecao: '', segmento: '', precoPromocional: null };
+  assert.throws(() => validateMerchandising({
+    ...basic, merchandising: { ...baseMerchandising, tags: ['script'] },
+  }), /Tags/);
+  assert.throws(() => validateMerchandising({
+    ...basic, merchandising: { ...baseMerchandising, tags: ['novo', 'novo'] },
+  }), /Tags/);
+  assert.throws(() => validateMerchandising({
+    ...basic, merchandising: { ...baseMerchandising, precoPromocional: 110 },
+  }), /promocional/);
+  assert.throws(() => validateMerchandising({
+    ...basic, merchandising: { ...baseMerchandising, colecao: 'A'.repeat(81) },
+  }), /Coleção/);
+  assert.equal(validateMerchandising({ ...basic }), null);
 });
