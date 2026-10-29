@@ -443,3 +443,43 @@ test('editor prevents a promotional price higher than the base price', async ({ 
   expect(calls).toBe(0);
   await expect(page.locator('[data-product-form-error]')).toContainText('preço promocional');
 });
+
+test('existing product saves storefront tags without PATCHing its Bling product', async ({ page }) => {
+  let merchandising;
+  let productUpdateCalls = 0;
+  await page.route('**/admin-product-update', (r) => {
+    productUpdateCalls++;
+    return r.fulfill({ json: { ok: true } });
+  });
+  await page.route('**/admin-product-merchandising', (r) => {
+    merchandising = r.request().postDataJSON();
+    return r.fulfill({ json: { ok: true, message: 'Tags e informações da loja atualizadas.' } });
+  });
+  await page.goto('/gestao/#/produtos');
+  await page.locator('[data-product-edit]').click();
+  await expect(page.locator('[data-save-merchandising]')).toBeVisible();
+  await page.locator('[name="storeTag"][value="destaque"]').check();
+  await page.locator('[name="colecao"]').fill('Coleção teste');
+  await page.locator('[name="precoPromocional"]').fill('89.90');
+  await page.locator('[data-save-merchandising]').click();
+  await expect.poll(() => merchandising?.blingId).toBe('101');
+  expect(merchandising.merchandising.tags).toEqual(['destaque']);
+  expect(merchandising.merchandising.precoPromocional).toBe(89.9);
+  expect(productUpdateCalls).toBe(0);
+});
+
+test('manual category refresh calls the Bling sync endpoint and retains current selection', async ({ page }) => {
+  const requests = [];
+  await page.route('**/admin-categories**', (r) => {
+    requests.push(new URL(r.request().url()).searchParams.get('refresh'));
+    return r.fulfill({
+      json: { ok: true, items: [{ blingId: '1', name: 'Feminino' }, { blingId: '2', name: 'Infantil' }] },
+    });
+  });
+  await newProduct(page);
+  await page.locator('[name="categoriaId"]').selectOption('1');
+  await page.locator('[data-refresh-categories]').click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests).toEqual([null, '1']);
+  await expect(page.locator('[name="categoriaId"]')).toHaveValue('1');
+});

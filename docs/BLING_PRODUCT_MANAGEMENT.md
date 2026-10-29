@@ -150,3 +150,14 @@ Alterações em `_shared/product-editor.ts`, `_shared/product-save.ts`,
 `admin-product-detail` e `admin-categories` precisam de deploy das
 Edge Functions dependentes, inclusive as funções de sincronização e
 webhooks para não perder os campos editoriais em imports posteriores.
+
+## 9. Gestão de categorias e curadoria da loja — atualização 29/10/2026
+
+- A categoria continua com **ID real do Bling**. O botão **Atualizar do Bling** lista novamente as categorias oficiais pela API `GET /categorias/produtos`, sujeita a limite de requisições. Não cria categorias automaticamente.
+- **Tags da loja**, **coleção**, **segmento/gênero** e **preço promocional** agora são editáveis na Gestão. Estes campos são curadoria comercial da vitrine, associados ao `bling_id` no cache Supabase (`store_products.metadata` e `promotional_price`).
+- **Limite de integração:** não se afirma que esses campos são gravados como tags/listas de preços/campos customizados do Bling. O cadastro básico da API do Bling não fornece um mapeamento confirmado para esses campos comerciais da loja. Portanto, não são enviados atributos inventados ao ERP.
+- Produtos existentes têm um botão **Salvar tags e informações da loja**, que consulta o preço atual do Bling e grava somente a curadoria no cache, sem editar o cadastro, as variações ou o estoque no Bling.
+- Ao criar um produto ou salvar suas informações cadastrais normais, primeiro ocorre a operação no Bling; após a sincronização do produto, a curadoria fornecida é salva localmente.
+- Webhooks e sincronização preservam `metadata.tags`, `metadata.colecao`, `metadata.segmento` e `promotional_price` existentes no cache. Dados cadastrais e preço principal permanecem sob controle do Bling.
+- O preço promocional da vitrine deve ser maior que zero e menor que o preço principal atual. Não é uma lista de preços do Bling.
+- **Sem gravações automáticas em produtos reais nesta implantação.** Validar em produto de teste antes de operações de produção.
