@@ -66,5 +66,5 @@ test('Gestão keeps navigation fixed while the products grid scrolls separately'
  assert.match(css, /\.gestao-products-scroll\s*\{[^}]*overflow-y:\s*auto;/);
  assert.match(css, /\.gestao-app\.is-products-route \.gestao-main\s*\{\s*overflow-y:\s*hidden;/);
  assert.match(js, /classList\.toggle\('is-products-route', page === 'produtos'\)/);
- assert.match(js, /\['data-products-scroll'\]/);
+ assert(js.includes("$('[data-products-scroll]')"));
 });
