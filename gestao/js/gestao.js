@@ -681,6 +681,31 @@
     }
   });
 
+  $('[data-save-merchandising]')?.addEventListener('click', async (event) => {
+    if (!editingBlingId || productSubmitInFlight) return;
+    const button = event.currentTarget;
+    const errorEl = $('[data-product-form-error]');
+    errorEl.hidden = true;
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = 'Salvando tags…';
+    try {
+      const data = window.AnaProductEditor.readMerchandising();
+      const response = await window.GestaoApi.saveProductMerchandising({
+        blingId: editingBlingId,
+        merchandising: data,
+      });
+      showToast(response.message || 'Informações comerciais atualizadas.');
+    } catch (err) {
+      if (err.status === 401) { closeProductDrawer(); return handleSessionExpired('produtos'); }
+      errorEl.textContent = friendlyErrorMessage(err, 'Não foi possível salvar as informações da loja.');
+      errorEl.hidden = false;
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  });
+
   let productSubmitInFlight = false;
   productForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
