@@ -84,7 +84,29 @@ serve(async (req, ctx) => {
       await new Promise(resolve=>setTimeout(resolve,500));
     }
   }
-  if (!adsAvailable) adsMessage = 'Consulta de anúncios ainda indisponível (tentativas HTTP: ' + outcomes.join(',') + '). Não houve publicação nem alteração.';
+  if (!adsAvailable) {
+    adsMessage = 'Consulta de anúncios ainda indisponível (tentativas HTTP: ' + outcomes.join(',') + '). Não houve publicação nem alteração.';
+    // Diagnóstico adicional: somente tipos de validação e nomes de campos,
+    // nunca dados brutos, tokens, IDs de pessoas ou credenciais.
+    try {
+      const token = await ctx.client().getValidAccessToken();
+      const url = new URL('https://api.bling.com.br/Api/v3/anuncios');
+      url.searchParams.set('pagina','1');
+      url.searchParams.set('limite','100');
+      url.searchParams.set('idLoja',String(storeId));
+      const response = await fetch(url.href, {
+        headers:{Authorization:'Bearer '+token,'enable-jwt':'1',Accept:'application/json'},
+        signal:AbortSignal.timeout(8000),
+      });
+      const payload = await response.json();
+      const err = payload && typeof payload==='object' ? payload.error : null;
+      const safeType = typeof err?.type==='string' && /^[a-zA-Z_]{1,60}$/.test(err.type) ? err.type : '';
+      const fields = Array.isArray(err?.fields)
+        ? err.fields.map((f:unknown)=>typeof f==='object'&&f!==null&&'field' in f ? String(f.field) : '').filter((v:string)=>/^[a-zA-Z_]{1,60}$/.test(v)).slice(0,10)
+        : [];
+      adsMessage += (safeType?' Tipo: '+safeType+'.':'') + (fields.length?' Campos: '+fields.join(',')+'.':'');
+    } catch { /* diagnóstico opcional e sem exposição de erros upstream */ }
+  }
   return json(req,{ok:true,available:true,channels,adsAvailable,ads,adsMessage,
     message:channels.length
       ? 'Canais encontrados no Bling. A presença do canal não comprova autorização para publicar anúncios pela Gestão.'
