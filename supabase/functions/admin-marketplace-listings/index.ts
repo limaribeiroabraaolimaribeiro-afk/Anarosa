@@ -58,7 +58,7 @@ serve(async (req, ctx) => {
   if (rlError || permitted !== true) return json(req, { ok: false, message: 'Muitas operações. Tente novamente em instantes.' }, 429);
   const body = await req.json() as Obj;
   const action = text(body.action, 20);
-  if (!['save','prepare','publish'].includes(action)) throw new ValidationError('Ação inválida.');
+  if (!['save','prepare','publish','link'].includes(action)) throw new ValidationError('Ação inválida.');
   const blingId = text(body.blingId, 19);
   if (!/^[1-9]\d{0,18}$/.test(blingId)) throw new ValidationError('Selecione um produto existente no Bling.');
   const channel = text(body.marketplace, 30);
@@ -66,6 +66,42 @@ serve(async (req, ctx) => {
   const { data: product, error: productErr } = await ctx.db.from('store_products')
     .select('id,bling_id,sku,name,price,images,active,parent_bling_id').eq('bling_id',blingId).maybeSingle();
   if (productErr || !product || product.parent_bling_id) throw new ValidationError('Selecione um produto principal do catálogo sincronizado.');
+  if (action === 'link') {
+    // Vínculo administrativo sem alegação de publicação: o ID MLB e SKU
+    // fornecidos serão confirmados futuramente pela API oficial do canal.
+    // Nunca altera o anúncio existente ou o estoque do ERP.
+    if (body.confirmar !== true) throw new ValidationError('Confirme o vínculo do anúncio existente.');
+    if (channel !== 'mercado_livre') throw new ValidationError('Vínculo manual disponível apenas para Mercado Livre.');
+    const external = text(body.externalListingId, 40).toUpperCase();
+    if (!/^MLB[0-9]{8,16}$/.test(external)) throw new ValidationError('Informe o código MLB válido do anúncio.');
+    const sku = text(body.sku, 120);
+    if (!sku) throw new ValidationError('Informe o SKU do anúncio existente.');
+    const { data: variantRows, error: variantError } = await ctx.db.from('store_product_variants')
+      .select('sku,active').eq('product_id',product.id);
+    if (variantError) throw new Error('marketplace_variant_lookup_failed');
+    const knownSkus = [product.sku,...(variantRows ?? []).filter(x=>x.active !== false).map(x=>x.sku)]
+      .filter((v):v is string=>typeof v==='string'&&v.length>0);
+    if (!knownSkus.some(v=>v.trim().toUpperCase()===sku.toUpperCase())) {
+      throw new ValidationError('O SKU informado não corresponde ao produto ou suas variações no Bling.');
+    }
+    const { data: duplicate, error: dupeError } = await ctx.db.from('store_marketplace_listings')
+      .select('id').eq('marketplace',channel).eq('external_listing_id',external).limit(1);
+    if (dupeError) throw new Error('marketplace_link_lookup_failed');
+    if (duplicate?.length) return json(req,{ok:false,message:'Este anúncio já está vinculado à Gestão ANAROSA.',item:duplicate[0]},409);
+    const {data:saved,error:saveError}=await ctx.db.from('store_marketplace_listings')
+      .insert({
+        bling_product_id:blingId,marketplace:channel,title:product.name.slice(0,160),
+        description:'',category_external_id:'',listing_type:'marketplace',
+        shipping_mode:'',price:Number(product.price) || 0,images:[],
+        variation_mapping:[],attributes:{linkedSku:sku},
+        status:'ready',external_listing_id:external,
+        last_error:'Vínculo manual pendente de confirmação remota; não indica publicação validada.',
+        created_by:admin.id,updated_by:admin.id,
+      }).select('id,status,external_listing_id,bling_product_id').single();
+    if(saveError) throw new Error('marketplace_link_save_failed');
+    return json(req,{ok:true,item:saved,message:'Vínculo registrado para acompanhamento. Publicação no Mercado Livre ainda não verificada.'},201);
+  }
+
   const title = text(body.title, 160);
   const description = text(body.description, 7000);
   const category = text(body.categoryExternalId, 60);
