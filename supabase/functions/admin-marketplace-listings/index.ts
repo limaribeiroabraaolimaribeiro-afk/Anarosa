@@ -143,8 +143,8 @@ serve(async (req, ctx) => {
     // A conexão do Bling, por si só, NÃO autoriza publicar no Mercado Livre
     // nem na Shopee. Não fazer POST especulativo a endpoints de terceiros.
     const reason = connection?.status === 'connected'
-      ? 'A integração deste canal precisa do adaptador de publicação homologado e validado antes do envio.'
-      : 'Conecte e autorize a conta deste marketplace antes de publicar.';
+      ? 'O adaptador de publicação desta Gestão ainda precisa de validação antes de enviar anúncios.'
+      : 'A conta pode estar autorizada no Bling, mas o envio por esta Gestão ainda não foi validado. Use o Bling para publicar enquanto a integração é concluída.';
     return json(req, { ok: false, status: 'blocked', message: reason,
       missing: [...errors, reason], externalListingId: null }, 409);
   }
