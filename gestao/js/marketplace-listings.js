@@ -148,7 +148,11 @@
           const title=document.createElement('strong');
           title.textContent=String(a.titulo||a.codigo||('Anúncio Bling '+a.id));
           const detail=document.createElement('p');
-          detail.textContent='Bling '+String(a.id||'—')+' · SKU '+String(a.sku||'não informado')+' · Situação '+String(a.situacao||'não informada');
+          const status={1:'Publicado',2:'Rascunho',3:'Com problema',4:'Pausado'}[Number(a.situacao)]||'Não informada';
+          const price=typeof a.preco==='number'&&Number.isFinite(a.preco)?fmt(a.preco):'Sem preço';
+          detail.textContent='Bling '+String(a.id||'—')+
+            (a.externalListingId?' · '+String(a.externalListingId):' · Sem código externo')+
+            ' · '+price+' · '+status;
           row.append(title,detail);
           list.append(row);
         });
