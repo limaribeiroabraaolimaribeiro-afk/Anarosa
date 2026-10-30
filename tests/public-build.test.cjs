@@ -143,3 +143,24 @@ test('product share pages expose bot-readable product metadata with permanent im
     assert.match(html, /window\.location\.replace\(/, 'Visitors must reach the product page: ' + name);
   }
 });
+
+test('existing Mercado Livre links require product, SKU, MLB and confirmation', () => {
+ const html=fs.readFileSync(path.join(root,'gestao/index.html'),'utf8');
+ const client=fs.readFileSync(path.join(root,'gestao/js/marketplace-listings.js'),'utf8');
+ const api=fs.readFileSync(path.join(root,'gestao/js/gestao-api.js'),'utf8');
+ const backend=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-marketplace-listings/index.ts'),'utf8');
+ assert.match(html, /data-listing-link-form/);
+ assert.match(html, /name="link-sku"/);
+ assert.match(html, /name="link-mlb"/);
+ assert.match(client, /window\.confirm\(/);
+ assert.match(client, /GestaoApi\.linkMarketplaceListing/);
+ assert.match(api, /linkMarketplaceListing/);
+ assert.match(backend, /body\.confirmar !== true/);
+ assert.match(backend, /\^MLB\[0-9\]\{8,16\}\$/);
+ assert.match(backend, /marketplace_link_lookup_failed/);
+ assert.match(backend, /status:'ready'/);
+ assert.match(backend, /Vínculo manual pendente de confirmação remota/);
+ const index=fs.readFileSync(path.join(__dirname,'..','supabase/migrations/20261029233000_unique_marketplace_external_listing_reference.sql'),'utf8');
+ assert.match(index,/CREATE UNIQUE INDEX IF NOT EXISTS/);
+ assert.match(index,/WHERE external_listing_id IS NOT NULL/);
+});
