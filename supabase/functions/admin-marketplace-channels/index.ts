@@ -51,7 +51,7 @@ serve(async (req, ctx) => {
   let adsMessage = '';
   try {
     const response = await ctx.client().request<{data: Record<string, unknown>[]}>('anuncios', {
-      method: 'GET', query: { pagina: 1, limite: 100 },
+      method: 'GET', query: { pagina: 1, limite: 100, idLoja: 206321173 },
       operation: 'marketplace_ads.read_live',
     });
     if (!Array.isArray(response?.data)) throw new Error('unexpected_ads_response');
