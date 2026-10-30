@@ -209,9 +209,23 @@ const actions: Record<string,Tool> = {
     action:(a,t)=>requestAdmin('admin-customers',t,jsonParams(a,['limit','offset','search'])),
   },
   listar_anuncios: {
-    description:'Consultar anúncios rascunhos, status, Mercado Livre e Shopee. Publicado é somente o estado confirmado.',
+    description:'Consultar anúncios reais no Bling por canal, inclusive códigos MLB, títulos, preços e situação; também retorna rascunhos da Gestão. Leitura apenas, sem publicar ou editar.',
     schema:properties({}),readOnly:true,
-    action:(_,t)=>requestAdmin('admin-marketplace-listings',t),
+    action:async(_,t)=>{
+      const [local,remote]=await Promise.allSettled([
+        requestAdmin('admin-marketplace-listings',t),
+        requestAdmin('admin-marketplace-channels',t),
+      ]);
+      if(local.status==='rejected')throw local.reason;
+      const outside=remote.status==='fulfilled' ? remote.value as Record<string,unknown> : {};
+      return {
+        ...local.value as Record<string,unknown>,
+        anunciosBling: Array.isArray(outside.ads) ? outside.ads : [],
+        leituraExternaConfirmada:outside.adsAvailable===true,
+        diagnosticoExterno:typeof outside.adsMessage==='string'?outside.adsMessage:'Não foi possível consultar os anúncios externos.',
+        canaisBling: Array.isArray(outside.channels)?outside.channels:[],
+      };
+    },
   },
   verificar_canais_bling: {
     description:'Verificar canais Mercado Livre/Shopee no Bling, sem confundir presença do canal com autorização de publicação.',
