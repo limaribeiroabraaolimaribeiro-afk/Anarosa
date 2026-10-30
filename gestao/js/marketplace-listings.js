@@ -105,7 +105,7 @@
   function updateConnectionMessage() {
     const f=$('[data-marketplace-form]');
     const channel=f.marketplace.value, c=connectionFor(channel);
-    const status=c?.status === 'connected' ? 'Conta autorizada' : 'Conta ainda não autorizada';
+    const status=c?.status === 'connected' ? 'Conexão de publicação autorizada' : 'Publicação pela Gestão ainda não validada';
     const note=$('[data-listing-publication-note]');
     note.textContent=`${label[channel]}: ${status}. Salvar e verificar estão disponíveis. A publicação exige a conexão oficial do canal e confirmação pela API; um rascunho não é anúncio publicado.`;
   }
@@ -129,10 +129,31 @@
           : 'Não identificado na API de canais do Bling';
         return `<div class="listing-record"><div><strong>${esc(label[channel])}</strong>
           <p>${description}</p>
-          <small>${connected.length?'Canal detectado no ERP; publicação pela Gestão ainda exige autorização específica.':'É necessário integrar a conta de vendedor ao Bling.'}</small>
+          <small>${connected.length?'Canal identificado no Bling; publicação ainda depende de validação técnica.':'Canal ainda não identificado pelo Bling.'}</small>
         </div></div>`;
       }).join('');
       target.innerHTML=rows;
+      const note=document.createElement('p');
+      note.className='gestao-note';
+      note.textContent=response.adsAvailable
+        ? 'Consulta de anúncios ao vivo: '+(response.ads||[]).length+' registro(s) retornado(s) pelo Bling. Nenhum foi alterado.'
+        : (response.adsMessage || 'O endpoint de anúncios ainda não está disponível; canais detectados não equivalem a anúncios lidos.');
+      target.append(note);
+      if(response.adsAvailable && Array.isArray(response.ads) && response.ads.length){
+        const list=document.createElement('div');
+        list.className='listing-remote-list';
+        response.ads.forEach(a=>{
+          const row=document.createElement('div');
+          row.className='listing-record';
+          const title=document.createElement('strong');
+          title.textContent=String(a.titulo||a.codigo||('Anúncio Bling '+a.id));
+          const detail=document.createElement('p');
+          detail.textContent='Bling '+String(a.id||'—')+' · SKU '+String(a.sku||'não informado')+' · Situação '+String(a.situacao||'não informada');
+          row.append(title,detail);
+          list.append(row);
+        });
+        target.append(list);
+      }
       message(response.message||'Canais consultados.','success');
     }catch(err) {
       target.textContent='Não foi possível consultar os canais. '+(err.message||'Verifique a integração.');
@@ -144,10 +165,11 @@
   function listHTML() {
     const list=$('[data-marketplace-list]');
     list.innerHTML=state.listings.length ? state.listings.map(x=>{
-      const status={draft:'Rascunho',ready:'Pronto para revisão',blocked:'Aguardando conexão',published:'Publicado',error:'Erro'}[x.status]||x.status;
+      const status=x.external_listing_id && x.status!=='published' ? 'Vínculo pendente de confirmação externa' :
+        ({draft:'Rascunho',ready:'Pronto para revisão',blocked:'Aguardando conexão',published:'Publicado',error:'Erro'}[x.status]||x.status);
       return `<div class="listing-record">
         <div><strong>${esc(x.title)}</strong><p>${esc(label[x.marketplace]||x.marketplace)} · ${esc(status)} · ${fmt(x.price)}</p>
-        <small>Produto Bling ${esc(x.bling_product_id)}</small></div>
+        <small>Produto Bling ${esc(x.bling_product_id)}${x.external_listing_id?' · MLB '+esc(x.external_listing_id):''}</small></div>
         <button type="button" class="btn btn-outline" data-listing-edit="${esc(x.id)}">Editar</button>
       </div>`;
     }).join('') : '<p class="gestao-note">Nenhum anúncio preparado. Cadastre o primeiro rascunho abaixo.</p>';
@@ -174,6 +196,9 @@
     if (productsResult.status === 'fulfilled') {
       const response = productsResult.value;
       state.products = Array.isArray(response.items) ? response.items : [];
+      const linkSelect=$('[name="link-product"]');
+      if(linkSelect) linkSelect.innerHTML='<option value="">Selecione um produto do Bling</option>'+
+        state.products.filter(p=>!p.parentBlingId).map(p=>'<option value="'+esc(p.blingId)+'">'+esc(p.name)+' ('+esc(p.sku||'sem SKU')+')</option>').join('');
       renderForm(state.editing ? state.listings.find(x => x.id === state.editing) : null);
     } else {
       $('[data-marketplace-form]').innerHTML =
@@ -273,6 +298,29 @@
     if(button.matches('[data-listing-save]'))save('save');
     if(button.matches('[data-listing-prepare]'))save('prepare');
     if(button.matches('[data-listing-publish]'))save('publish');
+  });
+  node.addEventListener('submit', async (event)=>{
+    const form=event.target.closest('[data-listing-link-form]');
+    if(!form)return;
+    event.preventDefault();
+    const product=form.elements['link-product'].value;
+    const sku=form.elements['link-sku'].value.trim();
+    const externalListingId=form.elements['link-mlb'].value.trim().toUpperCase();
+    if(!/^MLB[0-9]{8,16}$/.test(externalListingId)){
+      message('Informe um código MLB válido, sem espaços.','error');return;
+    }
+    if(!window.confirm('Vincular '+externalListingId+' ao SKU '+sku+' na Gestão ANAROSA? Isto não publica nem altera o anúncio no Mercado Livre.'))return;
+    const button=form.querySelector('[data-listing-link-submit]');
+    button.disabled=true;
+    try {
+      const result=await window.GestaoApi.linkMarketplaceListing({
+        confirmar:true,blingId:product,sku,externalListingId,marketplace:'mercado_livre',
+      });
+      message(result.message||'Vínculo registrado.','success');
+      form.reset();
+      await load();
+    }catch(err){message(err.message||'Não foi possível vincular.','error');}
+    finally{button.disabled=false;}
   });
   window.MarketplaceListings={load};
 })();
