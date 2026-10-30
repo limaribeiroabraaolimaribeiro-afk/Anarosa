@@ -68,7 +68,7 @@ serve(async (req, ctx) => {
       rawKeys: Object.keys(a).slice(0, 35),
     }));
   } catch (err) {
-    const code = err && typeof err === 'object' && 'httpStatus' in err ? Number(err.httpStatus) : null;
+    const code = err && typeof err === 'object' && 'status' in err ? Number(err.status) : null;
     const kind = code && [400,401,403,404,422,429].includes(code) ? String(code) : 'indisponivel';
     adsMessage = 'Consulta de anúncios do Bling indisponível (HTTP ' + kind + '). Nenhuma publicação foi alterada.';
   }
