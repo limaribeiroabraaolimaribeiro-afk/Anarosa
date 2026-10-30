@@ -67,8 +67,10 @@ serve(async (req, ctx) => {
       preco: a.preco ?? a.precoVenda ?? null,
       rawKeys: Object.keys(a).slice(0, 35),
     }));
-  } catch {
-    adsMessage = 'Não foi possível consultar anúncios pelo endpoint de Anúncios do Bling. Nenhuma publicação foi alterada.';
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'httpStatus' in err ? Number(err.httpStatus) : null;
+    const kind = code && [400,401,403,404,422,429].includes(code) ? String(code) : 'indisponivel';
+    adsMessage = 'Consulta de anúncios do Bling indisponível (HTTP ' + kind + '). Nenhuma publicação foi alterada.';
   }
   return json(req,{ok:true,available:true,channels,adsAvailable,ads,adsMessage,
     message:channels.length
