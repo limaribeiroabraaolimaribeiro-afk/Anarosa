@@ -44,7 +44,33 @@ serve(async (req, ctx) => {
       ? { marketplace,blingChannelId:String(id),name:str(item.nome)||str(item.descricao)||str(item.nomeLoja)||marketplace }
       : null;
   }).filter(Boolean).slice(0,50);
-  return json(req,{ok:true,available:true,channels,
+  // Leitura operacional dos anúncios do Bling: apenas administrador autorizado,
+  // nenhuma operação de criação/alteração nem sincronização de estoque.
+  let ads: Record<string, unknown>[] = [];
+  let adsAvailable = false;
+  let adsMessage = '';
+  try {
+    const response = await ctx.client().request<{data: Record<string, unknown>[]}>('anuncios', {
+      method: 'GET', query: { pagina: 1, limite: 100 },
+      operation: 'marketplace_ads.read_live',
+    });
+    if (!Array.isArray(response?.data)) throw new Error('unexpected_ads_response');
+    adsAvailable = true;
+    ads = response.data.slice(0, 100).map(a => ({
+      id: a.id ?? null,
+      codigo: a.codigo ?? null,
+      titulo: a.titulo ?? a.nome ?? null,
+      situacao: a.situacao ?? a.status ?? null,
+      sku: a.sku ?? a.codigoProduto ?? null,
+      produto: a.produto ?? null,
+      loja: a.loja ?? a.canalVenda ?? a.idLoja ?? null,
+      preco: a.preco ?? a.precoVenda ?? null,
+      rawKeys: Object.keys(a).slice(0, 35),
+    }));
+  } catch {
+    adsMessage = 'Não foi possível consultar anúncios pelo endpoint de Anúncios do Bling. Nenhuma publicação foi alterada.';
+  }
+  return json(req,{ok:true,available:true,channels,adsAvailable,ads,adsMessage,
     message:channels.length
       ? 'Canais encontrados no Bling. A presença do canal não comprova autorização para publicar anúncios pela Gestão.'
       : 'O Bling não retornou instalações de Mercado Livre ou Shopee nesta consulta.'});
