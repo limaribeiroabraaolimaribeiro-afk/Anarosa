@@ -218,6 +218,29 @@ const actions: Record<string,Tool> = {
     schema:properties({}),readOnly:true,
     action:(_,t)=>requestAdmin('admin-marketplace-channels',t),
   },
+
+  listar_anuncios_bling: {
+    description:'Consultar somente leitura os anúncios do Bling. Em caso de erro no endpoint oficial, informa claramente que a leitura externa não foi confirmada; nunca inventa publicações.',
+    schema:properties({}),readOnly:true,
+    action:(_,t)=>requestAdmin('admin-marketplace-channels',t),
+  },
+  vincular_anuncio_existente: {
+    description:'Registrar para acompanhamento um código MLB que já existe no Mercado Livre e conferir o SKU contra o Bling. Não publica, não modifica o anúncio externo, não altera estoque e não comprova situação externa.',
+    schema:properties({
+      confirmar:S.bool('Confirmação explícita do administrador para salvar o vínculo local'),
+      blingId:S.str('ID do produto principal Bling',19),
+      sku:S.str('SKU exato do anúncio real, deve pertencer ao produto/variação',120),
+      externalListingId:S.str('Código MLB do anúncio que já existe',40),
+    },['confirmar','blingId','sku','externalListingId']),
+    action:(a,t)=>{yes(a);validBlingId(a.blingId);
+      const external=requiredText(a,'externalListingId',40).toUpperCase();
+      if(!/^MLB[0-9]{8,16}$/.test(external))throw Error('Código MLB inválido.');
+      return requestAdmin('admin-marketplace-listings',t,undefined,{
+        action:'link',confirmar:true,marketplace:'mercado_livre',
+        blingId:a.blingId,sku:requiredText(a,'sku',120),externalListingId:external,
+      });
+    },
+  },
   auditar_catalogo: {
     description:'Identificar pendências de SKU, fotos, categorias e variações da loja.',
     schema:properties({}),readOnly:true,
