@@ -884,8 +884,41 @@ body.product-editor-open .gestao-app.is-products-route .gestao-main {
   .listing-step summary {padding:13px 12px;}
   .listing-step-body {padding:14px 12px;}
   .listing-step-primary .listing-step-body {padding:12px 0 0;}
-  .listing-form-grid input:not([type=checkbox]),
-  .listing-form-grid select,.listing-form-grid textarea {font-size:16px;}
+  /* Controles mobile compactos: não herdar a altura dos campos globais */
+  .gestao-view[data-page="anuncios"] .listing-form-grid select {
+    box-sizing:border-box;
+    display:block;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    height:42px;
+    min-height:42px;
+    max-height:42px;
+    padding:0 36px 0 12px;
+    font-size:15px;
+    line-height:normal;
+    border-radius:8px;
+  }
+  .gestao-view[data-page="anuncios"] .listing-form-grid input:not([type=checkbox]):not([type=file]) {
+    box-sizing:border-box;
+    height:42px;
+    min-height:42px;
+    padding:8px 12px;
+    font-size:15px;
+    border-radius:8px;
+  }
+  .gestao-view[data-page="anuncios"] .listing-form-grid textarea {
+    min-height:92px;
+    padding:10px 12px;
+    font-size:15px;
+    line-height:1.45;
+  }
+  .gestao-view[data-page="anuncios"] .listing-form-grid input[type=file] {
+    height:auto;
+    min-height:0;
+    padding:8px 0;
+    font-size:13px;
+  }
   .listing-form-actions {display:grid;grid-template-columns:minmax(0,1fr);gap:8px;}
   .listing-form-actions .btn {width:100%;min-width:0;min-height:46px;}
   .listing-record {flex-wrap:wrap;align-items:flex-start;gap:9px;}
