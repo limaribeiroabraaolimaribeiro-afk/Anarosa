@@ -53,11 +53,11 @@
         </div>
         <div class="listing-step-body">
           <div class="listing-form-grid">
-            <label>Produto do Bling <span aria-hidden="true">*</span><select name="listing-product" required><option value="">Selecione um produto</option>${productOptions}</select></label>
-            <label>Onde anunciar <span aria-hidden="true">*</span><select name="marketplace"><option value="mercado_livre">Mercado Livre</option><option value="shopee">Shopee</option></select></label>
+            <label>Produto do Bling *<select name="listing-product" required><option value="">Selecione um produto</option>${productOptions}</select></label>
+            <label>Onde anunciar *<select name="marketplace"><option value="mercado_livre">Mercado Livre</option><option value="shopee">Shopee</option></select></label>
             <div class="listing-product-preview" data-listing-product-preview hidden></div>
-            <label class="listing-span">Título do anúncio <span aria-hidden="true">*</span><input name="listing-title" maxlength="160" required placeholder="Ex.: Bermuda Boxer Ogochi Masculina"></label>
-            <label>Preço de venda (R$) <span aria-hidden="true">*</span><input name="listing-price" type="number" min="0.01" step="0.01" inputmode="decimal" required placeholder="0,00"></label>
+            <label class="listing-span">Título do anúncio *<input name="listing-title" maxlength="160" required placeholder="Ex.: Bermuda Boxer Ogochi Masculina"></label>
+            <label>Preço de venda (R$) *<input name="listing-price" type="number" min="0.01" step="0.01" inputmode="decimal" required placeholder="0,00"></label>
           </div>
         </div>
       </section>
@@ -65,9 +65,9 @@
         <summary><span class="listing-step-number">02</span><span class="listing-step-summary"><strong>Categoria e envio</strong><small>Tipo de anúncio, categoria e frete</small></span><span class="listing-step-chevron" aria-hidden="true">⌄</span></summary>
         <div class="listing-step-body">
           <div class="listing-form-grid">
-            <label>Categoria do marketplace <span aria-hidden="true">*</span><input name="listing-category" maxlength="60" placeholder="Código da categoria"></label>
+            <label>Categoria do marketplace *<input name="listing-category" maxlength="60" placeholder="Código da categoria"></label>
             <label>Tipo de anúncio<select name="listing-type"><option value="marketplace">Marketplace / Normal</option><option value="catalogo">Catálogo (Mercado Livre)</option></select></label>
-            <label class="listing-span">Forma de envio <span aria-hidden="true">*</span><input name="listing-shipping" maxlength="100" placeholder="Ex.: Mercado Envios"></label>
+            <label class="listing-span">Forma de envio *<input name="listing-shipping" maxlength="100" placeholder="Ex.: Mercado Envios"></label>
           </div>
         </div>
       </details>
