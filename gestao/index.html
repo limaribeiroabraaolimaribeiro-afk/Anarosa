@@ -203,6 +203,18 @@
             <p class="gestao-note">Se uma loja aparecer no Bling, a publicação pela Gestão ainda exige validar o acesso da aplicação ao recurso de anúncios e testar o retorno oficial do marketplace.</p>
           </div>
           <div class="gestao-card">
+            <h2>Vincular anúncio existente do Mercado Livre</h2>
+            <p class="gestao-note">Informe o código MLB e o SKU exatos de um anúncio já criado. A Gestão confere se o SKU pertence ao produto no Bling e impede um segundo vínculo do mesmo MLB. Este vínculo não cria nem republica anúncios; a situação externa continuará pendente de verificação.</p>
+            <form data-listing-link-form class="listing-form">
+              <div class="listing-form-grid">
+                <label>Produto principal no Bling<select name="link-product" required><option value="">Carregando produtos…</option></select></label>
+                <label>SKU do anúncio<input name="link-sku" required maxlength="120" placeholder="Ex.: 004561001-GG"></label>
+                <label>Código MLB existente<input name="link-mlb" required maxlength="40" pattern="MLB[0-9]{8,16}" placeholder="Ex.: MLB5409129769"></label>
+              </div>
+              <button type="submit" class="btn btn-outline" data-listing-link-submit>Vincular para acompanhamento</button>
+            </form>
+          </div>
+          <div class="gestao-card">
             <h2>Anúncios salvos</h2>
             <div data-marketplace-list><p class="gestao-note">Carregando…</p></div>
           </div>
