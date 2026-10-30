@@ -70,7 +70,8 @@ serve(async (req, ctx) => {
   } catch (err) {
     const code = err && typeof err === 'object' && 'status' in err ? Number(err.status) : null;
     const kind = code && [400,401,403,404,422,429].includes(code) ? String(code) : 'indisponivel';
-    adsMessage = 'Consulta de anúncios do Bling indisponível (HTTP ' + kind + '). Nenhuma publicação foi alterada.';
+    const upstreamMessage = err && typeof err === 'object' && 'blingMessage' in err && typeof err.blingMessage === 'string' ? err.blingMessage.slice(0, 180).replace(/[<>]/g,'') : '';
+    adsMessage = 'Consulta de anúncios do Bling indisponível (HTTP ' + kind + '). ' + upstreamMessage + ' Nenhuma publicação foi alterada.';
   }
   return json(req,{ok:true,available:true,channels,adsAvailable,ads,adsMessage,
     message:channels.length
