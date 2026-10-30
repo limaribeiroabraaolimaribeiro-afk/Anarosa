@@ -46,32 +46,62 @@
     const form=$('[data-marketplace-form]');
     form.innerHTML=`
       <input type="hidden" name="id" value="${esc(item?.id || '')}">
-      <div class="listing-form-grid">
-        <label>Produto mestre do Bling *<select name="listing-product" required><option value="">Selecione um produto</option>${productOptions}</select></label>
-        <label>Marketplace *<select name="marketplace"><option value="mercado_livre">Mercado Livre</option><option value="shopee">Shopee</option></select></label>
-        <label>Título do anúncio *<input name="listing-title" maxlength="160" required placeholder="Ex.: Bermuda Ogochi Masculina"></label>
-        <label>Preço do anúncio (R$) *<input name="listing-price" type="number" min="0.01" step="0.01" required></label>
-        <label>Categoria do marketplace *<input name="listing-category" maxlength="60" placeholder="ID da categoria no canal"></label>
-        <label>Tipo do anúncio<select name="listing-type"><option value="marketplace">Marketplace / Normal</option><option value="catalogo">Catálogo (Mercado Livre)</option></select></label>
-        <label>Forma de envio *<input name="listing-shipping" maxlength="100" placeholder="Ex.: Mercado Envios / Shopee Xpress"></label>
-        <label class="listing-span">Descrição<textarea name="listing-description" rows="4" maxlength="7000" placeholder="Descrição do anúncio, não altera a descrição no Bling"></textarea></label>
-        <label class="listing-span">Fotos principais (uma URL HTTPS por linha)
-          <textarea name="listing-images" rows="4" placeholder="https://…"></textarea>
-          <small>Mercado Livre: a categoria determina os limites. Shopee: até 9 fotos principais. As imagens são enviadas ao Storage da ANAROSA.</small>
-        </label>
-        <label class="listing-span">Adicionar várias fotos
-          <input type="file" data-listing-main-files multiple accept="image/jpeg,image/png,image/webp">
-        </label>
-        <div class="listing-span">
-          <strong>Variações a anunciar e foto de cada opção</strong>
-          <p class="gestao-note">A foto por variação é usada no rascunho comercial. Cada SKU permanece vinculado ao Bling, com estoque próprio. Salve o produto com variações antes de criar anúncios.</p>
-          <div data-listing-variants class="listing-variant-grid"></div>
+      <section class="listing-step listing-step-primary" aria-label="Informações principais">
+        <div class="listing-step-heading">
+          <span class="listing-step-number">01</span>
+          <div><h3>Informações principais</h3><p>Comece escolhendo o produto e o canal de venda.</p></div>
         </div>
-        <label class="listing-span">Atributos exigidos pelo canal (JSON de pares simples)
-          <textarea name="listing-attributes" rows="3" placeholder='{"BRAND":"Ogochi","GENDER":"Masculino"}'></textarea>
-          <small>Use somente os atributos confirmados nas exigências da categoria do marketplace. Não são alterados no Bling.</small>
-        </label>
-      </div>
+        <div class="listing-step-body">
+          <div class="listing-form-grid">
+            <label>Produto do Bling <span aria-hidden="true">*</span><select name="listing-product" required><option value="">Selecione um produto</option>${productOptions}</select></label>
+            <label>Onde anunciar <span aria-hidden="true">*</span><select name="marketplace"><option value="mercado_livre">Mercado Livre</option><option value="shopee">Shopee</option></select></label>
+            <div class="listing-product-preview" data-listing-product-preview hidden></div>
+            <label class="listing-span">Título do anúncio <span aria-hidden="true">*</span><input name="listing-title" maxlength="160" required placeholder="Ex.: Bermuda Boxer Ogochi Masculina"></label>
+            <label>Preço de venda (R$) <span aria-hidden="true">*</span><input name="listing-price" type="number" min="0.01" step="0.01" inputmode="decimal" required placeholder="0,00"></label>
+          </div>
+        </div>
+      </section>
+      <details class="listing-step" data-listing-step="category">
+        <summary><span class="listing-step-number">02</span><span class="listing-step-summary"><strong>Categoria e envio</strong><small>Tipo de anúncio, categoria e frete</small></span><span class="listing-step-chevron" aria-hidden="true">⌄</span></summary>
+        <div class="listing-step-body">
+          <div class="listing-form-grid">
+            <label>Categoria do marketplace <span aria-hidden="true">*</span><input name="listing-category" maxlength="60" placeholder="Código da categoria"></label>
+            <label>Tipo de anúncio<select name="listing-type"><option value="marketplace">Marketplace / Normal</option><option value="catalogo">Catálogo (Mercado Livre)</option></select></label>
+            <label class="listing-span">Forma de envio <span aria-hidden="true">*</span><input name="listing-shipping" maxlength="100" placeholder="Ex.: Mercado Envios"></label>
+          </div>
+        </div>
+      </details>
+      <details class="listing-step" data-listing-step="media">
+        <summary><span class="listing-step-number">03</span><span class="listing-step-summary"><strong>Descrição e fotos</strong><small>Detalhes e imagens do anúncio</small></span><span class="listing-step-chevron" aria-hidden="true">⌄</span></summary>
+        <div class="listing-step-body">
+          <div class="listing-form-grid">
+            <label class="listing-span">Descrição<textarea name="listing-description" rows="4" maxlength="7000" placeholder="Descreva o produto sem alterar o cadastro no Bling"></textarea></label>
+            <label class="listing-span">Fotos principais (uma URL HTTPS por linha)
+              <textarea name="listing-images" rows="4" placeholder="https://…"></textarea>
+              <small>Mercado Livre: limite conforme a categoria. Shopee: até 9 fotos. Imagens salvas no Storage da ANAROSA.</small>
+            </label>
+            <label class="listing-span">Adicionar fotos do celular
+              <input type="file" data-listing-main-files multiple accept="image/jpeg,image/png,image/webp">
+            </label>
+          </div>
+        </div>
+      </details>
+      <details class="listing-step" data-listing-step="variants">
+        <summary><span class="listing-step-number">04</span><span class="listing-step-summary"><strong>Variações e atributos</strong><small>Tamanhos, cores, fotos por opção</small></span><span class="listing-step-chevron" aria-hidden="true">⌄</span></summary>
+        <div class="listing-step-body">
+          <div class="listing-form-grid">
+            <div class="listing-span">
+              <strong>Variações a anunciar</strong>
+              <p class="gestao-note">Cada SKU mantém seu estoque no Bling. Selecione as opções e fotos desejadas.</p>
+              <div data-listing-variants class="listing-variant-grid"></div>
+            </div>
+            <label class="listing-span">Atributos exigidos pelo marketplace (JSON)
+              <textarea name="listing-attributes" rows="3" placeholder='{"BRAND":"Ogochi","GENDER":"Masculino"}'></textarea>
+              <small>Informe somente características confirmadas da categoria, sem alterar o produto no Bling.</small>
+            </label>
+          </div>
+        </div>
+      </details>
       <div class="listing-form-actions">
         <button type="button" class="btn btn-outline" data-listing-save>Salvar rascunho</button>
         <button type="button" class="btn btn-outline" data-listing-prepare>Verificar para publicar</button>
@@ -90,10 +120,21 @@
     form['listing-images'].value=(item?.images || []).join('\n');
     form['listing-attributes'].value=JSON.stringify(item?.attributes||{},null,2);
     drawProductDetails(item?.variation_mapping);
+    if (item) form.querySelectorAll('.listing-step[open], .listing-step[data-listing-step]')
+      .forEach(step=>{ if (step.tagName==='DETAILS') step.open=true; });
     updateConnectionMessage();
   }
   function drawProductDetails(variants) {
     const p=selectedProduct();
+    const preview=$('[data-listing-product-preview]');
+    if (preview) {
+      preview.hidden=!p;
+      if (p) {
+        const image=typeof p.image==='string' && /^https:\/\//i.test(p.image) ? p.image : '';
+        preview.innerHTML=`${image?'<img src="'+esc(image)+'" alt="" loading="lazy">':''}
+          <span><strong>${esc(p.name||'Produto do Bling')}</strong><small>SKU ${esc(p.sku||'—')} · ${fmt(p.price)}</small></span>`;
+      } else preview.textContent='';
+    }
     $('[data-listing-variants]').innerHTML = p ? variantRows(variants) : '<p class="gestao-note">Selecione um produto primeiro.</p>';
     if (p && !state.editing){
       const form=$('[data-marketplace-form]');
@@ -254,6 +295,7 @@
       message(response.message+(missing.length?' Pendências: '+missing.join('; '):''),'success');
     }catch(err){
       const missing=Array.isArray(err.payload?.missing)?err.payload.missing:[];
+      if (missing.length) $('[data-marketplace-form]').querySelectorAll('details.listing-step').forEach(step=>step.open=true);
       message((err.message||'Não foi possível salvar.')+(missing.length?' Pendências: '+missing.join('; '):''),'error');
     } finally { buttons.forEach(b=>b.disabled=false); }
   }
