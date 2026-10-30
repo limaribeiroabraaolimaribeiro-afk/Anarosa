@@ -44,35 +44,47 @@ serve(async (req, ctx) => {
       ? { marketplace,blingChannelId:String(id),name:str(item.nome)||str(item.descricao)||str(item.nomeLoja)||marketplace }
       : null;
   }).filter(Boolean).slice(0,50);
-  // Leitura operacional dos anúncios do Bling: apenas administrador autorizado,
-  // nenhuma operação de criação/alteração nem sincronização de estoque.
+  // Tenta os filtros oficiais conhecidos, sem fazer qualquer gravação externa.
+  // O endpoint /anuncios requer parâmetros que variam por versão da API.
   let ads: Record<string, unknown>[] = [];
   let adsAvailable = false;
   let adsMessage = '';
-  try {
-    const response = await ctx.client().request<{data: Record<string, unknown>[]}>('anuncios', {
-      method: 'GET', query: { pagina: 1, limite: 100, idLoja: 206321173 },
-      operation: 'marketplace_ads.read_live',
-    });
-    if (!Array.isArray(response?.data)) throw new Error('unexpected_ads_response');
-    adsAvailable = true;
-    ads = response.data.slice(0, 100).map(a => ({
-      id: a.id ?? null,
-      codigo: a.codigo ?? null,
-      titulo: a.titulo ?? a.nome ?? null,
-      situacao: a.situacao ?? a.status ?? null,
-      sku: a.sku ?? a.codigoProduto ?? null,
-      produto: a.produto ?? null,
-      loja: a.loja ?? a.canalVenda ?? a.idLoja ?? null,
-      preco: a.preco ?? a.precoVenda ?? null,
-      rawKeys: Object.keys(a).slice(0, 35),
-    }));
-  } catch (err) {
-    const code = err && typeof err === 'object' && 'status' in err ? Number(err.status) : null;
-    const kind = code && [400,401,403,404,422,429].includes(code) ? String(code) : 'indisponivel';
-    const upstreamMessage = err && typeof err === 'object' && 'blingMessage' in err && typeof err.blingMessage === 'string' ? err.blingMessage.slice(0, 180).replace(/[<>]/g,'') : '';
-    adsMessage = 'Consulta de anúncios do Bling indisponível (HTTP ' + kind + '). ' + upstreamMessage + ' Nenhuma publicação foi alterada.';
+  const mercado = channels.find(c=>c?.marketplace==='mercado_livre');
+  const storeId = mercado ? Number(mercado.blingChannelId) : 0;
+  const candidates = [
+    { pagina:1, limite:100, idCanalVenda:storeId },
+    { pagina:1, limite:100, idLoja:storeId },
+    { pagina:1 },
+  ];
+  const outcomes:string[]=[];
+  for (const query of candidates) {
+    try {
+      const response = await ctx.client().request<{data: Record<string, unknown>[]}>('anuncios', {
+        method: 'GET', query, operation: 'marketplace_ads.read_live',
+      });
+      if (!Array.isArray(response?.data)) throw new Error('unexpected_ads_response');
+      adsAvailable = true;
+      ads = response.data.slice(0, 100).map(a => ({
+        id: a.id ?? null, codigo: a.codigo ?? null,
+        titulo: a.titulo ?? a.nome ?? null,
+        situacao: a.situacao ?? a.status ?? null,
+        sku: a.sku ?? a.codigoProduto ?? null,
+        produto: a.produto ?? null,
+        loja: a.loja ?? a.canalVenda ?? a.idLoja ?? null,
+        preco: a.preco ?? a.precoVenda ?? null,
+        rawKeys: Object.keys(a).slice(0, 35),
+      }));
+      break;
+    } catch (err) {
+      const code = err && typeof err === 'object' && 'status' in err ? Number(err.status) : null;
+      const kind = code && [400,401,403,404,422,429].includes(code) ? String(code) : 'indisponivel';
+      outcomes.push(kind);
+      if (code !== 400) break;
+      // O Bling limita consultas por segundo.
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
   }
+  if (!adsAvailable) adsMessage = 'Consulta de anúncios ainda indisponível (tentativas HTTP: ' + outcomes.join(',') + '). Não houve publicação nem alteração.';
   return json(req,{ok:true,available:true,channels,adsAvailable,ads,adsMessage,
     message:channels.length
       ? 'Canais encontrados no Bling. A presença do canal não comprova autorização para publicar anúncios pela Gestão.'
