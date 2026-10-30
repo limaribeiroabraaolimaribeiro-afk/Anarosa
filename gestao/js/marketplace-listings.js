@@ -169,7 +169,7 @@
         ({draft:'Rascunho',ready:'Pronto para revisão',blocked:'Aguardando conexão',published:'Publicado',error:'Erro'}[x.status]||x.status);
       return `<div class="listing-record">
         <div><strong>${esc(x.title)}</strong><p>${esc(label[x.marketplace]||x.marketplace)} · ${esc(status)} · ${fmt(x.price)}</p>
-        <small>Produto Bling ${esc(x.bling_product_id)}${x.external_listing_id?' · MLB '+esc(x.external_listing_id):''}</small></div>
+        <small>Produto Bling ${esc(x.bling_product_id)}${x.external_listing_id?' · '+esc(x.external_listing_id):''}</small></div>
         <button type="button" class="btn btn-outline" data-listing-edit="${esc(x.id)}">Editar</button>
       </div>`;
     }).join('') : '<p class="gestao-note">Nenhum anúncio preparado. Cadastre o primeiro rascunho abaixo.</p>';
