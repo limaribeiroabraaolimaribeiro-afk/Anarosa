@@ -4,15 +4,13 @@ import { requireAdminUser } from '../_shared/admin-user-auth.ts';
 import { randomToken } from '../_shared/crypto.ts';
 import { authorizeMl, makeMlChallenge, mlCredentials, mlReady, oauthHash } from '../_shared/mercadolivre-oauth.ts';
 import { json, methodNotAllowed } from '../_shared/responses.ts';
+import { activeMlConnection } from '../_shared/mercadolivre-session.ts';
 
 serve(async (req, ctx) => {
   const admin = await requireAdminUser(req, ctx.db);
   const c = mlCredentials();
   if (req.method === 'GET') {
-    const { data, error } = await ctx.db.from('ml_oauth_tokens')
-      .select('seller_id,seller_nickname,scope,status,expires_at,connected_at,updated_at')
-      .eq('connection_key','anarosa').maybeSingle();
-    if (error) throw new Error('mercadolivre_status_read_failed');
+    const {row:data,renewing} = await activeMlConnection(ctx.db,c);
     return json(req, {
       ok:true, configured:mlReady(c), connected:!!data && data.status==='connected',
       connection: data ? {
@@ -23,7 +21,7 @@ serve(async (req, ctx) => {
         tokenExpiresAt:data.expires_at,
         tokenExpired:new Date(data.expires_at).getTime() <= Date.now(),
       } : null,
-      mode:'read_only',
+      mode:'read_only', renewing,
     });
   }
   if (req.method !== 'POST') return methodNotAllowed(req,['GET','POST']);
