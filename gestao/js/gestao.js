@@ -1009,6 +1009,44 @@
   }
   $('[data-run-catalog-audit]')?.addEventListener('click', loadCatalogAudit);
 
+  const mlButton = $('[data-ml-connect]');
+  async function loadMercadoLivreStatus() {
+    const message = $('[data-ml-message]'), statusNode = $('[data-ml-status]'), seller = $('[data-ml-seller]');
+    try {
+      const data = await window.GestaoApi.getMercadoLivreStatus();
+      statusNode.textContent = data.connected ? (data.connection?.tokenExpired ? 'Autorizada (token expirado)' : 'Autorizada') :
+        (data.configured ? 'Aguardando autorização' : 'Aplicativo não configurado');
+      seller.textContent = data.connection?.sellerNickname || data.connection?.sellerId || '—';
+      mlButton.textContent = data.connected ? 'Reautorizar Mercado Livre' : 'Conectar Mercado Livre';
+      message.textContent = !data.configured
+        ? 'Crie o aplicativo no DevCenter e configure ML_CLIENT_ID e ML_CLIENT_SECRET no Supabase.'
+        : data.connected ? 'Conexão direta autorizada. O Bling continua como fonte dos produtos e estoques.' :
+          'Clique em Conectar Mercado Livre para autorizar a conta principal da loja.';
+    } catch (err) {
+      if (err.status === 401) return handleSessionExpired('integração');
+      statusNode.textContent = 'Não foi possível verificar';
+      message.textContent = friendlyErrorMessage(err, 'Não foi possível consultar a API do Mercado Livre.');
+    }
+  }
+  mlButton?.addEventListener('click', async () => {
+    if (mlButton.disabled) return;
+    const message = $('[data-ml-message]');
+    mlButton.disabled = true; mlButton.textContent = 'Preparando autorização…';
+    try {
+      const response = await window.GestaoApi.authorizeMercadoLivre();
+      const link = new URL(response.authorizeUrl);
+      if (link.protocol !== 'https:' || link.hostname !== 'auth.mercadolivre.com.br' || link.pathname !== '/authorization') {
+        throw new Error('O endereço de autorização do Mercado Livre não é confiável.');
+      }
+      window.location.assign(link.toString());
+    } catch (err) {
+      if (err.status === 401) return handleSessionExpired('integração');
+      message.textContent = friendlyErrorMessage(err, 'Não foi possível iniciar a autorização.');
+      mlButton.disabled = false;
+      mlButton.textContent = 'Conectar Mercado Livre';
+    }
+  });
+  $('[data-ml-refresh]')?.addEventListener('click', loadMercadoLivreStatus);
   async function loadIntegration() {
     const params = new URLSearchParams(window.location.search);
     if (params.has('bling')) {
@@ -1019,6 +1057,16 @@
       updatedUrl.searchParams.delete('reason');
       window.history.replaceState(null, '', updatedUrl.toString());
     }
+    if (params.has('ml')) {
+      showToast(params.get('ml') === 'connected'
+        ? 'Mercado Livre autorizado. Conferindo a conta…'
+        : 'Autorização do Mercado Livre não concluída. Verifique a conta e os dados do aplicativo.');
+      const updatedUrl = new URL(window.location.href);
+      updatedUrl.searchParams.delete('ml');
+      updatedUrl.searchParams.delete('reason');
+      window.history.replaceState(null, '', updatedUrl.toString());
+    }
+    loadMercadoLivreStatus();
     renderState('integracao', 'loading');
     $('[data-integration-card]').hidden = true;
     try {
