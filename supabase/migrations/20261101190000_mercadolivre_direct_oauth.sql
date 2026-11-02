@@ -27,3 +27,5 @@ ALTER TABLE public.ml_oauth_tokens ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.ml_oauth_states FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE public.ml_oauth_tokens FROM PUBLIC, anon, authenticated;
 -- Nenhuma policy pública de leitura/escrita. Service role somente após validação admin.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ml_oauth_states TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ml_oauth_tokens TO service_role;
