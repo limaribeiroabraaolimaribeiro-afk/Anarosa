@@ -227,6 +227,11 @@ const actions: Record<string,Tool> = {
     action:async (a,token)=>requestAdmin('mercadolivre-oauth-callback',token,undefined,{
       action:'detail',id:requiredText(a,'id',30)}),
   },
+  mercadolivre_comparar_modalidades: {
+    description:'Consultar a cotação de tarifa por venda do Mercado Livre para Clássico e Premium do anúncio MLB informado, com detalhes de comissão. Somente leitura; nunca altera tipo de anúncio nem promete parcelamento.',
+    schema:properties({id:S.str('ID MLB do anúncio',30)},['id']),readOnly:true,openWorld:true,
+    action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'fees',id:requiredText(a,'id',30)}),
+  },
   mercadolivre_preparar_correcao: {
     description:'PREVIEW apenas: preparar uma proposta para CORRIGIR anúncio já publicado diretamente na API oficial Mercado Livre (sem Bling). Aceita título, descrição, atributos da categoria e adição de fotos públicas; não mexe em preço/estoque/variações. Mostre o antes/depois integral ao administrador e solicite aprovação explícita ANTES de chamar mercadolivre_aplicar_correcao. Nunca afirmar que a prévia foi publicada.',
     schema:properties({
