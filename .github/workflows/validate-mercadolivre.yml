@@ -1,0 +1,20 @@
+name: Validate Mercado Livre OAuth
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  mercado-livre-oauth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check OAuth Edge Functions
+        run: cd supabase/functions && deno check _shared/mercadolivre-oauth.ts _shared/mercadolivre-session.ts admin-mercadolivre-connect/index.ts admin-mercadolivre-items/index.ts mercadolivre-oauth-callback/index.ts
+      - name: Test OAuth
+        run: cd supabase/functions && deno test --allow-env --allow-read _tests/mercadolivre-oauth.test.ts
+      - name: JavaScript syntax
+        run: node --check gestao/js/gestao.js && node --check gestao/js/gestao-api.js

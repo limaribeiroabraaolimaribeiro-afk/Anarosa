@@ -114,3 +114,12 @@ verify_jwt = false
 # verificam sessão real e store_admins na Edge Function ANAROSA.
 [functions.anarosa-mcp]
 verify_jwt = false
+
+# API direta Mercado Livre — OAuth administrado pela Gestão ANAROSA.
+[functions.admin-mercadolivre-connect]
+verify_jwt = true
+[functions.mercadolivre-oauth-callback]
+verify_jwt = false
+
+[functions.admin-mercadolivre-items]
+verify_jwt = true

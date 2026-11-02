@@ -271,6 +271,22 @@
           <p class="gestao-note" data-bling-reconnect-note>Use após alterar permissões do aplicativo no Bling. A autorização abrirá no site oficial do Bling. Não desconecta Shopee ou Mercado Livre.</p>
         </div>
         <div class="gestao-card">
+          <h2>Mercado Livre — API direta</h2>
+          <p class="gestao-note">Conecte a conta vendedora oficial por autorização do Mercado Livre. Esta conexão não substitui o Bling, não modifica anúncios e não envia estoque.</p>
+          <ul class="gestao-mini-list gestao-mini-list--big">
+            <li><span>Status da API</span><strong data-ml-status>Verificando…</strong></li>
+            <li><span>Conta vendedora</span><strong data-ml-seller>—</strong></li>
+          </ul>
+          <div class="gestao-actions">
+            <button type="button" class="btn btn-primary" data-ml-connect>Conectar Mercado Livre</button>
+            <button type="button" class="btn btn-outline" data-ml-refresh>Atualizar status</button>
+            <button type="button" class="btn btn-outline" data-ml-listings>Consultar anúncios reais</button>
+          </div>
+          <p class="gestao-note" data-ml-message role="status" aria-live="polite">A autorização é feita no site oficial do Mercado Livre, usando a conta principal da loja.</p>
+          <div data-ml-listings-result role="status" aria-live="polite"></div>
+          <p class="gestao-note">Se aparecer “Aplicativo não configurado”, cadastre um aplicativo Mercado Livre no DevCenter e configure suas credenciais com segurança no Supabase. Nunca coloque a Secret Key no navegador.</p>
+        </div>
+        <div class="gestao-card">
           <div class="gestao-audit-heading">
             <div>
               <h2>Auditoria do catálogo</h2>
