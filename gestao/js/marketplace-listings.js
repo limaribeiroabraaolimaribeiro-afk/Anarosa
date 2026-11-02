@@ -9,7 +9,7 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const label = { mercado_livre: 'Mercado Livre', shopee:'Shopee' };
-  const state = { listings:[], products:[], connections:[], editing:null, loaded:false };
+  const state = { listings:[], products:[], connections:[], editing:null, loaded:false, channelInspectionAt:0 };
   const node = $('[data-marketplace-root]');
   const message = (s, kind='') => {
     const el=$('[data-marketplace-message]');
@@ -177,12 +177,16 @@
       const note=document.createElement('p');
       note.className='gestao-note';
       note.textContent=response.adsAvailable
-        ? 'Consulta de anúncios ao vivo: '+(response.ads||[]).length+' registro(s) retornado(s) pelo Bling. Nenhum foi alterado.'
+        ? 'Leitura pelo Bling: '+(response.ads||[]).length+' anúncio(s) retornado(s), disponíveis também ao ChatGPT pelo MCP da Gestão. Nenhum anúncio foi alterado. Publicação direta precisa de autorização própria.'
         : (response.adsMessage || 'O endpoint de anúncios ainda não está disponível; canais detectados não equivalem a anúncios lidos.');
       target.append(note);
       if(response.adsAvailable && Array.isArray(response.ads) && response.ads.length){
         const list=document.createElement('div');
         list.className='listing-remote-list';
+        list.setAttribute('aria-label','Anúncios Mercado Livre consultados no Bling');
+        const heading=document.createElement('h3');
+        heading.textContent='Anúncios Mercado Livre existentes (leitura Bling)';
+        list.append(heading);
         response.ads.forEach(a=>{
           const row=document.createElement('div');
           row.className='listing-record';
@@ -193,13 +197,14 @@
           const price=typeof a.preco==='number'&&Number.isFinite(a.preco)?fmt(a.preco):'Sem preço';
           detail.textContent='Bling '+String(a.id||'—')+
             (a.externalListingId?' · '+String(a.externalListingId):' · Sem código externo')+
-            ' · '+price+' · '+status;
+            ' · '+price+' · Situação no Bling: '+status+' (não conferida diretamente no Mercado Livre)';
           row.append(title,detail);
           list.append(row);
         });
         target.append(list);
       }
-      message(response.message||'Canais consultados.','success');
+      state.channelInspectionAt=Date.now();
+      message('Leitura via Bling concluída; publicar pela Gestão requer autorização direta.','success');
     }catch(err) {
       target.textContent='Não foi possível consultar os canais. '+(err.message||'Verifique a integração.');
     }finally{
@@ -249,6 +254,9 @@
       $('[data-marketplace-form]').innerHTML =
         '<p class="gestao-note">Os produtos do Bling estão temporariamente indisponíveis. Toque em Atualizar.</p>';
     }
+    // Exibe anúncios reais lidos do Bling ao abrir a página.
+    // Respeita um intervalo mínimo para não exceder limites do ERP.
+    if (Date.now() - state.channelInspectionAt > 120000) void inspectBlingChannels();
     if (listingsResult.status === 'rejected' || productsResult.status === 'rejected') {
       const missing = [
         listingsResult.status === 'rejected' ? 'anúncios salvos' : '',
