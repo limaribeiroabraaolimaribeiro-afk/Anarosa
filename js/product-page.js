@@ -106,13 +106,38 @@
       return '<button type="button" class="pdp-option" data-variant="'+esc(v.id)+'" aria-pressed="false" '+(out?'disabled':'')+'><span class="pdp-option-title">'+esc(variantName(v))+'</span><small>'+(out?'Esgotado':format(priceOf(item,v)))+'</small></button>';
     }).join('');
   }
+  // The public API can return both a parent product and its size records.
+  // Recommendations must be distinct PRODUCTS, never duplicate size cards.
+  function relatedProducts(list, current) {
+    const products=Array.isArray(list)?list:[];
+    const key=(value)=>value==null?'':String(value).trim();
+    const belongsTo=(variant, product) =>
+      (key(variant.blingId) && key(variant.blingId)===key(product.blingId)) ||
+      (key(variant.sku) && key(variant.sku)===key(product.sku));
+    const parent=products.find(p=>variantList(p).some(v=>belongsTo(v,current)));
+    const family=parent||current;
+    const familyIds=new Set([family.blingId,current.blingId,...variantList(family).map(v=>v.blingId)].map(key).filter(Boolean));
+    const familySkus=new Set([family.sku,current.sku,...variantList(family).map(v=>v.sku)].map(key).filter(Boolean));
+    const childIds=new Set(products.flatMap(p=>variantList(p).map(v=>key(v.blingId))).filter(Boolean));
+    const childSkus=new Set(products.flatMap(p=>variantList(p).map(v=>key(v.sku))).filter(Boolean));
+    const seen=new Set();
+    return products.filter(p=>{
+      if(!p||!p.slug||p.slug===current.slug||p.slug===family.slug||p.active===false||itemOut(p))return false;
+      const id=key(p.blingId),sku=key(p.sku);
+      if((id&&(familyIds.has(id)||childIds.has(id)))||(sku&&(familySkus.has(sku)||childSkus.has(sku))))return false;
+      const unique=id?'bling:'+id:'slug:'+p.slug;
+      if(seen.has(unique))return false;
+      seen.add(unique);
+      return true;
+    }).slice(0,4);
+  }
   function renderRelated(list) {
-    const others=(list||[]).filter(p=>p.slug!==item.slug).slice(0,4);
-    if(!others.length)return;
+    const others=relatedProducts(list,item);
+    const section=$('[data-related]');
+    section.hidden=!others.length;
     $('[data-related-grid]').innerHTML=others.map(p=>
       '<a class="pdp-related-item" href="produto.html?slug='+encodeURIComponent(p.slug)+'"><span class="pdp-related-image"><img src="'+esc(validImage(p.image))+'" alt="'+esc(p.name)+'" loading="lazy" width="320" height="400"></span><strong>'+esc(p.name)+'</strong><span>'+format(p.promotionalPrice??p.price)+'</span></a>'
     ).join('');
-    $('[data-related]').hidden=false;
   }
   function updateCart() {
     const items=cart.getItems();

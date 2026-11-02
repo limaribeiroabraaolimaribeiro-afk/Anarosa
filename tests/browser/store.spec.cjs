@@ -102,6 +102,43 @@ test('product page exposes all photos, description, share and WhatsApp link', as
   await expect(page.locator('[data-lightbox]')).toBeHidden();
 });
 
+test('recommendations exclude size records and keep each different product only once', async ({ page }) => {
+  const childProducts = product.variants.map((v) => ({
+    ...product, id: 'child-' + v.id, blingId: v.blingId, sku: v.sku,
+    name: 'Bermuda de teste Tamanho:' + v.size,
+    slug: 'bermuda-teste-' + v.size.toLowerCase(), stock: v.stock, available: v.available, variants: [],
+  }));
+  const otherParent = {
+    ...product, id: 'p2', blingId: '301', sku: 'OUTRA',
+    name: 'Outra bermuda', slug: 'outra-bermuda', stock: 3,
+    variants: [{ id: 'v3', blingId: '302', sku: 'OUTRA-G', name: 'Tamanho:G', size: 'G', price: 90, stock: 3, available: true }],
+  };
+  const otherChild = {
+    ...otherParent, id: 'child-other', blingId: '302', sku: 'OUTRA-G',
+    name: 'Outra bermuda Tamanho:G', slug: 'outra-bermuda-g', variants: [],
+  };
+  const items = [...childProducts, otherChild, otherParent, product];
+  await page.route('**/storefront-products?*', (r) => r.fulfill({ json: { ok: true, items, total: items.length } }));
+  await page.goto('/produto.html?slug=bermuda-teste');
+  await expect(page.locator('[data-related-grid] .pdp-related-item')).toHaveCount(1);
+  await expect(page.locator('[data-related-grid] .pdp-related-item')).toHaveAttribute('href', /slug=outra-bermuda$/);
+  await expect(page.locator('[data-related-grid]')).not.toContainText('Tamanho:');
+});
+
+test('recommendations section disappears if API only returns current product and its sizes', async ({ page }) => {
+  const items = [
+    ...product.variants.map((v) => ({
+      ...product, id: 'child-' + v.id, blingId: v.blingId, sku: v.sku,
+      name: 'Bermuda de teste Tamanho:' + v.size,
+      slug: 'bermuda-teste-' + v.size.toLowerCase(), variants: [],
+    })), product,
+  ];
+  await page.route('**/storefront-products?*', (r) => r.fulfill({ json: { ok: true, items, total: items.length } }));
+  await page.goto('/produto.html?slug=bermuda-teste');
+  await expect(page.locator('[data-related]')).toBeHidden();
+  await expect(page.locator('[data-related-grid] .pdp-related-item')).toHaveCount(0);
+});
+
 test('catalog failure shows an error and no demo product', async ({ page }) => {
   await page.route('**/storefront-products?*', (r) => r.fulfill({ status: 503, json: { ok: false } }));
   await page.goto('/');
