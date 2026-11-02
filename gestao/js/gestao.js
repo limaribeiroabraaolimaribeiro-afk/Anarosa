@@ -947,6 +947,23 @@
   // ---------------------------------------------------------------
   // INTEGRAÇÃO
   // ---------------------------------------------------------------
+  const mlConnect = $('[data-ml-connect]');
+  mlConnect?.addEventListener('click', async () => {
+    if (mlConnect.disabled) return;
+    const message = $('[data-ml-connect-message]');
+    mlConnect.disabled = true;
+    try {
+      const response = await window.GestaoApi.connectMercadoLivre();
+      const uri = new URL(response.authorizeUrl);
+      if (uri.protocol !== 'https:' || uri.hostname !== 'auth.mercadolivre.com.br' || uri.pathname !== '/authorization') {
+        throw new Error('O endereço de autorização do Mercado Livre é inválido.');
+      }
+      window.location.assign(uri.toString());
+    } catch(err) {
+      message.textContent = friendlyErrorMessage(err, 'Não foi possível iniciar autorização Mercado Livre.');
+      mlConnect.disabled = false;
+    }
+  });
   const blingReconnectButton = $('[data-bling-reconnect]');
   blingReconnectButton?.addEventListener('click', async () => {
     if (blingReconnectButton.disabled) return;
