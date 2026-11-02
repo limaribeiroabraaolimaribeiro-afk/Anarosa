@@ -17,8 +17,16 @@ function headers(req:Request):HeadersInit {
 }
 function json(req:Request,obj:unknown,status=200){return new Response(JSON.stringify(obj),{status,headers:headers(req)});}
 function page(msg:string,success=false){
-  const h='<html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Integração ANAROSA</title><body style="font-family:system-ui;background:#faf7f2;color:#352514;max-width:640px;margin:60px auto;padding:24px"><h1>Gestão ANAROSA</h1><p>'+msg+'</p><p><a href="https://www.lojaanarosa.com.br/gestao/#/integracao">Voltar às integrações</a></p></body></html>';
-  return new Response(h,{status:success?200:400,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; style-src 'unsafe-inline';"}});
+  // Redireciona ao painel sem repassar code/state OAuth na URL de destino.
+  // Supabase/browser podem exibir HTML cru no retorno do OAuth em webviews.
+  const result=success?'connected'
+    : /expirada|utilizada/i.test(msg)?'expired'
+    : /não concedida/i.test(msg)?'denied'
+    :'error';
+  const url='https://www.lojaanarosa.com.br/gestao/?meli_oauth='+result+'#/integracao';
+  return new Response(null,{status:303,headers:{
+    'location':url,'cache-control':'no-store','referrer-policy':'no-referrer'
+  }});
 }
 function hex(bytes:Uint8Array){return Array.from(bytes).map(x=>x.toString(16).padStart(2,'0')).join('');}
 async function sha(s:string){return hex(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))));}
