@@ -120,3 +120,6 @@ verify_jwt = false
 verify_jwt = true
 [functions.mercadolivre-oauth-callback]
 verify_jwt = false
+
+[functions.admin-mercadolivre-items]
+verify_jwt = true
