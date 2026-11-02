@@ -361,11 +361,47 @@ Deno.serve(async(req:Request)=>{
     return json(req,{ok:true,authorizationUrl:u.toString(),expiresInMinutes:10});
   }
   if(action==='edit_preview'||action==='edit_apply')return editWorkflow(req,adminId,body);
-  if(!['list','detail','verify'].includes(action))return json(req,{ok:false,message:'Operação desconhecida.'},400);
+  if(!['list','detail','verify','fees'].includes(action))return json(req,{ok:false,message:'Operação desconhecida.'},400);
   const row=await connection();
   if(!row)return json(req,{ok:false,connected:false,message:'Conecte primeiro a conta Mercado Livre na Gestão.'},409);
   let access:string;
   try{access=await usableToken(row);}catch{return json(req,{ok:false,message:'Não foi possível renovar a autorização Mercado Livre. Tente novamente ou reconecte a conta.'},503);}
+  if(action==='fees'){
+    const id=String(body.id||'').trim().toUpperCase();
+    if(!/^MLB\d{8,16}$/.test(id))return json(req,{ok:false,message:'ID de anúncio inválido.'},400);
+    let item:any;
+    try {item=await readMeli('/items/'+id,access);} catch {item={ok:false};}
+    if(!item.ok||Number(item.data?.seller_id)!==Number(row.seller_id))
+      return json(req,{ok:false,message:'Anúncio não encontrado na conta conectada.'},404);
+    const it=item.data;
+    const base='/sites/MLB/listing_prices';
+    const quotes:any[]=[];
+    for(const typ of ['gold_special','gold_pro']){
+      const qs=new URLSearchParams({
+        price:String(it.price),category_id:String(it.category_id),listing_type_id:typ,
+        currency_id:'BRL',shipping_mode:String(it.shipping?.mode||'me2')
+      });
+      if(it.shipping?.logistic_type)qs.set('logistic_type',String(it.shipping.logistic_type));
+      let fetched:any;
+      try{fetched=await readMeli(base+'?'+qs.toString(),access);}
+      catch{fetched={ok:false,status:0};}
+      if(!fetched.ok){quotes.push({type:typ,available:false,httpStatus:fetched.status||null});continue;}
+      const val=Array.isArray(fetched.data)?fetched.data.find((v:any)=>v.listing_type_id===typ):fetched.data;
+      if(!val || val.listing_type_id!==typ){quotes.push({type:typ,available:false});continue;}
+      quotes.push({type:typ,available:true,name:val.listing_type_name,
+        saleFee:Number(val.sale_fee_amount),feeDetails:{
+          fixedFee:val.sale_fee_details?.fixed_fee??null,
+          percentageFee:val.sale_fee_details?.percentage_fee??null,
+          financingFee:val.sale_fee_details?.financing_add_on_fee??null,
+        },
+        exposure:val.listing_exposure||null
+      });
+    }
+    return json(req,{ok:true,source:'Mercado Livre listing_prices API',
+      itemId:id,currentListingType:it.listing_type_id,price:it.price,currency:'BRL',
+      categoryId:it.category_id,shippingMode:it.shipping?.mode||null,logisticType:it.shipping?.logistic_type||null,
+      quotes,notice:'A tarifa exibida é cotação da API para modalidade, categoria e logística informadas; custos de frete, impostos e outras cobranças podem ser adicionais. Não alterou o anúncio.'});
+  }
   if(action==='verify'){
     // Verificação ativa: confirma identidade, autorização e leitura de publicações na API oficial.
     const {data:allowed,error:rateError}=await db.rpc('rl_check_and_increment',{
