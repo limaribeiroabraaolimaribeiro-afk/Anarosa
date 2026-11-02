@@ -148,11 +148,35 @@ Deno.serve(async(req:Request)=>{
     u.search=new URLSearchParams({response_type:'code',client_id:CLIENT_ID,redirect_uri:REDIRECT,state:raw}).toString();
     return json(req,{ok:true,authorizationUrl:u.toString(),expiresInMinutes:10});
   }
-  if(!['list','detail'].includes(action))return json(req,{ok:false,message:'Operação desconhecida.'},400);
+  if(!['list','detail','verify'].includes(action))return json(req,{ok:false,message:'Operação desconhecida.'},400);
   const row=await connection();
   if(!row)return json(req,{ok:false,connected:false,message:'Conecte primeiro a conta Mercado Livre na Gestão.'},409);
   let access:string;
   try{access=await usableToken(row);}catch{return json(req,{ok:false,message:'Não foi possível renovar a autorização Mercado Livre. Tente novamente ou reconecte a conta.'},503);}
+  if(action==='verify'){
+    // Verificação ativa: confirma identidade, autorização e leitura de publicações na API oficial.
+    const {data:allowed,error:rateError}=await db.rpc('rl_check_and_increment',{
+      p_bucket:'meli-verify:'+adminId,p_limit:12,p_window_seconds:60
+    });
+    if(rateError||allowed!==true)return json(req,{ok:false,message:'Muitas verificações. Aguarde um minuto e tente novamente.'},429);
+    let owner:any;
+    try {owner=await readMeli('/users/me',access);}catch {owner={ok:false,status:0};}
+    if(!owner.ok || String(owner.data?.id)!==String(row.seller_id))
+      return json(req,{ok:false,connected:true,verified:false,
+        message:'A conta foi salva, mas não foi possível validar a identidade na API do Mercado Livre.',
+        httpStatus:owner.status||null},502);
+    const path='/users/'+encodeURIComponent(String(row.seller_id))+'/items/search?limit=1&offset=0';
+    let listing:any;
+    try {listing=await readMeli(path,access);}catch {listing={ok:false,status:0};}
+    if(!listing.ok)return json(req,{ok:false,connected:true,verified:false,
+      message:'A conta foi validada, mas o Mercado Livre não permitiu consultar os anúncios.',
+      httpStatus:listing.status||null},502);
+    const count=Number(listing.data?.paging?.total);
+    return json(req,{ok:true,connected:true,verified:true,source:'Mercado Livre API',
+      sellerNickname:row.seller_nickname,
+      listingsTotal:Number.isFinite(count)&&count>=0?count:null,
+      checkedAt:new Date().toISOString()});
+  }
   if(action==='list'){
     const offset=Math.max(0,Math.min(1000,Number(body.offset)||0));
     const limit=Math.max(1,Math.min(30,Number(body.limit)||15));
