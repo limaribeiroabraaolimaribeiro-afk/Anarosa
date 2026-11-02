@@ -270,6 +270,16 @@
           </div>
           <p class="gestao-note" data-bling-reconnect-note>Use após alterar permissões do aplicativo no Bling. A autorização abrirá no site oficial do Bling. Não desconecta Shopee ou Mercado Livre.</p>
         </div>
+        <div class="gestao-card" data-meli-card>
+          <h2>Mercado Livre — API direta</h2>
+          <p class="gestao-note">Autorize a conta vendedora pelo login oficial do Mercado Livre. O ChatGPT poderá consultar anúncios e a qualidade das publicações diretamente pela Gestão ANAROSA (MCP), sem depender do Bling. Não são feitas alterações automáticas.</p>
+          <p class="gestao-note" data-meli-status role="status" aria-live="polite">Verificando conexão com Mercado Livre...</p>
+          <div class="gestao-actions">
+            <button type="button" class="btn btn-primary" data-meli-connect>Conectar Mercado Livre</button>
+            <button type="button" class="btn btn-outline" data-meli-refresh>Verificar conexão</button>
+          </div>
+          <p class="gestao-note">A autorização deve ser concluída com a conta principal da vendedora. As credenciais permanecem no servidor e não aparecem no ChatGPT.</p>
+        </div>
         <div class="gestao-card">
           <div class="gestao-audit-heading">
             <div>
@@ -407,6 +417,7 @@
   <script src="js/product-editor.js"></script>
   <script src="../js/services/ui-service.js"></script>
   <script src="js/marketplace-listings.js"></script>
+  <script src="js/mercadolivre-connect.js"></script>
   <script src="js/gestao.js"></script>
 </body>
 </html>
