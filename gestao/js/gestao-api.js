@@ -70,6 +70,7 @@
     getIntegrationStatus: () => call('admin-integration-status'),
     getCatalogAudit: () => call('admin-catalog-audit'),
     reconnectBling: () => call('admin-bling-reconnect', { method: 'POST' }),
+    connectMercadoLivre: () => call('admin-ml-oauth-start', { method: 'POST' }),
     createProduct: (body) => call('admin-product-create', { body }),
     uploadProductImage: (file) => { const body = new FormData(); body.append('photo', file); return call('admin-product-image-upload', { body }); },
     updateProduct: (body) => call('admin-product-update', { body }),
