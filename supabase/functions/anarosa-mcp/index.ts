@@ -84,7 +84,7 @@ async function requestAdmin(endpoint: string, token: string, params?: Args, body
     'admin-dashboard-summary','admin-products','admin-product-detail','admin-categories','admin-customers',
     'admin-orders','admin-stock-history','admin-deposits','admin-integration-status',
     'admin-product-create','admin-product-update','admin-stock-adjust','admin-marketplace-listings',
-    'admin-marketplace-channels','admin-product-image-upload','admin-catalog-audit',
+    'admin-marketplace-channels','mercadolivre-oauth-callback','admin-product-image-upload','admin-catalog-audit',
   ]);
   if (!allowed.has(endpoint)) throw new Error('Operação não autorizada pelo MCP.');
   const url = new URL(APP_URL + '/functions/v1/' + endpoint);
@@ -207,6 +207,58 @@ const actions: Record<string,Tool> = {
     schema:properties({limit:{type:'integer',minimum:1,maximum:50},offset:{type:'integer',minimum:0},
       search:S.str('Nome ou contato para buscar',80)}),readOnly:true,
     action:(a,t)=>requestAdmin('admin-customers',t,jsonParams(a,['limit','offset','search'])),
+  },
+  mercadolivre_status: {
+    description:'Consultar status da conexão DIRETA Mercado Livre na Gestão ANAROSA. Consulta pela API Mercado Livre, não pelo Bling. Nunca retorna credenciais.',
+    schema:properties({}),readOnly:true,openWorld:true,
+    action:async (_a,token)=>requestAdmin('mercadolivre-oauth-callback',token,undefined,{action:'status'}),
+  },
+  mercadolivre_listar_anuncios: {
+    description:'Listar IDs dos anúncios da conta vendedora Mercado Livre conectada diretamente via OAuth, com total e paginação; não consulta o Bling.',
+    schema:properties({limit:{type:'integer',minimum:1,maximum:30},offset:{type:'integer',minimum:0,maximum:1000}}),
+    readOnly:true,openWorld:true,
+    action:async (a,token)=>requestAdmin('mercadolivre-oauth-callback',token,undefined,{
+      action:'list',limit:Number(a.limit)||15,offset:Number(a.offset)||0}),
+  },
+  mercadolivre_detalhar_anuncio: {
+    description:'Consultar diretamente na API Mercado Livre um anúncio da ANAROSA por ID MLB. Retorna atributos, fotos, descrição, situação e qualidade/performance oficial (ações pendentes), quando a API disponibilizar. Somente leitura.',
+    schema:properties({id:S.str('Identificador do anúncio MLB (exemplo MLB1234567890)',30)},['id']),
+    readOnly:true,openWorld:true,
+    action:async (a,token)=>requestAdmin('mercadolivre-oauth-callback',token,undefined,{
+      action:'detail',id:requiredText(a,'id',30)}),
+  },
+  mercadolivre_preparar_correcao: {
+    description:'PREVIEW apenas: preparar uma proposta para CORRIGIR anúncio já publicado diretamente na API oficial Mercado Livre (sem Bling). Aceita título, descrição, atributos da categoria e adição de fotos públicas; não mexe em preço/estoque/variações. Mostre o antes/depois integral ao administrador e solicite aprovação explícita ANTES de chamar mercadolivre_aplicar_correcao. Nunca afirmar que a prévia foi publicada.',
+    schema:properties({
+      id:S.str('ID real MLB do anúncio da ANAROSA',30),
+      changes:S.obj('Alterações comprovadas: {title?:string, description?:string, attributes?:[{id:string,value_name?:string,value_id?:string}], addPictureUrls?:string[]} . Não inventar características, GTIN ou URLs. Foto deve ser pública da loja/Storage ANAROSA.')
+    },['id','changes']),
+    readOnly:true,openWorld:true,
+    action:(a,t)=>{
+      const id=requiredText(a,'id',30).toUpperCase();
+      if(!/^MLB[0-9]{8,16}$/.test(id))throw Error('Código MLB inválido.');
+      if(!a.changes||typeof a.changes!=='object'||Array.isArray(a.changes))throw Error('Objeto changes inválido.');
+      return requestAdmin('mercadolivre-oauth-callback',t,undefined,{
+        action:'edit_preview',id,changes:a.changes
+      });
+    },
+  },
+  mercadolivre_aplicar_correcao: {
+    description:'AÇÃO DE ESCRITA REAL e irreversível no anúncio ativo do Mercado Livre. SOMENTE depois que o administrador revisar a prévia e AUTORIZAR EXPRESSAMENTE a alteração deste anúncio MLB. Precisa do previewId gerado na função anterior, confirmar=true. Recusa estado alterado, revisão expirada e reexecuções; nunca usar automaticamente nem sem aprovação do usuário. Pode alterar título, descrição, atributos ou acrescentar fotos conforme prévia; não altera estoque, preço nem variações. Consulte resultado real e não faça retry cego.',
+    schema:properties({
+      previewId:S.str('UUID exato da prévia aprovada pelo administrador',40),
+      confirmar:S.bool('A pessoa administradora aprovou expressamente as alterações descritas na prévia. Nunca true sem essa aprovação.')
+    },['previewId','confirmar']),
+    openWorld:true,
+    action:(a,t)=>{
+      yes(a);
+      const previewId=requiredText(a,'previewId',40);
+      if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(previewId))
+        throw Error('previewId inválido.');
+      return requestAdmin('mercadolivre-oauth-callback',t,undefined,{
+        action:'edit_apply',previewId,confirmar:true
+      });
+    },
   },
   listar_anuncios: {
     description:'Consultar anúncios reais no Bling por canal, inclusive códigos MLB, títulos, preços e situação; também retorna rascunhos da Gestão. Leitura apenas, sem publicar ou editar.',
@@ -387,7 +439,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     protocolVersion:'2025-06-18',
     capabilities:{tools:{listChanged:false}},
     serverInfo:{name:'Anarosa Gestao MCP',version:'1.0.0'},
-    instructions:'Ferramentas comerciais da Gestão ANAROSA para leitura, cadastro de produtos, estoque, rascunhos e anúncios. Nunca acesso a código, GitHub, SQL, secrets ou rede arbitrária. Confirmar operações de gravação. Publicações reais somente se o canal autorizado confirmar.',
+    instructions:'Ferramentas comerciais da Gestão ANAROSA para leitura, cadastro de produtos, estoque, rascunhos e anúncios. Nunca acesso a código, GitHub, SQL, secrets ou rede arbitrária. Confirmar explicitamente cada edição no Mercado Livre após exibir prévia e conferir versão; nunca executar modificações sem autorização expressa. Publicações reais somente se o canal autorizado confirmar.',
   });
   if(data.method==='ping')return ok(data.id,{});
   if(data.method==='tools/list')return ok(data.id,{tools:toolIndex});
