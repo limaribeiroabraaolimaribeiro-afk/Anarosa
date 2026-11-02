@@ -280,8 +280,10 @@
           <div class="gestao-actions">
             <button type="button" class="btn btn-primary" data-ml-connect>Conectar Mercado Livre</button>
             <button type="button" class="btn btn-outline" data-ml-refresh>Atualizar status</button>
+            <button type="button" class="btn btn-outline" data-ml-listings>Consultar anúncios reais</button>
           </div>
           <p class="gestao-note" data-ml-message role="status" aria-live="polite">A autorização é feita no site oficial do Mercado Livre, usando a conta principal da loja.</p>
+          <div data-ml-listings-result role="status" aria-live="polite"></div>
           <p class="gestao-note">Se aparecer “Aplicativo não configurado”, cadastre um aplicativo Mercado Livre no DevCenter e configure suas credenciais com segurança no Supabase. Nunca coloque a Secret Key no navegador.</p>
         </div>
         <div class="gestao-card">
