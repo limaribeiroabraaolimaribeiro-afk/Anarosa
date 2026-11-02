@@ -1047,6 +1047,18 @@
     }
   });
   $('[data-ml-refresh]')?.addEventListener('click', loadMercadoLivreStatus);
+  $('[data-ml-listings]')?.addEventListener('click', async () => {
+    const btn=$('[data-ml-listings]'), output=$('[data-ml-listings-result]');
+    btn.disabled=true;output.textContent='Consultando a API do Mercado Livre…';
+    try {
+      const result=await window.GestaoApi.listMercadoLivreItems();
+      output.textContent=String(result.total||0)+' anúncios encontrados. IDs consultados (até 50): '+
+        (result.listingIds||[]).join(', ');
+    } catch (err) {
+      if (err.status===401) return handleSessionExpired('integração');
+      output.textContent=friendlyErrorMessage(err,'Não foi possível consultar os anúncios.');
+    } finally { btn.disabled=false; }
+  });
   async function loadIntegration() {
     const params = new URLSearchParams(window.location.search);
     if (params.has('bling')) {
