@@ -16,25 +16,53 @@
     url.searchParams.delete('meli_oauth');
     history.replaceState(history.state,'',url.toString());
   }
-  async function check(){
-    const el=status(),btn=button();
+  const result=()=> $('[data-meli-check-result]');
+  let inFlight=false;
+  async function check({live=false}={}){
+    const el=status(),btn=button(),refresh=refreshButton(),feedback=result();
     if(!el || !window.GestaoApi?.mercadoLivreControl)return;
+    if(inFlight)return;
+    inFlight=true;
+    if(refresh){
+      refresh.disabled=true;
+      refresh.textContent=live?'Verificando...':'Consultando...';
+      refresh.setAttribute('aria-busy','true');
+    }
+    if(live && feedback)feedback.textContent='Consultando a identidade e os anúncios na API oficial do Mercado Livre...';
     try{
-      const s=await window.GestaoApi.mercadoLivreControl('status');
+      const s=await window.GestaoApi.mercadoLivreControl(live?'verify':'status');
       if(s.connected){
-        el.textContent='Conectado à conta '+(s.sellerNickname||'Mercado Livre')+'. As ferramentas de consulta direta do MCP estão habilitadas.';
+        el.textContent='Conectado à conta '+(s.sellerNickname||'Mercado Livre')+'.';
         if(btn)btn.textContent='Reconectar Mercado Livre';
       }else{
         el.textContent=callbackMessages[callbackOutcome] || 'Conta Mercado Livre ainda não autorizada. Clique em Conectar Mercado Livre.';
         if(btn)btn.textContent='Conectar Mercado Livre';
       }
+      if(live&&feedback){
+        if(s.verified){
+          const hour=new Date(s.checkedAt||Date.now()).toLocaleTimeString('pt-BR');
+          const count=Number.isInteger(s.listingsTotal)?' Total de anúncios: '+s.listingsTotal+'.':'';
+          feedback.textContent='✓ Verificação concluída às '+hour+': API oficial respondeu com sucesso. Conta: '+s.sellerNickname+'.'+count;
+        }else{
+          feedback.textContent=s.connected?'A autorização está salva, mas ainda não foi possível confirmar o acesso aos anúncios.':'Conta ainda não autorizada.';
+        }
+      }
     }catch(e){
-      el.textContent='Não foi possível verificar a conexão: '+(e?.message || 'falha de rede')+'.';
+      const message=e?.message || 'falha de rede';
+      if(live&&feedback)feedback.textContent='Falha na verificação da API: '+message;
+      else el.textContent='Não foi possível verificar a conexão: '+message+'.';
+    }finally{
+      inFlight=false;
+      if(refresh){
+        refresh.disabled=false;
+        refresh.textContent='Verificar conexão';
+        refresh.removeAttribute('aria-busy');
+      }
     }
   }
   document.addEventListener('click',async(e)=>{
-    if(e.target.closest('[data-meli-refresh]')){await check();return;}
-    const b=e.target.closest('[data-meli-connect]');
+    if(e.target instanceof Element && e.target.closest('[data-meli-refresh]')){await check({live:true});return;}
+    const b=e.target instanceof Element ? e.target.closest('[data-meli-connect]') : null;
     if(!b)return;
     b.disabled=true;
     callbackOutcome=null;
