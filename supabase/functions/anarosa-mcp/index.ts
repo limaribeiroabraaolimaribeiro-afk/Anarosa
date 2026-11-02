@@ -85,6 +85,7 @@ async function requestAdmin(endpoint: string, token: string, params?: Args, body
     'admin-orders','admin-stock-history','admin-deposits','admin-integration-status',
     'admin-product-create','admin-product-update','admin-stock-adjust','admin-marketplace-listings',
     'admin-marketplace-channels','admin-product-image-upload','admin-catalog-audit',
+    'admin-ml-listing',
   ]);
   if (!allowed.has(endpoint)) throw new Error('Operação não autorizada pelo MCP.');
   const url = new URL(APP_URL + '/functions/v1/' + endpoint);
@@ -320,6 +321,26 @@ const actions: Record<string,Tool> = {
     schema:properties({confirmar:S.bool('Autorização para armazenar foto'),mime:{type:'string',enum:['image/jpeg','image/png','image/webp']},
       base64:S.str('Conteúdo binário base64 da imagem sem prefixo data URI',MAX_INPUT)},['confirmar','mime','base64']),
     action:uploadImage,
+  },
+
+  mercado_livre_consultar_anuncio: {
+    description:'Consultar diretamente um anúncio MLB próprio da Anarosa pela API oficial do Mercado Livre, incluindo título, descrição, fotos, atributos e restrição para editar título após vendas. Não altera nada.',
+    schema:properties({itemId:S.str('Código MLB do anúncio, ex. MLB5409091633',30)},['itemId']),
+    readOnly:true,
+    action:(a,t)=>requestAdmin('admin-ml-listing',t,{itemId:requiredText(a,'itemId',30)}),
+  },
+  mercado_livre_editar_anuncio: {
+    description:'Editar DIRETAMENTE no Mercado Livre título ou descrição de anúncio existente, somente após aprovação explícita do usuário. Exige expectedValue igual ao conteúdo real consultado, impede alterações concorrentes, nunca modifica preço, estoque ou anúncios de outra conta.',
+    schema:properties({
+      confirmar:S.bool('Usuário aprovou especificamente este novo texto para este código MLB'),
+      itemId:S.str('Código MLB do anúncio consultado',30),
+      field:{type:'string',enum:['title','description'],description:'Campo a corrigir'},
+      expectedValue:S.str('Texto anterior EXATO retornado na última consulta, usado para evitar sobrescrever outra edição',7000),
+      value:S.str('Novo título ou descrição aprovado pelo usuário',7000),
+    },['confirmar','itemId','field','expectedValue','value']),
+    action:(a,t)=>{yes(a);return requestAdmin('admin-ml-listing',t,undefined,
+      {confirmar:true,itemId:requiredText(a,'itemId',30),field:a.field,
+        expectedValue:a.expectedValue,value:requiredText(a,'value',7000)});},
   },
   sugerir_titulo_e_briefing: {
     description:'Gerar títulos iniciais e briefing de fotos a partir de atributos comprovados. Você, ChatGPT, pode melhorar a redação e criar a imagem visual antes de enviá-la via importar_imagem_gerada. Não inventar materiais, marcas nem características.',
