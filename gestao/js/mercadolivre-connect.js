@@ -5,6 +5,17 @@
   const status=()=> $('[data-meli-status]');
   const button=()=> $('[data-meli-connect]');
   const refreshButton=()=> $('[data-meli-refresh]');
+  let callbackOutcome=new URLSearchParams(location.search).get('meli_oauth');
+  const callbackMessages={
+    expired:'A autorização anterior expirou ou já foi utilizada. Clique em Conectar Mercado Livre para iniciar uma nova autorização e conclua em até 10 minutos.',
+    denied:'A conexão não foi autorizada no Mercado Livre. Você pode tentar novamente.',
+    error:'A autorização não foi concluída. Confira a conta e tente novamente.'
+  };
+  if(callbackOutcome){
+    const url=new URL(location.href);
+    url.searchParams.delete('meli_oauth');
+    history.replaceState(history.state,'',url.toString());
+  }
   async function check(){
     const el=status(),btn=button();
     if(!el || !window.GestaoApi?.mercadoLivreControl)return;
@@ -14,7 +25,7 @@
         el.textContent='Conectado à conta '+(s.sellerNickname||'Mercado Livre')+'. As ferramentas de consulta direta do MCP estão habilitadas.';
         if(btn)btn.textContent='Reconectar Mercado Livre';
       }else{
-        el.textContent='Conta Mercado Livre ainda não autorizada. Clique em Conectar Mercado Livre.';
+        el.textContent=callbackMessages[callbackOutcome] || 'Conta Mercado Livre ainda não autorizada. Clique em Conectar Mercado Livre.';
         if(btn)btn.textContent='Conectar Mercado Livre';
       }
     }catch(e){
@@ -26,6 +37,7 @@
     const b=e.target.closest('[data-meli-connect]');
     if(!b)return;
     b.disabled=true;
+    callbackOutcome=null;
     if(status())status().textContent='Preparando autorização segura...';
     try{
       const r=await window.GestaoApi.mercadoLivreControl('start');
