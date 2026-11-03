@@ -11,6 +11,7 @@ serve(async (req, ctx) => {
   const capabilities = {
     images: imagesEnabled,
     binaryUpload: imagesEnabled,
+    videoUpload: true,
   };
   const id = new URL(req.url).searchParams.get('id') || '';
   if (!id) return json(req, { ok: true, product: {}, revision: null, capabilities });
@@ -20,7 +21,7 @@ serve(async (req, ctx) => {
   return json(req, {
     ok: true,
     product: { ...productEditorView(data), merchandising: merchandising ?? {
-      tags: [], colecao: '', segmento: '', precoPromocional: null,
+      tags: [], colecao: '', segmento: '', precoPromocional: null, videos: [],
     } },
     revision: await productRevision(data),
     capabilities,
