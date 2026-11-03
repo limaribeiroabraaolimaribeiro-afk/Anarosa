@@ -158,3 +158,11 @@ body.product-page {font-family:var(--font-body);background:#fcf9f4;color:#392f26
 @media(prefers-reduced-motion:reduce){
 *,*:before,*:after{animation-duration:0s!important;transition-duration:0s!important;scroll-behavior:auto!important}
 }
+
+/* Vídeos editoriais: carregamento leve e reprodução apenas por ação do visitante. */
+.pdp-product-videos{margin-top:18px;padding:18px;border:1px solid #e4d5c4;background:#fffdf9;border-radius:12px}
+.pdp-product-videos h2{font:500 23px Georgia,serif;color:#61462e}
+.pdp-product-videos p{font-size:12px;color:#87725d;margin:6px 0 14px}
+.pdp-video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,175px),1fr));gap:12px}
+.pdp-video-grid video{display:block;width:100%;aspect-ratio:4/5;max-height:340px;object-fit:contain;background:#231d19;border-radius:8px}
+@media(max-width:700px){.pdp-product-videos{margin:16px 14px 0;padding:14px}.pdp-video-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}.pdp-video-grid video{max-height:300px}}
