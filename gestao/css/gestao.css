@@ -614,6 +614,18 @@ body.product-editor-open .gestao-app.is-products-route .gestao-main {
   padding: 6px 10px;
   font-size: 12px;
 }
+/* Ação destrutiva diferenciada; no celular mantém os quatro botões em grade 2x2. */
+.gestao-product-actions .gestao-btn-delete {
+  color: #a43731;
+  border-color: #d7afa7;
+  background: #fff9f7;
+}
+.gestao-product-actions .gestao-btn-delete:hover:not(:disabled) {
+  color: #fff;
+  background: #a43731;
+  border-color: #a43731;
+}
+.gestao-product-actions .gestao-btn-delete:disabled { opacity: .55; cursor: progress; }
 
 /* ---------------------------------------------------------
    "Opções avançadas" (Entrada/Saída de estoque) — discreto,
