@@ -107,6 +107,7 @@ export interface AdminProductListItem {
   availableStock: number | null;
   active: boolean;
   image: string | null;
+  videos: string[];
   updatedAt: string | null;
   syncedAt: string | null;
   variants: AdminProductVariant[];
@@ -722,6 +723,7 @@ export class CatalogRepository {
         availableStock,
         active: p.active,
         image: displayCatalogImage(images[0], String(p.bling_id), 0, p.metadata),
+        videos: Array.isArray(p.metadata?.videos) ? p.metadata.videos.filter((u: unknown) => typeof u === 'string' && u.startsWith('https://')).slice(0,3) : [],
         updatedAt: p.updated_at ?? null,
         syncedAt: p.synced_at ?? null,
         variants: variantItems,
