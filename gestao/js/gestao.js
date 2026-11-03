@@ -951,7 +951,7 @@
     btn.textContent = 'Excluindo…';
     let operation = null;
     try {
-      operation = await operationIdentity('delete-product:' + product.blingId, {
+      operation = await operationIdentity('delete-product:authorized-v2:' + product.blingId, {
         blingId: product.blingId, confirmText: code, confirmar: true,
       });
       const result = await window.GestaoApi.deleteProduct({
