@@ -524,12 +524,12 @@
         const { blingId } = productDataset(e.target.closest('[data-product-bling-id]'));
         openStockDrawer(productsByBlingId.get(blingId));
       }));
-      $('[data-product-toggle-active]').forEach((btn) => btn.addEventListener('click', (e) => {
+      $$('[data-product-toggle-active]').forEach((btn) => btn.addEventListener('click', (e) => {
         const card = e.target.closest('[data-product-bling-id]');
         const { blingId } = productDataset(card);
         toggleProductActive(productsByBlingId.get(blingId), btn);
       }));
-      $('[data-product-delete]').forEach((btn) => btn.addEventListener('click', (e) => {
+      $$('[data-product-delete]').forEach((btn) => btn.addEventListener('click', (e) => {
         const card = e.target.closest('[data-product-bling-id]');
         const { blingId } = productDataset(card);
         deleteProductFromCatalog(productsByBlingId.get(blingId), btn);
