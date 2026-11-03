@@ -934,9 +934,9 @@
     if (!product || btn.disabled) return;
     const code = String(product.sku || product.blingId);
     const accepted = window.confirm(
-      'Excluir "' + product.name + '" (SKU ' + code + ')?\\n\\n' +
+      'Excluir "' + product.name + '" (SKU ' + code + ')?\n\n' +
       'A ação será enviada ao Bling e removerá o produto da loja ANAROSA. ' +
-      'Não exclui anúncios de marketplaces nem registros históricos.\\n\\n' +
+      'Não exclui anúncios de marketplaces nem registros históricos.\n\n' +
       'Produtos com pedidos ou anúncios vinculados são bloqueados. Deseja continuar?'
     );
     if (!accepted) return;
