@@ -161,7 +161,7 @@ input[type=checkbox],input[type=radio] { accent-color:var(--brown-dark); }
 .manifesto { display:grid; grid-template-columns:28% 49% 23%; min-height:360px; background:#F0E3D1; position:relative; overflow:hidden; }
 .manifesto-photo { position:relative; min-height:360px; }
 .manifesto-photo>img { width:100%; height:100%; position:absolute; object-fit:cover; object-position:center 30%; }
-.brand-signature { position:absolute; left:24px; bottom:24px; background:var(--cream); border-radius:3px; padding:9px; width:104px; box-shadow:0 3px 20px rgb(90 62 43 / .07); }
+.brand-signature { position:absolute; left:24px; bottom:24px; background:transparent; border-radius:3px; padding:9px; width:104px; box-shadow:none; }
 .brand-signature img { width:100%; height:auto; mix-blend-mode:multiply; }
 .manifesto-copy { padding:40px 35px; text-align:center; align-self:center; }
 .manifesto-copy .eyebrow { font-size:9px; letter-spacing:2.7px; }
