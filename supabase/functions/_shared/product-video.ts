@@ -11,6 +11,6 @@ export function isPublishedProductVideoUrl(value: unknown): value is string {
     if (url.protocol !== 'https:' || url.origin !== prefix.origin || url.search || url.hash ||
         !url.pathname.startsWith(prefix.pathname)) return false;
     const name = url.pathname.slice(prefix.pathname.length);
-    return /^[a-f0-9-]{36}\\/[a-f0-9-]{36}\\.(mp4|webm)$/.test(name);
+    return new RegExp('^[a-f0-9-]{36}/[a-f0-9-]{36}[.](mp4|webm)$').test(name);
   } catch { return false; }
 }
