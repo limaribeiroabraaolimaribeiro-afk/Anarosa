@@ -72,7 +72,7 @@
         </div>
       </details>
       <details class="listing-step" data-listing-step="media">
-        <summary><span class="listing-step-number">03</span><span class="listing-step-summary"><strong>Descrição e fotos</strong><small>Detalhes e imagens do anúncio</small></span><span class="listing-step-chevron" aria-hidden="true">⌄</span></summary>
+        <summary><span class="listing-step-number">03</span><span class="listing-step-summary"><strong>Descrição, fotos e vídeo</strong><small>Mídia comercial vinculada ao produto</small></span><span class="listing-step-chevron" aria-hidden="true">⌄</span></summary>
         <div class="listing-step-body">
           <div class="listing-form-grid">
             <label class="listing-span">Descrição<textarea name="listing-description" rows="4" maxlength="7000" placeholder="Descreva o produto sem alterar o cadastro no Bling"></textarea></label>
@@ -83,6 +83,20 @@
             <label class="listing-span">Adicionar fotos do celular
               <input type="file" data-listing-main-files multiple accept="image/jpeg,image/png,image/webp">
             </label>
+            <div class="listing-span listing-video-panel">
+              <label>Vídeo demonstrativo do anúncio
+                <select name="listing-video" data-listing-video-select><option value="">Sem vídeo selecionado</option></select>
+              </label>
+              <p class="gestao-note" data-listing-video-note aria-live="polite">Selecione um produto para consultar seus vídeos.</p>
+              <div class="listing-video-preview" data-listing-video-preview></div>
+              <p class="gestao-note">Mercado Livre Clips: 9:16, 10–60 segundos e áudio. Shopee: prefira MP4. Esta etapa prepara o vídeo, mas não o envia ao marketplace.</p>
+              <div class="listing-video-actions">
+                <a class="btn btn-outline" href="#/produtos">Cadastrar vídeo no produto</a>
+                <a class="btn btn-outline" data-listing-video-source hidden target="_blank" rel="noopener noreferrer">Abrir vídeo selecionado</a>
+                <a class="btn btn-outline" data-listing-clip-help target="_blank" rel="noopener noreferrer" href="https://www.mercadolivre.com.br/a/store/clips">Abrir Clips no Mercado Livre</a>
+                <a class="btn btn-outline" data-listing-shopee-help target="_blank" rel="noopener noreferrer" hidden href="https://help.shopee.com.br/portal/10/article/165030-Passo-a-Passo-para-Criar-seu-Shopee-Video">Como publicar na Shopee Video</a>
+              </div>
+            </div>
           </div>
         </div>
       </details>
@@ -119,12 +133,81 @@
     form['listing-description'].value=item?.description || '';
     form['listing-images'].value=(item?.images || []).join('\n');
     form['listing-attributes'].value=JSON.stringify(item?.attributes||{},null,2);
-    drawProductDetails(item?.variation_mapping);
+    drawProductDetails(item?.variation_mapping, item?.video_url || '');
     if (item) form.querySelectorAll('.listing-step[open], .listing-step[data-listing-step]')
       .forEach(step=>{ if (step.tagName==='DETAILS') step.open=true; });
     updateConnectionMessage();
   }
-  function drawProductDetails(variants) {
+
+  function drawVideoPicker(product, preferred = '') {
+    const form=$('[data-marketplace-form]');
+    const select=form?.querySelector('[data-listing-video-select]');
+    if(!select) return;
+    const videos=Array.isArray(product?.videos) ? product.videos.filter(x=>typeof x==='string' && x.startsWith('https://')).slice(0,3) : [];
+    const saved=preferred || (videos.includes(select.value)?select.value:'');
+    select.replaceChildren();
+    const empty=document.createElement('option');
+    empty.value=''; empty.textContent='Sem vídeo selecionado'; select.append(empty);
+    videos.forEach((url,i)=>{
+      const option=document.createElement('option');
+      option.value=url; option.textContent='Vídeo '+(i+1)+' · '+(url.endsWith('.mp4')?'MP4':'WebM');
+      select.append(option);
+    });
+    select.value=videos.includes(saved)?saved:'';
+    select.disabled=!videos.length;
+    updateVideoPreview();
+  }
+  function updateVideoPreview() {
+    const form=$('[data-marketplace-form]');
+    if(!form) return;
+    const select=form.querySelector('[data-listing-video-select]');
+    const note=form.querySelector('[data-listing-video-note]');
+    const preview=form.querySelector('[data-listing-video-preview]');
+    const source=form.querySelector('[data-listing-video-source]');
+    const ml=form.querySelector('[data-listing-clip-help]');
+    const shopee=form.querySelector('[data-listing-shopee-help]');
+    const url=select?.value||'';
+    const channel=form.marketplace.value;
+    ml.hidden=channel!=='mercado_livre';
+    shopee.hidden=channel!=='shopee';
+    preview.replaceChildren();
+    source.hidden=!url;
+    if(url)source.href=url;else source.removeAttribute('href');
+    if(!selectedProduct()){
+      note.textContent='Selecione um produto do Bling para usar seu vídeo correto.';
+      return;
+    }
+    if(select.disabled){
+      note.textContent='Este produto ainda não possui vídeo salvo. Vá a Produtos → Editar → Vídeos do produto, envie um MP4 e salve.';
+      return;
+    }
+    if(!url){
+      note.textContent='Vídeos disponíveis no produto. Escolha um para preparar o anúncio.';
+      return;
+    }
+    const player=document.createElement('video');
+    player.src=url; player.controls=true; player.playsInline=true; player.preload='metadata';
+    player.setAttribute('aria-label','Prévia do vídeo do anúncio');
+    preview.append(player);
+    note.textContent='Vídeo selecionado no rascunho. Ainda não foi enviado ao marketplace.';
+    player.addEventListener('loadedmetadata',()=>{
+      const duration=player.duration,width=player.videoWidth,height=player.videoHeight;
+      if(!Number.isFinite(duration)||!width||!height)return;
+      const info=width+'×'+height+' · '+Math.round(duration)+' segundos';
+      const problems=[];
+      if(channel==='mercado_livre'){
+        if(duration<10||duration>60)problems.push('Clips exige 10–60 segundos');
+        if(height<=width||Math.abs(width/height-9/16)>0.08)problems.push('Clips exige vídeo vertical 9:16');
+        if(width<360||height<640)problems.push('Clips exige no mínimo 360×640');
+      }
+      if(!url.toLowerCase().endsWith('.mp4'))problems.push('Use um vídeo MP4');
+      note.textContent=info+(problems.length?' · '+problems.join('; '):' · prévia técnica compatível, sujeita à aprovação do canal');
+    },{once:true});
+    player.addEventListener('error',()=>{
+      note.textContent='Não foi possível abrir a prévia. Verifique o vídeo no cadastro do produto.';
+    },{once:true});
+  }
+  function drawProductDetails(variants, preferredVideo = '') {
     const p=selectedProduct();
     const preview=$('[data-listing-product-preview]');
     if (preview) {
@@ -136,6 +219,7 @@
       } else preview.textContent='';
     }
     $('[data-listing-variants]').innerHTML = p ? variantRows(variants) : '<p class="gestao-note">Selecione um produto primeiro.</p>';
+    drawVideoPicker(p, preferredVideo);
     if (p && !state.editing){
       const form=$('[data-marketplace-form]');
       if (!form['listing-title'].value) form['listing-title'].value=p.name;
@@ -219,7 +303,7 @@
         ({draft:'Rascunho',ready:'Pronto para revisão',blocked:'Aguardando conexão',published:'Publicado',error:'Erro'}[x.status]||x.status);
       return `<div class="listing-record">
         <div><strong>${esc(x.title)}</strong><p>${esc(label[x.marketplace]||x.marketplace)} · ${esc(status)} · ${fmt(x.price)}</p>
-        <small>Produto Bling ${esc(x.bling_product_id)}${x.external_listing_id?' · '+esc(x.external_listing_id):''}</small></div>
+        <small>Produto Bling ${esc(x.bling_product_id)}${x.external_listing_id?' · '+esc(x.external_listing_id):''}${x.video_url?' · Vídeo selecionado (não enviado)':''}</small></div>
         <button type="button" class="btn btn-outline" data-listing-edit="${esc(x.id)}">Editar</button>
       </div>`;
     }).join('') : '<p class="gestao-note">Nenhum anúncio preparado. Cadastre o primeiro rascunho abaixo.</p>';
@@ -288,7 +372,7 @@
       listingType:f['listing-type'].value,shippingMode:f['listing-shipping'].value.trim(),
       description:f['listing-description'].value.trim(),
       images:f['listing-images'].value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),
-      variations,attributes,
+      variations,attributes,videoUrl:f['listing-video'].value,
     };
   }
   async function save(action) {
@@ -319,7 +403,8 @@
   node.addEventListener('change',async e=>{
     const f=$('[data-marketplace-form]');
     if (e.target.name==='listing-product'){state.editing=null;drawProductDetails();return;}
-    if (e.target.name==='marketplace'){updateConnectionMessage();return;}
+    if (e.target.name==='marketplace'){updateConnectionMessage();updateVideoPreview();return;}
+    if (e.target.name==='listing-video'){updateVideoPreview();return;}
     if (e.target.matches('[data-listing-main-files]')) {
       const files=[...e.target.files];
       try {
