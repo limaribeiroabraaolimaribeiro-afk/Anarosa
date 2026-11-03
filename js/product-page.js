@@ -58,6 +58,29 @@
     ).join('');
     setMain(0);
   }
+  function renderVideos() {
+    const urls = (Array.isArray(item.videos) ? item.videos : []).filter(src => {
+      try { const url = new URL(src); return url.protocol === 'https:'; } catch { return false; }
+    }).slice(0, 3);
+    const section = $('[data-product-videos]');
+    section.hidden = urls.length === 0;
+    const grid = $('[data-video-grid]');
+    grid.replaceChildren();
+    for (const [index, url] of urls.entries()) {
+      const player = document.createElement('video');
+      player.src = url;
+      player.controls = true;
+      player.playsInline = true;
+      player.preload = 'metadata';
+      player.setAttribute('aria-label', 'Vídeo ' + (index + 1) + ' de ' + item.name);
+      player.addEventListener('play', () => {
+        grid.querySelectorAll('video').forEach(other => {
+          if (other !== player) other.pause();
+        });
+      });
+      grid.append(player);
+    }
+  }
   function stockText(v) {
     if (!item || itemOut(item)) return 'Indisponível no momento.';
     if (variantList(item).length && !v) return 'Selecione um tamanho ou cor para conferir a disponibilidade.';
@@ -179,6 +202,7 @@
     const desc=productDescription(item.description);
     $('[data-description]').textContent=desc||'Deseja conhecer o tecido, caimento ou medidas? Fale com nossa equipe pelo WhatsApp antes de comprar.';
     renderImages();
+    renderVideos();
     renderVariants();
     updateBuy();
     $('[data-whatsapp]').href='https://wa.me/'+whatsapp+'?text='+encodeURIComponent('Olá! Tenho interesse na peça '+item.name+'. Gostaria de saber mais: '+shareURL());
