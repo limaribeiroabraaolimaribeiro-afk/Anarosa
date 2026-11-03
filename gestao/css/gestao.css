@@ -938,3 +938,17 @@ body.product-editor-open .gestao-app.is-products-route .gestao-main {
   [data-listing-product-preview] {width:100%;}
 }
 
+
+
+/* Etapa de vídeos do anúncio: seleção local, prévia e estado de publicação separados. */
+.listing-video-panel{background:#fffaf3;border:1px solid #dfcfba;border-radius:11px;padding:14px;min-width:0}
+.listing-video-panel label{display:grid;gap:7px;font-size:13px;font-weight:650;color:#58412e}
+.listing-video-panel select{display:block;width:100%;min-width:0;min-height:42px;padding:8px 11px;border:1px solid #cfbca7;border-radius:7px;background:#fff;font:inherit;color:#473626}
+.listing-video-panel .gestao-note{margin:8px 0;line-height:1.55}
+.listing-video-preview{width:min(100%,260px);margin:10px auto}
+.listing-video-preview:empty{display:none}
+.listing-video-preview video{display:block;width:100%;max-height:370px;aspect-ratio:9/16;object-fit:contain;background:#221d1a;border-radius:9px}
+.listing-video-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.listing-video-actions .btn{flex:1 1 165px;max-width:100%;font-size:11px;min-height:39px;text-align:center;padding:7px 10px}
+.listing-video-actions [hidden]{display:none!important}
+@media(max-width:600px){.listing-video-panel{padding:11px}.listing-video-actions{display:grid;grid-template-columns:1fr}.listing-video-actions .btn{width:100%}}
