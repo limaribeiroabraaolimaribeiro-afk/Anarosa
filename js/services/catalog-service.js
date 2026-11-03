@@ -73,6 +73,7 @@
       description: p.description || p.shortDescription || '',
       image,
       images: images.length ? images : [image],
+      videos: Array.isArray(p.videos) ? p.videos.filter(v => typeof v === 'string' && v.startsWith('https://')).slice(0, 3) : [],
       price,
       promotionalPrice,
       // Commercial terms are only confirmed by the existing payment flow.
