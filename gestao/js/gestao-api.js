@@ -22,7 +22,7 @@
     }
   }
 
-  async function call(path, { params, method, body } = {}) {
+  async function call(path, { params, method, body, timeoutMs = 30000 } = {}) {
     if (!baseUrl) throw new GestaoApiError('Backend não configurado (js/config.js).', 0, null);
     const session = await window.GestaoAuth.getSession();
     if (!session) throw new GestaoApiError('Sessão administrativa ausente.', 401, null);
@@ -39,7 +39,7 @@
     let res;
     try {
       res = await fetch(url.toString(), {
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(timeoutMs),
         method: method || (body !== undefined ? 'POST' : 'GET'),
         headers,
         ...(body !== undefined ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}),
@@ -73,6 +73,7 @@
     mercadoLivreControl: (action, args = {}) => call('mercadolivre-oauth-callback', { method:'POST', body: { action, ...args } }),
     createProduct: (body) => call('admin-product-create', { body }),
     uploadProductImage: (file) => { const body = new FormData(); body.append('photo', file); return call('admin-product-image-upload', { body }); },
+    uploadProductVideo: (file) => { const body = new FormData(); body.append('video', file); return call('admin-product-video-upload', { body, timeoutMs: 120000 }); },
     updateProduct: (body) => call('admin-product-update', { body }),
     saveProductMerchandising: (body) => call('admin-product-merchandising', { body }),
     changeProductSituation: (body) => call('admin-product-situacao', { body }),
