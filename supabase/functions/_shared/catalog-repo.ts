@@ -230,7 +230,7 @@ export class CatalogRepository {
     if (merchandisingError) fail('merchandising_lookup_failed', merchandisingError);
     const stored = existingMerchandising?.metadata ?? {};
     const metadata = { ...p.metadata };
-    for (const key of ['tags', 'colecao', 'segmento', 'imageCache']) {
+    for (const key of ['tags', 'colecao', 'segmento', 'imageCache', 'videos']) {
       if (Object.prototype.hasOwnProperty.call(stored, key)) metadata[key] = stored[key];
     }
     const { data, error } = await this.db
@@ -325,12 +325,13 @@ export class CatalogRepository {
       colecao: data.metadata?.colecao ?? '',
       segmento: data.metadata?.segmento ?? '',
       precoPromocional: data.promotional_price ?? null,
+      videos: Array.isArray(data.metadata?.videos) ? data.metadata.videos : [],
     };
   }
 
   async saveMerchandisingByBlingId(
     blingId: string,
-    value: { tags: string[]; colecao: string; segmento: string; precoPromocional: number | null },
+    value: { tags: string[]; colecao: string; segmento: string; precoPromocional: number | null; videos?: string[] },
   ): Promise<void> {
     const { data: existing, error: readError } = await this.db
       .from('store_products')
@@ -344,6 +345,7 @@ export class CatalogRepository {
       tags: value.tags,
       colecao: value.colecao,
       segmento: value.segmento,
+      ...(value.videos !== undefined ? { videos: value.videos } : {}),
     };
     const { error } = await this.db
       .from('store_products')
