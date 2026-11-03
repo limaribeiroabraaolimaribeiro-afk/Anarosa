@@ -254,3 +254,14 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .variant-matrix-generator label{display:flex;flex-direction:column;gap:5px;color:#6c513a;font-weight:600;font-size:12px}
 .variant-matrix-generator input{width:100%;min-width:0;padding:9px 10px;border:1px solid #d9cdbd;border-radius:7px;font:inherit;background:#fff}
 @media(max-width:700px){.variant-matrix-generator{grid-template-columns:1fr}.variant-matrix-generator button{width:100%}}
+
+/* Vídeos: cartões responsivos ao lado das fotos, com reprodução sob demanda. */
+.product-video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-top:12px}
+.product-video-grid:empty{display:none}
+.product-video-card{min-width:0;margin:0;padding:8px;border:1px solid var(--admin-line,#ddceba);border-radius:9px;background:#fff}
+.product-video-card video{display:block;width:100%;aspect-ratio:4/5;max-height:285px;object-fit:contain;background:#252019;border-radius:6px}
+.product-video-card figcaption{font-size:11px;color:#6b5b48;margin:8px 0;overflow-wrap:anywhere}
+.product-video-card button{display:inline-flex;justify-content:center;align-items:center;border:1px solid #c7ad88;border-radius:5px;background:#f8f1e6;color:#785334;min-height:32px;padding:6px 10px;font-size:11px;cursor:pointer}
+.product-video-card button:disabled{opacity:.5;cursor:not-allowed}
+#product-videos .catalog-file-upload input[type="file"]{max-width:100%}
+#product-videos [data-save-videos]{margin-top:10px}
