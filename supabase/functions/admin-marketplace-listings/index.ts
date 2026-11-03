@@ -7,6 +7,7 @@ import { serve } from '../_shared/context.ts';
 import { requireAdminUser } from '../_shared/admin-user-auth.ts';
 import { json, methodNotAllowed } from '../_shared/responses.ts';
 import { ValidationError } from '../_shared/errors.ts';
+import { isPublishedProductVideoUrl } from '../_shared/product-video.ts';
 
 type Obj = Record<string, unknown>;
 type Variant = { blingId: string; sku: string; color: string; size: string; enabled: boolean; image: string };
@@ -43,7 +44,7 @@ serve(async (req, ctx) => {
     const id = text(url.searchParams.get('id'), 40);
     const [listings, connections] = await Promise.all([
       ctx.db.from('store_marketplace_listings')
-        .select('id,bling_product_id,marketplace,title,description,category_external_id,listing_type,shipping_mode,price,images,variation_mapping,attributes,status,external_listing_id,external_url,last_error,updated_at,published_at')
+        .select('id,bling_product_id,marketplace,title,description,category_external_id,listing_type,shipping_mode,price,images,variation_mapping,attributes,status,external_listing_id,external_url,last_error,updated_at,published_at,video_url,video_status,video_external_id')
         .order('updated_at', { ascending: false }).limit(150),
       ctx.db.from('store_marketplace_connections')
         .select('marketplace,status,external_store_name,verified_at'),
@@ -64,7 +65,7 @@ serve(async (req, ctx) => {
   const channel = text(body.marketplace, 30);
   if (!['mercado_livre','shopee'].includes(channel)) throw new ValidationError('Canal inválido.');
   const { data: product, error: productErr } = await ctx.db.from('store_products')
-    .select('id,bling_id,sku,name,price,images,active,parent_bling_id').eq('bling_id',blingId).maybeSingle();
+    .select('id,bling_id,sku,name,price,images,metadata,active,parent_bling_id').eq('bling_id',blingId).maybeSingle();
   if (productErr || !product || product.parent_bling_id) throw new ValidationError('Selecione um produto principal do catálogo sincronizado.');
   if (action === 'link') {
     // Vínculo administrativo sem alegação de publicação: o ID MLB e SKU
@@ -110,6 +111,15 @@ serve(async (req, ctx) => {
   const price = Number(body.price);
   if (title.length < 3 || !Number.isFinite(price) || price <= 0) throw new ValidationError('Informe título e preço válidos.');
   const images = uniqueImages(body.images, channel === 'shopee' ? 9 : 12);
+  // O vídeo só pode vir da galeria do mesmo produto, nunca de URL arbitrária.
+  const videoUrl = text(body.videoUrl, 1024);
+  const ownedVideos = Array.isArray(product.metadata?.videos)
+    ? product.metadata.videos.filter((url: unknown): url is string => typeof url === 'string')
+    : [];
+  if (videoUrl && (!isPublishedProductVideoUrl(videoUrl) || !ownedVideos.includes(videoUrl))) {
+    throw new ValidationError('Selecione um vídeo já salvo na galeria deste produto na ANAROSA.');
+  }
+
   const attributes = dataObject(body.attributes);
   const raws = body.variations;
   if (!Array.isArray(raws) || raws.length > 100) throw new ValidationError('Grade de variações inválida.');
@@ -137,6 +147,12 @@ serve(async (req, ctx) => {
   if (channel === 'mercado_livre' && !['marketplace','catalogo'].includes(listingType))
     errors.push('Informe o tipo Marketplace ou Catálogo.');
   if (!shippingMode) errors.push('Defina a modalidade de envio.');
+  // A preparação aceita vídeo opcional, mas nunca chama o upload externo.
+  // Os dois canais preferem MP4; WebM permanece só na loja, sem "pronto".
+  if (videoUrl && !videoUrl.toLowerCase().endsWith('.mp4')) {
+    errors.push('Para o marketplace, envie uma versão MP4 do vídeo ao cadastro do produto.');
+  }
+
   const { data: connection } = await ctx.db.from('store_marketplace_connections')
     .select('status,external_store_id,verified_at').eq('marketplace',channel).maybeSingle();
   if (action === 'publish') {
@@ -156,6 +172,7 @@ serve(async (req, ctx) => {
     bling_product_id: blingId, marketplace: channel, title, description,
     category_external_id: category, listing_type: listingType, shipping_mode: shippingMode,
     price, images, variation_mapping: variations, attributes,
+    video_url: videoUrl || null, video_status: videoUrl ? 'selected' : 'not_selected', video_external_id: null,
     status: action === 'prepare' ? 'ready' : 'draft', updated_by: admin.id,
     updated_at: new Date().toISOString(),
   };
