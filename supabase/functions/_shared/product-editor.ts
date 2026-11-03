@@ -1,6 +1,7 @@
 import { ValidationError } from './errors.ts';
 import { validateProductAdminInput } from './product-admin-mapper.ts';
 import { sha256Hex } from './crypto.ts';
+import { isPublishedProductVideoUrl } from './product-video.ts';
 type Row = Record<string, any>;
 export function productEditorView(raw: Row) {
   return {
@@ -43,7 +44,7 @@ export function productEditorView(raw: Row) {
  * Bling: persistir a curadoria apenas no cache vinculado ao bling_id.
  */
 export function validateMerchandising(raw: Row): {
-  tags: string[]; colecao: string; segmento: string; precoPromocional: number | null;
+  tags: string[]; colecao: string; segmento: string; precoPromocional: number | null; videos?: string[];
 } | null {
   if (raw.merchandising === undefined) return null; // clientes antigos
   const data = raw.merchandising;
@@ -70,7 +71,16 @@ export function validateMerchandising(raw: Row): {
     precoPromocional <= 0 || precoPromocional >= basePrice)) {
     throw new ValidationError('Preço promocional deve ser maior que zero e menor que o preço normal.');
   }
-  return { tags: [...data.tags], colecao, segmento, precoPromocional };
+  let videos: string[] | undefined;
+  if (data.videos !== undefined) {
+    if (!Array.isArray(data.videos) || data.videos.length > 3 ||
+      new Set(data.videos).size !== data.videos.length ||
+      data.videos.some((url: unknown) => !isPublishedProductVideoUrl(url))) {
+      throw new ValidationError('Use até 3 vídeos válidos enviados pelo painel ANAROSA.');
+    }
+    videos = [...data.videos];
+  }
+  return { tags: [...data.tags], colecao, segmento, precoPromocional, ...(videos !== undefined ? { videos } : {}) };
 }
 
 export const productRevision = (raw: Row) => sha256Hex(JSON.stringify(productEditorView(raw)));
