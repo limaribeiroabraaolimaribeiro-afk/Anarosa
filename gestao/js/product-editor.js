@@ -9,8 +9,8 @@
     constructor(message) { super(message); this.name = 'ProductEditorValidationError'; }
   }
   const field = (name, label, attrs = '') => `<label>${label}<input name="${name}" ${attrs}></label>`;
-  let revision = null, imagePermission = false, binaryUpload = false, imageIndex = 0, generation = 0;
-  let pendingFiles = [], pendingPreviewUrls = [];
+  let revision = null, imagePermission = false, binaryUpload = false, videoPermission = false, imageIndex = 0, generation = 0;
+  let pendingFiles = [], pendingPreviewUrls = [], pendingVideos = [], pendingVideoPreviewUrls = [];
   let savedProduct = null, ready = false, busy = false;
   page.className = 'product-workspace';
   // Keep the editor inside the authenticated app, including during session expiry.
@@ -43,6 +43,19 @@
           <p class="field-note" data-image-capability></p>
           <details class="image-url-editor"><summary>Adicionar ou editar links de imagens</summary><label>Links HTTPS, um por linha (até 12)<textarea name="images" rows="3" placeholder="https://…"></textarea></label></details>
           <p class="field-note">O envio de fotos exige autorização no Bling e armazenamento configurado no Supabase. Se estiver indisponível, confira a conexão antes de cadastrar.</p>
+        </section>
+        <section class="product-section" id="product-videos" aria-labelledby="videos-title">
+          <div class="section-heading"><div><h2 id="videos-title"><b>1b.</b> Vídeos do produto</h2><p>Demonstre o caimento e os detalhes da peça em movimento.</p></div><span class="photo-tip">Até 3 vídeos em MP4 ou WebM.<br>Máximo de 30 MB por vídeo.</span></div>
+          <div class="catalog-file-upload">
+            <label for="catalog-video-files">Adicionar vídeos do celular ou computador</label>
+            <input id="catalog-video-files" type="file" accept="video/mp4,video/webm" multiple data-video-files disabled>
+            <p class="field-note">Os vídeos são salvos na loja ANAROSA, separados das fotos do Bling. O envio aos marketplaces depende dos recursos de cada canal.</p>
+            <div class="product-video-grid" data-video-gallery></div>
+            <div class="product-video-grid" data-pending-videos aria-live="polite"></div>
+            <p class="field-note" data-video-capability></p>
+            <textarea name="videos" hidden aria-hidden="true" tabindex="-1"></textarea>
+            <button type="button" class="btn btn-soft" data-save-videos hidden>Salvar vídeos da loja</button>
+          </div>
         </section>
         <section class="product-section" id="product-basics" aria-labelledby="basics-title">
           <h2 id="basics-title"><b>2.</b> Informações básicas</h2>
@@ -123,6 +136,9 @@
   const photos = () => values().filter((url) => { try { return new URL(url).protocol === 'https:'; } catch { return false; } });
   const filesInput = $('[data-image-files]');
   const pendingContainer = $('[data-pending-photos]');
+  const videoInput = $('[data-video-files]');
+  const pendingVideoContainer = $('[data-pending-videos]');
+  const videoUrls = () => form.videos.value.split('\n').map(s => s.trim()).filter(Boolean);
   function releasePreviews() {
     pendingPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
     pendingPreviewUrls = [];
@@ -181,6 +197,78 @@
       ? `${pendingFiles.length} foto(s) pronta(s) para enviar. Clique em Salvar para publicar.`
       : 'Selecione fotos do aparelho ou use links HTTPS; o envio ocorrerá ao salvar.';
     showPendingFiles();
+    refresh();
+  });
+
+  function releaseVideoPreviews() {
+    pendingVideoPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+    pendingVideoPreviewUrls = [];
+  }
+  function renderPendingVideos() {
+    releaseVideoPreviews();
+    pendingVideoContainer.replaceChildren();
+    pendingVideos.forEach((file, index) => {
+      const figure = document.createElement('figure');
+      figure.className = 'product-video-card';
+      const video = document.createElement('video');
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      const preview = URL.createObjectURL(file);
+      pendingVideoPreviewUrls.push(preview);
+      video.src = preview;
+      const caption = document.createElement('figcaption');
+      caption.textContent = file.name + ' · aguardando envio';
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.dataset.pendingVideoRemove = String(index);
+      remove.textContent = 'Remover da seleção';
+      remove.disabled = busy;
+      figure.append(video, caption, remove);
+      pendingVideoContainer.append(figure);
+    });
+  }
+  function renderVideos() {
+    const urls = videoUrls();
+    $('[data-video-gallery]').innerHTML = urls.map((url, index) => `
+      <figure class="product-video-card">
+        <video src="${esc(url)}" controls playsinline preload="metadata" aria-label="Vídeo ${index + 1} do produto"></video>
+        <figcaption>Vídeo ${index + 1} · salvo na loja</figcaption>
+        <button type="button" data-video-remove="${index}" ${!videoPermission || busy ? 'disabled' : ''}>Remover vídeo</button>
+      </figure>`).join('');
+  }
+  pendingVideoContainer.addEventListener('click', event => {
+    const button = event.target.closest('[data-pending-video-remove]');
+    if (!button || busy) return;
+    pendingVideos.splice(Number(button.dataset.pendingVideoRemove), 1);
+    renderPendingVideos();
+    refresh();
+  });
+  $('[data-video-gallery]').addEventListener('click', event => {
+    const button = event.target.closest('[data-video-remove]');
+    if (!button || busy || !videoPermission) return;
+    const urls = videoUrls();
+    urls.splice(Number(button.dataset.videoRemove), 1);
+    form.videos.value = urls.join('\n');
+    renderVideos();
+    refresh();
+  });
+  videoInput.addEventListener('change', () => {
+    const files = [...videoInput.files];
+    videoInput.value = '';
+    if (!videoPermission || !files.length) return;
+    const unique = files.filter(file => !pendingVideos.some(existing =>
+      existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified));
+    if (videoUrls().length + pendingVideos.length + unique.length > 3 ||
+        unique.some(file => !['video/mp4', 'video/webm'].includes(file.type) ||
+          file.size < 1 || file.size > 30 * 1024 * 1024)) {
+      $('[data-video-capability]').textContent = 'Escolha até 3 vídeos em MP4/WebM, com no máximo 30 MB cada.';
+      return;
+    }
+    pendingVideos.push(...unique);
+    $('[data-video-capability]').textContent = pendingVideos.length +
+      ' vídeo(s) selecionado(s). Salve o produto para enviar.';
+    renderPendingVideos();
     refresh();
   });
   function refresh() {
@@ -329,18 +417,21 @@
       else if (el.dataset.wasDisabled !== undefined) { el.disabled = el.dataset.wasDisabled === 'true'; delete el.dataset.wasDisabled; }
     });
     gallery();
+    renderVideos();
+    renderPendingVideos();
   }
   window.AnaProductEditor = {
     reset() {
-      pendingFiles = [];
-      filesInput.value = '';
-      releasePreviews();
-      pendingContainer.replaceChildren();
+      pendingFiles = []; pendingVideos = [];
+      filesInput.value = ''; videoInput.value = '';
+      releasePreviews(); releaseVideoPreviews();
+      pendingContainer.replaceChildren(); pendingVideoContainer.replaceChildren();
       generation++;
-      ready = false; busy = false; savedProduct = null; imagePermission = false; binaryUpload = false; revision = null; imageIndex = 0;
+      ready = false; busy = false; savedProduct = null; imagePermission = false; binaryUpload = false; videoPermission = false; revision = null; imageIndex = 0;
       form.querySelectorAll('[data-was-disabled]').forEach((el) => { el.disabled = el.dataset.wasDisabled === 'true'; delete el.dataset.wasDisabled; });
       $('[data-editor-variants]').replaceChildren();
       form.images.value = ''; form.images.disabled = true;
+      form.videos.value = ''; videoInput.disabled = true; $('[data-video-gallery]').replaceChildren();
       $('[data-matrix-colors]').value = '';
       $('[data-matrix-sizes]').value = '';
       form.colecao.value = '';
@@ -353,12 +444,14 @@
       $('[data-product-status]').textContent = 'Carregando';
       $('[data-product-status-note]').textContent = 'Consultando o cadastro e as permissões…';
       $('[data-image-capability]').textContent = 'Verificando permissão de imagens…';
+      $('[data-video-capability]').textContent = 'Verificando armazenamento de vídeos…';
+      $('[data-save-videos]').hidden = true;
       $('[data-store-channel]').textContent = 'Consultando cadastro…';
       $('[data-save-draft]').hidden = false;
       $('[data-save-merchandising]').hidden = true;
       setBusy(true);
     },
-    cancel() { pendingFiles = []; filesInput.value = ''; releasePreviews(); pendingContainer.replaceChildren(); generation++; },
+    cancel() { pendingFiles = []; pendingVideos = []; filesInput.value = ''; videoInput.value = ''; releasePreviews(); releaseVideoPreviews(); pendingContainer.replaceChildren(); pendingVideoContainer.replaceChildren(); generation++; },
     setBusy,
     async load(id, listing) {
       const request = generation;
@@ -369,6 +462,7 @@
       revision = response.revision || null;
       imagePermission = response.capabilities?.images === true;
       binaryUpload = imagePermission && response.capabilities?.binaryUpload === true;
+      videoPermission = response.capabilities?.videoUpload === true;
       for (const k of ['nome', 'sku', 'preco', 'marca', 'unidade', 'gtin', 'descricaoCurta', 'descricaoComplementar', 'pesoLiquido', 'pesoBruto', 'volumes']) {
         if (p[k] != null) form.elements[k].value = p[k];
       }
@@ -385,6 +479,10 @@
       for (const k of ['origem', 'ncm', 'cest']) form.elements[k].value = p.tributacao?.[k] ?? '';
       for (const v of p.variacoes || []) row({ ...v, stock: listing?.variants?.find((item) => String(item.blingId) === String(v.id))?.stock });
       form.images.value = (p.images || []).join('\n');
+      form.videos.value = (p.merchandising?.videos || []).join('\n');
+      videoInput.dataset.wasDisabled = String(!videoPermission);
+      $('[data-video-capability]').textContent = videoPermission ? 'Vídeos armazenados na ANAROSA; fotos continuam no Bling.' : 'Envio de vídeos indisponível neste momento.';
+      renderVideos();
       form.images.dataset.wasDisabled = String(!imagePermission);
       filesInput.dataset.wasDisabled = String(!binaryUpload);
       $('[data-image-capability]').textContent = !imagePermission
@@ -396,6 +494,7 @@
       $('[data-product-form-submit]').textContent = id ? 'Salvar alterações' : 'Publicar produto';
       $('[data-save-draft]').hidden = !!id;
       $('[data-save-merchandising]').hidden = !id;
+      $('[data-save-videos]').hidden = !id;
       $('.product-switch').hidden = !id;
       $('[data-product-status]').textContent = id ? (p.ativo ? 'Ativo no Bling' : 'Inativo no Bling') : 'Não salvo';
       $('[data-product-status-note]').textContent = id ? 'Situação do último cadastro carregado. Alterações aguardam salvamento.' : 'Este produto ainda não foi cadastrado. Salve como rascunho ou publique na loja.';
@@ -428,6 +527,25 @@
       $('[data-image-capability]').textContent = 'Fotos enviadas. Salve o cadastro para vinculá-las ao produto no Bling.';
       return values();
     },
+    async uploadSelectedVideos() {
+      if (!pendingVideos.length) return videoPermission ? videoUrls() : undefined;
+      if (!videoPermission) throw new ProductEditorValidationError('Envio de vídeos não habilitado.');
+      if (videoUrls().length + pendingVideos.length > 3) throw new ProductEditorValidationError('Máximo de 3 vídeos por produto.');
+      while (pendingVideos.length) {
+        const file = pendingVideos[0];
+        const result = await window.GestaoApi.uploadProductVideo(file);
+        if (!result?.url || !result.url.startsWith('https://'))
+          throw new ProductEditorValidationError('Não foi possível receber o link do vídeo.');
+        const urls = videoUrls();
+        if (!urls.includes(result.url)) urls.push(result.url);
+        form.videos.value = urls.join('\n');
+        pendingVideos.shift();
+        renderPendingVideos();
+        renderVideos();
+      }
+      $('[data-video-capability]').textContent = 'Vídeos enviados. Salve o produto para vinculá-los à vitrine.';
+      return videoUrls();
+    },
     readMerchandising() {
       if (!ready || busy) throw new ProductEditorValidationError('Aguarde o carregamento do produto.');
       const sale = form.precoPromocional.value ? Number(form.precoPromocional.value) : null;
@@ -440,6 +558,7 @@
         colecao: form.colecao.value.trim(),
         segmento: form.segmento.value.trim(),
         precoPromocional: sale,
+        ...(videoPermission ? { videos: videoUrls() } : {}),
       };
     },
     read() {
