@@ -164,3 +164,14 @@ test('existing Mercado Livre links require product, SKU, MLB and confirmation', 
  assert.match(index,/CREATE UNIQUE INDEX IF NOT EXISTS/);
  assert.match(index,/WHERE external_listing_id IS NOT NULL/);
 });
+
+// Regression: querySelector returns one Element, which has no .forEach().
+// Button registration must use querySelectorAll so product grid still loads.
+test('product actions bind all buttons without breaking the product list', () => {
+ const js=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
+ for(const attr of ['data-product-edit','data-product-stock','data-product-toggle-active','data-product-delete']){
+  const selector=attr;
+  assert(js.includes('$$(' + "'" + '[' + selector + ']' + "'" + ').forEach('), 'Must select all '+attr+' buttons');
+  assert(!js.includes('$(' + "'" + '[' + selector + ']' + "'" + ').forEach(') || js.includes('$$(' + "'" + '[' + selector + ']' + "'" + ').forEach('), 'Unsafe single node iteration '+attr);
+ }
+});
