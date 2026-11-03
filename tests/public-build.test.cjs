@@ -175,3 +175,20 @@ test('product actions bind all buttons without breaking the product list', () =>
   assert(!js.includes('$(' + "'" + '[' + selector + ']' + "'" + ').forEach(') || js.includes('$$(' + "'" + '[' + selector + ']' + "'" + ').forEach('), 'Unsafe single node iteration '+attr);
  }
 });
+
+
+test('marketplace videos are selected from product media, not published by draft save', () => {
+ const frontend=fs.readFileSync(path.join(root,'gestao/js/marketplace-listings.js'),'utf8');
+ const backend=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-marketplace-listings/index.ts'),'utf8');
+ const productRepo=fs.readFileSync(path.join(__dirname,'..','supabase/functions/_shared/catalog-repo.ts'),'utf8');
+ assert.match(frontend,/data-listing-video-select/);
+ assert.match(frontend,/data-listing-video-preview/);
+ assert.match(frontend,/videoUrl:f\['listing-video'\]\.value/);
+ assert.match(frontend,/não enviado|Ainda não foi enviado/);
+ assert.match(backend,/isPublishedProductVideoUrl/);
+ assert.match(backend,/ownedVideos\.includes\(videoUrl\)/);
+ assert.match(backend,/video_status: videoUrl \? 'selected' : 'not_selected'/);
+ assert.match(backend,/if \(action === 'publish'\)/);
+ assert.match(backend,/status: 'blocked'/);
+ assert.match(productRepo,/videos: Array\.isArray\(p\.metadata\?\.videos\)/);
+});
