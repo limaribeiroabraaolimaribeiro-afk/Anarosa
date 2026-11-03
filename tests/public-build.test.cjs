@@ -192,3 +192,16 @@ test('marketplace videos are selected from product media, not published by draft
  assert.match(backend,/status: 'blocked'/);
  assert.match(productRepo,/videos: Array\.isArray\(p\.metadata\?\.videos\)/);
 });
+
+
+test('product deletion reports missing Bling scope and allows only definitive rejection to be retried', () => {
+ const frontend=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
+ const backend=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-product-delete/index.ts'),'utf8');
+ assert.match(backend,/error\.status === 403/);
+ assert.match(backend,/error\.blingType === 'insufficient_scope'/);
+ assert.match(backend,/bling_delete_permission_missing/);
+ assert.match(frontend,/permissionMissing/);
+ assert.match(frontend,/operation\?\.clear\(\)/);
+ assert.match(frontend,/goToIntegration/);
+ assert.match(frontend,/window\.location\.hash = '#\/integracao'/);
+});
