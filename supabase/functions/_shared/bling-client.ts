@@ -362,6 +362,14 @@ export class BlingClient {
     });
   }
 
+  /** DELETE /produtos/{idProduto}. Exclusão sem retry automático. */
+  async deleteProduct(id: string | number): Promise<void> {
+    await this.request<unknown>(`produtos/${encodeURIComponent(String(id))}`, {
+      method: 'DELETE',
+      operation: 'products.delete',
+    });
+  }
+
   // -------------------------------------------------------------------
   // Estoque
   // -------------------------------------------------------------------
