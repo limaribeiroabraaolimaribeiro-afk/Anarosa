@@ -949,8 +949,9 @@
     const originalLabel = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Excluindo…';
+    let operation = null;
     try {
-      const operation = await operationIdentity('delete-product:' + product.blingId, {
+      operation = await operationIdentity('delete-product:' + product.blingId, {
         blingId: product.blingId, confirmText: code, confirmar: true,
       });
       const result = await window.GestaoApi.deleteProduct({
@@ -964,6 +965,22 @@
       await loadProducts(false);
     } catch (err) {
       if (err?.status === 401) return handleSessionExpired('produtos');
+      const permissionMissing = err?.payload?.details?.reason === 'bling_delete_permission_missing' ||
+        (err?.payload?.details?.blingStatus === 403 && err?.payload?.details?.blingType === 'insufficient_scope');
+      if (permissionMissing) {
+        // Só apaga a chave porque o Bling rejeitou a chamada sem executar o DELETE.
+        // Não liberar tentativas de estado incerto, como falha de rede/timeout.
+        operation?.clear();
+        const goToIntegration = window.confirm(
+          'O Bling recusou a exclusão: falta permissão de exclusão de produtos para o aplicativo ANAROSA.\\n\\n' +
+          'Nenhum produto foi excluído. Após habilitar essa permissão no Bling, reconecte o aplicativo.\\n\\n' +
+          'Deseja abrir a área Integração da Gestão agora?'
+        );
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+        if (goToIntegration) window.location.hash = '#/integracao';
+        return;
+      }
       const text = friendlyErrorMessage(err, 'Não foi possível confirmar a exclusão. Verifique o Bling antes de tentar novamente.');
       window.alert(text);
       btn.disabled = false;
