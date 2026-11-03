@@ -691,6 +691,8 @@
     button.textContent = 'Salvando tags…';
     try {
       const data = window.AnaProductEditor.readMerchandising();
+      window.AnaProductEditor.setBusy(true);
+      data.videos = await window.AnaProductEditor.uploadSelectedVideos();
       const response = await window.GestaoApi.saveProductMerchandising({
         blingId: editingBlingId,
         merchandising: data,
@@ -701,9 +703,15 @@
       errorEl.textContent = friendlyErrorMessage(err, 'Não foi possível salvar as informações da loja.');
       errorEl.hidden = false;
     } finally {
+      window.AnaProductEditor.setBusy(false);
       button.disabled = false;
       button.textContent = originalText;
     }
+  });
+
+  $('[data-save-videos]')?.addEventListener('click', () => {
+    if (!editingBlingId || productSubmitInFlight) return;
+    $('[data-save-merchandising]')?.click();
   });
 
   let productSubmitInFlight = false;
@@ -733,6 +741,9 @@
       submitBtn.textContent = 'Enviando fotos...';
       const uploadedImages = await window.AnaProductEditor.uploadSelectedPhotos();
       if (uploadedImages !== undefined) body.images = uploadedImages;
+      submitBtn.textContent = 'Enviando vídeos...';
+      const uploadedVideos = await window.AnaProductEditor.uploadSelectedVideos();
+      if (uploadedVideos !== undefined) body.merchandising.videos = uploadedVideos;
       submitBtn.textContent = 'Salvando no Bling...';
       const operation=await operationIdentity(`product:${editingBlingId||body.sku}`,body);
       body.operationKey=operation.key;
