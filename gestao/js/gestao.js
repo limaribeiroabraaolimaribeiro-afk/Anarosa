@@ -479,6 +479,7 @@
             <button type="button" class="btn btn-outline" data-product-edit>Editar</button>
             <button type="button" class="btn btn-outline" data-product-stock aria-label="Ajustar estoque de ${escapeHtml(p.name)}" title="Ajustar estoque no Bling">Estoque</button>
             <button type="button" class="btn btn-outline" data-product-toggle-active>${p.active ? 'Desativar' : 'Ativar'}</button>
+            <button type="button" class="btn btn-outline gestao-btn-delete" data-product-delete aria-label="Excluir produto ${escapeHtml(p.name)}">Excluir</button>
           </div>
         </div>
       </div>`;
@@ -523,10 +524,15 @@
         const { blingId } = productDataset(e.target.closest('[data-product-bling-id]'));
         openStockDrawer(productsByBlingId.get(blingId));
       }));
-      $$('[data-product-toggle-active]').forEach((btn) => btn.addEventListener('click', (e) => {
+      $('[data-product-toggle-active]').forEach((btn) => btn.addEventListener('click', (e) => {
         const card = e.target.closest('[data-product-bling-id]');
         const { blingId } = productDataset(card);
         toggleProductActive(productsByBlingId.get(blingId), btn);
+      }));
+      $('[data-product-delete]').forEach((btn) => btn.addEventListener('click', (e) => {
+        const card = e.target.closest('[data-product-bling-id]');
+        const { blingId } = productDataset(card);
+        deleteProductFromCatalog(productsByBlingId.get(blingId), btn);
       }));
       const pageEl = $('[data-products-pagination]');
       pageEl.hidden = false;
@@ -915,6 +921,51 @@
     } catch (err) {
       if (err.status === 401) return handleSessionExpired('produtos');
       showToast(friendlyErrorMessage(err, 'Não foi possível alterar a situação agora. Tente novamente em instantes.'));
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Excluir produto no Bling: duas confirmações + idempotência no backend.
+  // Não exclui produtos que já participam de pedidos ou anúncios.
+  // ---------------------------------------------------------------
+  async function deleteProductFromCatalog(product, btn) {
+    if (!product || btn.disabled) return;
+    const code = String(product.sku || product.blingId);
+    const accepted = window.confirm(
+      'Excluir "' + product.name + '" (SKU ' + code + ')?\\n\\n' +
+      'A ação será enviada ao Bling e removerá o produto da loja ANAROSA. ' +
+      'Não exclui anúncios de marketplaces nem registros históricos.\\n\\n' +
+      'Produtos com pedidos ou anúncios vinculados são bloqueados. Deseja continuar?'
+    );
+    if (!accepted) return;
+    const typed = window.prompt('Para confirmar, digite exatamente o SKU/ID do produto: ' + code, '');
+    if (typed === null) return;
+    if (typed.trim() !== code) {
+      showToast('SKU/ID incorreto. Nenhuma exclusão foi realizada.');
+      return;
+    }
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Excluindo…';
+    try {
+      const operation = await operationIdentity('delete-product:' + product.blingId, {
+        blingId: product.blingId, confirmText: code, confirmar: true,
+      });
+      const result = await window.GestaoApi.deleteProduct({
+        blingId: product.blingId, confirmText: code, confirmar: true, operationKey: operation.key,
+      });
+      operation.clear();
+      showToast(result.message || 'Produto excluído no Bling.');
+      if (productsOffset > 0 && $('[data-products-grid]').children.length === 1) {
+        productsOffset = Math.max(0, productsOffset - PRODUCTS_PAGE_SIZE);
+      }
+      await loadProducts(false);
+    } catch (err) {
+      if (err?.status === 401) return handleSessionExpired('produtos');
+      const text = friendlyErrorMessage(err, 'Não foi possível confirmar a exclusão. Verifique o Bling antes de tentar novamente.');
+      window.alert(text);
       btn.disabled = false;
       btn.textContent = originalLabel;
     }
