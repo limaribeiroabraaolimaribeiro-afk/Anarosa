@@ -6,7 +6,7 @@
 import { requireAdminUser } from '../_shared/admin-user-auth.ts';
 import { runAdminMutation } from '../_shared/admin-mutation.ts';
 import { serve } from '../_shared/context.ts';
-import { ValidationError, NotFoundError } from '../_shared/errors.ts';
+import { ValidationError, NotFoundError, BlingApiError } from '../_shared/errors.ts';
 import { json, methodNotAllowed } from '../_shared/responses.ts';
 
 const validId = (id: unknown): id is string => typeof id === 'string' && /^[1-9][0-9]{0,15}$/.test(id);
@@ -75,7 +75,22 @@ serve(async (req, ctx) => {
       throw new ValidationError('O produto foi alterado no Bling. Atualize o catálogo antes de excluir.');
     }
     await submitted();
-    await ctx.client().deleteProduct(blingId);
+    try {
+      await ctx.client().deleteProduct(blingId);
+    } catch (error) {
+      // A API confirmou rejeição HTTP 403: nenhuma exclusão foi realizada.
+      // O token foi emitido sem a permissão de exclusão do aplicativo Bling.
+      if (error instanceof BlingApiError && error.status === 403 &&
+          error.blingType === 'insufficient_scope') {
+        throw new ValidationError(
+          'O Bling recusou a exclusão: o aplicativo ANAROSA não tem permissão para excluir produtos. ' +
+          'No Bling, habilite a permissão de exclusão de produtos no aplicativo da ANAROSA e depois ' +
+          'entre em Gestão > Integração > Reconectar Bling. Nenhum produto foi excluído.',
+          { reason: 'bling_delete_permission_missing' },
+        );
+      }
+      throw error;
+    }
     ctx.logger.info('admin.product_delete', 'Exclusão confirmada no Bling', {
       entityType: 'product', entityId: blingId, adminUserId: admin.id,
     });
