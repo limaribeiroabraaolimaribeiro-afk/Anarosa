@@ -35,6 +35,7 @@ export interface PublicProduct {
   price: number;
   promotionalPrice: number | null;
   images: Array<{ url: string; alt: string | null }>;
+  videos: string[];
   variants: PublicVariant[];
   stock: number | null;
   available: boolean;
@@ -129,6 +130,7 @@ export function serializePublicProduct(
           alt: i.alt ?? null,
         })).filter((i) => !!i.url)
       : [],
+    videos: Array.isArray(product.metadata?.videos) ? product.metadata.videos.filter((u: unknown) => typeof u === 'string' && u.startsWith('https://')).slice(0, 3) : [],
     variants: publicVariants,
     stock,
     available,
