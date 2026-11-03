@@ -94,7 +94,7 @@
                 <a class="btn btn-outline" href="#/produtos">Cadastrar vídeo no produto</a>
                 <a class="btn btn-outline" data-listing-video-source hidden target="_blank" rel="noopener noreferrer">Abrir vídeo selecionado</a>
                 <a class="btn btn-outline" data-listing-clip-help target="_blank" rel="noopener noreferrer" href="https://www.mercadolivre.com.br/a/store/clips">Abrir Clips no Mercado Livre</a>
-                <a class="btn btn-outline" data-listing-shopee-help target="_blank" rel="noopener noreferrer" hidden href="https://help.shopee.com.br/portal/10/article/165030-Passo-a-Passo-para-Criar-seu-Shopee-Video">Como publicar na Shopee Video</a>
+                <a class="btn btn-outline" data-listing-shopee-help target="_blank" rel="noopener noreferrer" hidden href="https://base.com/pt-BR/ajuda/knowledgebase/adicionando-videos-nos-anuncios-da-shopee/">Como adicionar vídeo ao anúncio Shopee</a>
               </div>
             </div>
           </div>
