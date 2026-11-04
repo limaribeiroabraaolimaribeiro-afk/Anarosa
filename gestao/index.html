@@ -235,6 +235,51 @@
             <p>Importante: categorias variam entre Mercado Livre, Shopee e Bling. Produtos completamente diferentes não devem ser anunciados como cores/tamanhos do mesmo modelo.</p>
           </details>
         </div>
+        <div class="gestao-card" id="meta-ad-studio" data-meta-ads-root>
+          <div class="gestao-audit-heading">
+            <div>
+              <h2>Meta Ads Studio — Facebook e Instagram</h2>
+              <p class="gestao-note">Crie prévias de anúncios com os produtos da ANAROSA, revise no ChatGPT ou aqui e publique SOMENTE pausados, após aprovação específica. Nenhuma campanha ou orçamento é ativado automaticamente.</p>
+            </div>
+            <button type="button" class="btn btn-outline" data-meta-refresh>Atualizar</button>
+          </div>
+          <p class="gestao-note" data-meta-ads-status role="status" aria-live="polite">Verificando conta de anúncios Meta…</p>
+          <p class="gestao-note" data-meta-ads-message role="status" aria-live="polite"></p>
+          <div class="gestao-actions">
+            <a class="btn btn-outline" href="#/integracao">Configurar integração Meta</a>
+            <a class="btn btn-outline" href="https://business.facebook.com/adsmanager" target="_blank" rel="noopener noreferrer">Gerenciador de Anúncios</a>
+          </div>
+          <form class="meta-ads-form" data-meta-ad-form>
+            <input type="hidden" name="draftId" value="">
+            <div class="meta-ads-fields">
+              <label>Produto do Bling
+                <select name="blingId" required><option value="">Carregando produtos…</option></select>
+              </label>
+              <label>Conjunto de anúncios Meta
+                <select name="adsetId"><option value="">Vincular após conectar a Meta</option></select>
+              </label>
+              <label>Título do anúncio
+                <input name="title" maxlength="160" placeholder="Nome real da peça" required>
+              </label>
+              <label class="meta-ads-full">Texto principal
+                <textarea name="primaryText" rows="4" maxlength="2200" required placeholder="Benefícios reais, chamada para a loja, sem promessas inventadas"></textarea>
+              </label>
+              <label class="meta-ads-full">Descrição complementar
+                <textarea name="description" rows="2" maxlength="500" placeholder="Confira tamanhos e disponibilidade na loja"></textarea>
+              </label>
+            </div>
+            <div class="meta-ads-preview" data-meta-ad-preview>
+              <p class="gestao-note">Selecione um produto para pré-visualizar a foto e o destino.</p>
+            </div>
+            <div class="gestao-actions">
+              <button class="btn btn-primary" type="submit" data-meta-ad-save>Salvar rascunho</button>
+              <button class="btn btn-outline" type="button" data-meta-new>Novo rascunho</button>
+            </div>
+          </form>
+          <h3>Rascunhos e aprovações</h3>
+          <p class="gestao-note">Aprovação e publicação são operações separadas. Um anúncio criado na Meta fica PAUSADO, sem iniciar veiculação nem alterar verba do conjunto.</p>
+          <div data-meta-ad-list><p class="gestao-note">Carregando anúncios…</p></div>
+        </div>
       </section>
 
       <!-- ---------------- CLIENTES ---------------- -->
@@ -435,6 +480,7 @@
   <script src="../js/services/ui-service.js"></script>
   <script src="js/marketplace-listings.js"></script>
   <script src="js/mercadolivre-connect.js"></script>
+  <script src="js/meta-ads.js"></script>
   <script src="js/gestao.js"></script>
 </body>
 </html>
