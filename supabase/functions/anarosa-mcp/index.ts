@@ -84,7 +84,7 @@ async function requestAdmin(endpoint: string, token: string, params?: Args, body
     'admin-dashboard-summary','admin-products','admin-product-detail','admin-categories','admin-customers',
     'admin-orders','admin-stock-history','admin-deposits','admin-integration-status',
     'admin-product-create','admin-product-update','admin-stock-adjust','admin-marketplace-listings',
-    'admin-marketplace-channels','mercadolivre-oauth-callback','admin-product-image-upload','admin-catalog-audit',
+    'admin-marketplace-channels','mercadolivre-oauth-callback','admin-product-image-upload','admin-catalog-audit','admin-meta-ads',
   ]);
   if (!allowed.has(endpoint)) throw new Error('Operação não autorizada pelo MCP.');
   const url = new URL(APP_URL + '/functions/v1/' + endpoint);
@@ -353,6 +353,52 @@ const actions: Record<string,Tool> = {
       observacoes:S.str('Observação',500)},['confirmar','operationKey','blingProductId','depositoId','operacao','quantidade']),
     action:(a,t)=>{yes(a);operationId(a);validBlingId(a.blingProductId);validBlingId(a.depositoId);
       return requestAdmin('admin-stock-adjust',t,undefined,{...jsonParams(a,['blingProductId','depositoId','operacao','quantidade','observacoes']),operationKey:a.operationKey});},
+  },
+  meta_status: {
+    description:'Consultar se a conta de anúncios Meta está autorizada para a ANAROSA; NÃO retorna tokens nem publica nada.',
+    schema:properties({}),readOnly:true,
+    action:(_a,t)=>requestAdmin('admin-meta-ads',t,{action:'status'}),
+  },
+  meta_listar_conjuntos: {
+    description:'Consultar conjuntos de anúncios disponíveis na conta Meta da ANAROSA. Exige conexão oficial prévia; sem criação.',
+    schema:properties({}),readOnly:true,openWorld:true,
+    action:(_a,t)=>requestAdmin('admin-meta-ads',t,{action:'adsets'}),
+  },
+  meta_listar_rascunhos: {
+    description:'Listar rascunhos, aprovações e anúncios pausados gerados pela Gestão ANAROSA. Não cria anúncios.',
+    schema:properties({}),readOnly:true,
+    action:(_a,t)=>requestAdmin('admin-meta-ads',t,{action:'list'}),
+  },
+  meta_criar_rascunho: {
+    description:'Criar ou editar SOMENTE prévia local de anúncio patrocinado Meta para produto real da ANAROSA. Não publica nem ativa orçamento. Título, texto e imagem devem refletir a peça. Exigir confirmação do usuário para salvar.',
+    schema:properties({
+      confirmar:S.bool('Usuário autorizou salvar este rascunho local'),
+      blingId:S.str('ID real do produto do Bling',19),
+      title:S.str('Título publicitário com fatos verificados',160),
+      primaryText:S.str('Texto principal persuasivo sem inventar características',2200),
+      description:S.str('Descrição complementar',500),
+      imageUrl:S.str('URL da foto pertencente ao produto; omitir para a primeira',1500),
+      adsetId:S.str('ID de conjunto de anúncios da Meta, quando já conectado',19),
+      id:S.str('UUID do rascunho existente para revisar',36),
+    },['confirmar','blingId']),
+    action:(a,t)=>{yes(a);validBlingId(a.blingId);
+      return requestAdmin('admin-meta-ads',t,undefined,
+        {action:'save',...jsonParams(a,['blingId','title','primaryText','description','imageUrl','adsetId','id'])});},
+  },
+  meta_aprovar_rascunho: {
+    description:'Aprovar explicitamente UMA versão de anúncio Meta após mostrar título, foto, texto, destino e conjunto da Meta ao usuário. Aprovar NÃO publica ou ativa campanha.',
+    schema:properties({confirmar:S.bool('Usuário aprovou a prévia EXATA'),
+      id:S.str('UUID do anúncio',36),revision:{type:'integer',minimum:1}},['confirmar','id','revision']),
+    action:(a,t)=>{yes(a);
+      return requestAdmin('admin-meta-ads',t,undefined,{action:'approve',id:requiredText(a,'id',36),revision:a.revision,confirmar:true});},
+  },
+  meta_publicar_anuncio_pausado: {
+    description:'Cria anuncio pago EXTERNAMENTE na conta Meta SEM VEICULAÇÃO (status PAUSED). Requer autorização Meta, conjunto válido, aprovação expressa da versão e nova confirmação do usuário. Não cria, ativa nem altera orçamento de campanha/conjunto. Não repetir após resultado incerto.',
+    schema:properties({confirmar:S.bool('Usuário autorizou criar ESTE anúncio PAUSADO na Meta'),
+      id:S.str('UUID do anúncio aprovado',36),revision:{type:'integer',minimum:1}},['confirmar','id','revision']),
+    openWorld:true,
+    action:(a,t)=>{yes(a);
+      return requestAdmin('admin-meta-ads',t,undefined,{action:'publish_paused',id:requiredText(a,'id',36),revision:a.revision,confirmar:true});},
   },
   salvar_anuncio: {
     description:'Salvar rascunho ou preparar revisão de anúncio de Mercado Livre/Shopee ligado a um produto Bling; preparar NÃO publica.',
