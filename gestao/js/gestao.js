@@ -972,8 +972,8 @@
         // Não liberar tentativas de estado incerto, como falha de rede/timeout.
         operation?.clear();
         const goToIntegration = window.confirm(
-          'O Bling recusou a exclusão: falta permissão de exclusão de produtos para o aplicativo ANAROSA.\\n\\n' +
-          'Nenhum produto foi excluído. Após habilitar essa permissão no Bling, reconecte o aplicativo.\\n\\n' +
+          'O Bling recusou a exclusão: falta permissão de exclusão de produtos para o aplicativo ANAROSA.\n\n' +
+          'Nenhum produto foi excluído. Após habilitar essa permissão no Bling, reconecte o aplicativo.\n\n' +
           'Deseja abrir a área Integração da Gestão agora?'
         );
         btn.disabled = false;
@@ -987,10 +987,10 @@
         // o produto não está E. Libera o intent para uma nova operação futura.
         operation?.clear();
         const onlyStore = window.confirm(
-          'O Bling recusou excluir este produto pela API.\\n\\n' +
-          'Deseja REMOVER SOMENTE da loja e da gestão ANAROSA?\\n\\n' +
+          'O Bling recusou excluir este produto pela API.\n\n' +
+          'Deseja REMOVER SOMENTE da loja e da gestão ANAROSA?\n\n' +
           'Ele NÃO será excluído do Bling e seus anúncios do Mercado Livre/Shopee NÃO serão alterados. ' +
-          'Os registros históricos serão preservados.\\n\\n' +
+          'Os registros históricos serão preservados.\n\n' +
           'OK = Remover somente da ANAROSA · Cancelar = Não remover'
         );
         if (onlyStore) {
