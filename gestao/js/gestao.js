@@ -1126,6 +1126,17 @@
       $('[data-int="cachedProducts"]').textContent = `${status.activeProducts} ativos / ${status.cachedProducts} no total`;
       $('[data-int="orderSyncEnabled"]').textContent = status.orderSyncEnabled ? 'Ativada' : 'Desativada (padrão de segurança)';
       $('[data-integration-card]').hidden = false;
+      const metaLabel = $('[data-meta-ads-integration-status]');
+      if (metaLabel) {
+        try {
+          const meta = await window.GestaoApi.metaAdsStatus();
+          metaLabel.textContent = meta.connected
+            ? 'Credenciais Meta configuradas no servidor (a conta ainda precisa aceitar as operações da API).'
+            : 'Meta Ads ainda sem autorização no servidor. A criação de rascunhos está disponível; publicação externa bloqueada.';
+        } catch {
+          metaLabel.textContent = 'Não foi possível verificar a autorização da conta Meta agora.';
+        }
+      }
     } catch (err) {
       if (err.status === 401) return handleSessionExpired('integração');
       renderState('integracao', 'error', 'Não foi possível carregar o status da integração agora.');
