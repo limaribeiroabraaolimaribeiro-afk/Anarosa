@@ -40,6 +40,7 @@ const files = [
   'gestao/js/gestao-api.js',
   'gestao/js/mercadolivre-connect.js',
   'gestao/js/marketplace-listings.js',
+  'gestao/js/meta-ads.js',
   'gestao/js/gestao.js',
   'gestao/js/product-editor.js',
 ];
