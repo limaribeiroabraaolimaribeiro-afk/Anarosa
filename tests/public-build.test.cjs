@@ -274,10 +274,10 @@ test('Meta Ads Studio is connected to Gestão and MCP with explicit approval + P
  const html=fs.readFileSync(path.join(root,'gestao/index.html'),'utf8');
  const frontend=fs.readFileSync(path.join(root,'gestao/js/meta-ads.js'),'utf8');
  const api=fs.readFileSync(path.join(root,'gestao/js/gestao-api.js'),'utf8');
- const backend=fs.readFileSync(path.join(root,'supabase/functions/admin-meta-ads/index.ts'),'utf8');
- const mcp=fs.readFileSync(path.join(root,'supabase/functions/anarosa-mcp/index.ts'),'utf8');
- const schema=fs.readFileSync(path.join(root,'supabase/migrations/20261104123000_meta_ad_drafts.sql'),'utf8');
- const allow=fs.readFileSync(path.join(root,'scripts/build-public.cjs'),'utf8');
+ const backend=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-meta-ads/index.ts'),'utf8');
+ const mcp=fs.readFileSync(path.join(__dirname,'..','supabase/functions/anarosa-mcp/index.ts'),'utf8');
+ const schema=fs.readFileSync(path.join(__dirname,'..','supabase/migrations/20261104123000_meta_ad_drafts.sql'),'utf8');
+ const allow=fs.readFileSync(path.join(__dirname,'..','scripts/build-public.cjs'),'utf8');
  assert.match(html,/data-meta-ads-root/);
  assert.match(html,/js\/meta-ads\.js/);
  assert.match(allow,/gestao\/js\/meta-ads\.js/);
