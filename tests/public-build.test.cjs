@@ -268,3 +268,35 @@ test('Bling deletion retries via documented one-ID bulk endpoint and verifies re
  const cache=backend.indexOf("ctx.db.from('store_products').update({");
  assert(first!==-1 && second>first && cache>second,'Single then one-ID batch then catalog update');
 });
+
+
+test('Meta Ads Studio is connected to Gestão and MCP with explicit approval + PAUSED ads only', () => {
+ const html=fs.readFileSync(path.join(root,'gestao/index.html'),'utf8');
+ const frontend=fs.readFileSync(path.join(root,'gestao/js/meta-ads.js'),'utf8');
+ const api=fs.readFileSync(path.join(root,'gestao/js/gestao-api.js'),'utf8');
+ const backend=fs.readFileSync(path.join(root,'supabase/functions/admin-meta-ads/index.ts'),'utf8');
+ const mcp=fs.readFileSync(path.join(root,'supabase/functions/anarosa-mcp/index.ts'),'utf8');
+ const schema=fs.readFileSync(path.join(root,'supabase/migrations/20261104123000_meta_ad_drafts.sql'),'utf8');
+ const allow=fs.readFileSync(path.join(root,'scripts/build-public.cjs'),'utf8');
+ assert.match(html,/data-meta-ads-root/);
+ assert.match(html,/js\/meta-ads\.js/);
+ assert.match(allow,/gestao\/js\/meta-ads\.js/);
+ assert.match(frontend,/metaAdsAction/);
+ assert.match(frontend,/data-meta-approve/);
+ assert.match(frontend,/data-meta-publish/);
+ assert.match(api,/admin-meta-ads/);
+ assert.match(mcp,/meta_criar_rascunho/);
+ assert.match(mcp,/meta_aprovar_rascunho/);
+ assert.match(mcp,/meta_publicar_anuncio_pausado/);
+ assert.match(backend,/requireAdminUser/);
+ assert.match(backend,/action==='approve'/);
+ assert.match(backend,/action==='publish_paused'/);
+ assert.match(backend,/approved_revision/);
+ assert.match(backend,/status:'PAUSED'/);
+ assert.match(backend,/meta_network_uncertain/);
+ assert.match(backend,/needs_reconciliation/);
+ assert.match(backend,/META_ACCESS_TOKEN/);
+ assert.match(schema,/ENABLE ROW LEVEL SECURITY/);
+ assert.match(schema,/REVOKE ALL ON TABLE/);
+ assert.doesNotMatch(frontend,/graph\.facebook\.com/);
+});
