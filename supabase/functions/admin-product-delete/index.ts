@@ -100,9 +100,15 @@ serve(async (req, ctx) => {
         let alreadyMarkedDeleted = false;
         try {
           const inspected = (await ctx.client().getProductById(blingId)).data as Record<string, unknown> | undefined;
-          alreadyMarkedDeleted = String(inspected?.situacao ?? '').toUpperCase() === 'E';
+          if (!inspected || String(inspected.id) !== blingId) throw new Error('product_recheck_mismatch');
+          alreadyMarkedDeleted = String(inspected.situacao ?? '').toUpperCase() === 'E';
         } catch {
-          // Uma consulta inconclusiva não comprova sucesso ou exclusão.
+          // Estado remoto inconclusivo: NÃO repetir um DELETE potencialmente executado.
+          throw new ValidationError(
+            'Não foi possível conferir o produto no Bling após a falha da exclusão individual. ' +
+            'Confira o cadastro no Bling antes de tentar novamente.',
+            { reason: 'bling_delete_unverified' },
+          );
         }
         if (!alreadyMarkedDeleted) {
           // Endpoint documentado DELETE /produtos?idsProdutos[]=ID.
@@ -111,19 +117,33 @@ serve(async (req, ctx) => {
             await ctx.client().deleteProductViaBatch(blingId);
           } catch (batchError) {
             if (!(batchError instanceof BlingApiError && batchError.status === 400)) throw batchError;
-            // Endpoint em lote pode retornar HTTP 200 com alerta por produto.
-            const details = (batchError.blingFields?.length ? batchError.blingFields : singleError.blingFields ?? [])
-              .slice(0, 3)
-              .map(field => [field.code ? 'Código ' + field.code : '', field.element || '', field.msg]
-                .filter(Boolean).join(' — ')).join('; ');
-            throw new ValidationError(
-              'O Bling recusou a exclusão individual e a exclusão em lote (HTTP 400). ' +
-              (details ? 'Detalhes do Bling: ' + details.slice(0, 480) + '. ' :
-                (batchError.blingDescription ? 'Detalhes do Bling: ' + batchError.blingDescription.slice(0, 180) + '. ' : '')) +
-              'O produto foi mantido na ANAROSA e no Bling.',
-              { reason: 'bling_delete_rejected', blingStatus: 400,
-                blingType: batchError.blingType ?? singleError.blingType ?? null },
-            );
+            // Mesmo com alerta 400, consultar antes de considerar não-excluído.
+            let batchConfirmed = false;
+            try {
+              const state = (await ctx.client().getProductById(blingId)).data as Record<string, unknown> | undefined;
+              batchConfirmed = String(state?.id) === blingId &&
+                String(state?.situacao ?? '').toUpperCase() === 'E';
+            } catch {
+              throw new ValidationError(
+                'O Bling não permitiu confirmar o resultado da exclusão em lote. ' +
+                'Verifique o produto no Bling antes de repetir a operação.',
+                { reason: 'bling_delete_unverified' },
+              );
+            }
+            if (!batchConfirmed) {
+              const details = (batchError.blingFields?.length ? batchError.blingFields : singleError.blingFields ?? [])
+                .slice(0, 3)
+                .map(field => [field.code ? 'Código ' + field.code : '', field.element || '', field.msg]
+                  .filter(Boolean).join(' — ')).join('; ');
+              throw new ValidationError(
+                'O Bling recusou a exclusão individual e a exclusão em lote (HTTP 400). ' +
+                (details ? 'Detalhes do Bling: ' + details.slice(0, 480) + '. ' :
+                  (batchError.blingDescription ? 'Detalhes do Bling: ' + batchError.blingDescription.slice(0, 180) + '. ' : '')) +
+                'O produto foi mantido na ANAROSA e no Bling.',
+                { reason: 'bling_delete_rejected', blingStatus: 400,
+                  blingType: batchError.blingType ?? singleError.blingType ?? null },
+              );
+            }
           }
           deletionMethod = 'batch_single_id';
         } else {
