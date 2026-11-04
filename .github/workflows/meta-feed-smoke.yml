@@ -1,0 +1,43 @@
+name: Meta catalog feed smoke test
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/meta-feed-smoke.yml"
+      - "supabase/functions/meta-product-feed/**"
+      - "supabase/functions/_shared/meta-catalog-feed.ts"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch public Meta catalog
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 25 --retry 2 \
+            "https://gpmbkptimjipqsayrvce.supabase.co/functions/v1/meta-product-feed" \
+            --output /tmp/anarosa-meta-feed.csv
+          python3 - <<'PY'
+          import csv, re
+          with open('/tmp/anarosa-meta-feed.csv', encoding='utf-8-sig', newline='') as f:
+              reader=csv.DictReader(f)
+              required={'id','title','description','availability','condition','price','link','image_link','brand'}
+              assert required.issubset(set(reader.fieldnames or [])), reader.fieldnames
+              rows=list(reader)
+          assert rows, 'Feed contains no eligible products'
+          ids=set()
+          for p in rows:
+              assert p['id'] and p['id'] not in ids, f"Duplicate ID {p['id']!r}"
+              ids.add(p['id'])
+              assert p['price'].endswith(' BRL')
+              assert p['link'].startswith('https://www.lojaanarosa.com.br/p/')
+              assert p['image_link'].startswith('https://')
+              assert p['availability'] in ('in stock','out of stock')
+          print(f'Validated {len(rows)} Meta feed rows; no ad created.')
+          PY
