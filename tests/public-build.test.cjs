@@ -207,7 +207,7 @@ test('product deletion reports missing Bling scope and allows only definitive re
 });
 
 
-test('delete product reconciles existing Bling deletion and offers safe local-only fallback', () => {
+test('delete product requires confirmed Bling deletion before hiding in ANAROSA', () => {
  const frontend=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
  const api=fs.readFileSync(path.join(root,'gestao/js/gestao-api.js'),'utf8');
  const remote=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-product-delete/index.ts'),'utf8');
@@ -218,17 +218,19 @@ test('delete product reconciles existing Bling deletion and offers safe local-on
  assert.match(remote,/bling_delete_rejected/);
  assert.match(remote,/blingStatus: 400/);
  assert.match(frontend,/blingRejected/);
- assert.match(frontend,/hideProductFromStore/);
- assert.match(frontend,/REMOVE_ONLY_FROM_ANAROSA/);
- assert.match(api,/admin-product-hide/);
- assert.match(local,/hidden_from_gestao_at/);
- assert.match(local,/deletedInBling: false/);
- assert.match(local,/requireAdminUser/);
- assert.match(repo,/\.is\('hidden_from_gestao_at', null\)/);
+ assert.match(frontend,/O produto continua no Bling e na ANAROSA/);
+ assert.doesNotMatch(frontend,/hideProductFromStore/);
+ assert.doesNotMatch(frontend,/REMOVE_ONLY_FROM_ANAROSA/);
+ assert.doesNotMatch(api,/hideProductFromStore/);
+ assert.match(local,/local_product_delete_disabled/);
+ assert.doesNotMatch(local,/\.update\(/);
+ const idxCall=remote.indexOf('await ctx.client().deleteProduct(blingId)');
+ const idxCache=remote.indexOf("ctx.db.from('store_products').update({");
+ assert(idxCall>0 && idxCache>idxCall, 'Bling delete must run before local tombstone');
+ assert.match(remote,/deletedInBling: true/);
  assert.match(repo,/markDeletedByBlingId/);
  assert.match(sync,/raw\?\.situacao/);
 });
-
 
 test('delete confirmation on mobile uses line breaks, not literal backslash n sequences', () => {
  const frontend=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
@@ -240,6 +242,6 @@ test('delete confirmation on mobile uses line breaks, not literal backslash n se
  assert(!section.includes(invalidEscape), 'Confirm text must not display literal backslash-n');
  assert(section.includes(String.raw`\n\n`), 'Confirm should retain real JavaScript newline escapes');
  const backend=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-product-delete/index.ts'),'utf8');
- assert.match(backend,/Resposta do Bling/);
+ assert.match(backend,/Detalhes do Bling/);
  assert.match(backend,/bling_delete_rejected/);
 });
