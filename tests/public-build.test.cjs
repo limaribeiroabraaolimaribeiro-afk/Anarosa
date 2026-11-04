@@ -228,3 +228,18 @@ test('delete product reconciles existing Bling deletion and offers safe local-on
  assert.match(repo,/markDeletedByBlingId/);
  assert.match(sync,/raw\?\.situacao/);
 });
+
+
+test('delete confirmation on mobile uses line breaks, not literal backslash n sequences', () => {
+ const frontend=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
+ const start=frontend.indexOf('async function deleteProductFromCatalog');
+ const end=frontend.indexOf('// CLIENTES', start);
+ assert(start>0 && end>start,'Product delete handler must exist');
+ const section=frontend.slice(start,end);
+ const invalidEscape=String.raw`\\n\\n`;
+ assert(!section.includes(invalidEscape), 'Confirm text must not display literal backslash-n');
+ assert(section.includes(String.raw`\n\n`), 'Confirm should retain real JavaScript newline escapes');
+ const backend=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-product-delete/index.ts'),'utf8');
+ assert.match(backend,/Resposta do Bling/);
+ assert.match(backend,/bling_delete_rejected/);
+});
