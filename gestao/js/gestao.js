@@ -935,7 +935,7 @@
     const code = String(product.sku || product.blingId);
     const accepted = window.confirm(
       'Excluir "' + product.name + '" (SKU ' + code + ')?\n\n' +
-      'A ação será enviada ao Bling e removerá o produto da loja ANAROSA. ' +
+      'A gestão enviará a exclusão ao Bling e só retirará o produto da ANAROSA após a confirmação. ' +
       'Não exclui anúncios de marketplaces nem registros históricos.\n\n' +
       'Produtos com pedidos ou anúncios vinculados são bloqueados. Deseja continuar?'
     );
@@ -957,8 +957,9 @@
       const result = await window.GestaoApi.deleteProduct({
         blingId: product.blingId, confirmText: code, confirmar: true, operationKey: operation.key,
       });
+      if (result?.deletedInBling !== true) throw new Error('Bling não confirmou a exclusão.');
       operation.clear();
-      showToast(result.message || 'Produto excluído no Bling.');
+      showToast(result.message || 'Produto excluído no Bling e na ANAROSA.');
       if (productsOffset > 0 && $('[data-products-grid]').children.length === 1) {
         productsOffset = Math.max(0, productsOffset - PRODUCTS_PAGE_SIZE);
       }
@@ -983,33 +984,13 @@
       }
       const blingRejected = err?.payload?.details?.reason === 'bling_delete_rejected';
       if (blingRejected) {
-        // O Bling confirmou rejeição HTTP 400 e o backend verificou que
-        // o produto não está E. Libera o intent para uma nova operação futura.
+        // A API recusou a exclusão: não ocultar nem remover na ANAROSA.
+        // Libera somente uma falha definitiva 400, não erros incertos.
         operation?.clear();
-        const onlyStore = window.confirm(
-          'O Bling recusou excluir este produto pela API.\n\n' +
-          'Deseja REMOVER SOMENTE da loja e da gestão ANAROSA?\n\n' +
-          'Ele NÃO será excluído do Bling e seus anúncios do Mercado Livre/Shopee NÃO serão alterados. ' +
-          'Os registros históricos serão preservados.\n\n' +
-          'OK = Remover somente da ANAROSA · Cancelar = Não remover'
+        window.alert(
+          friendlyErrorMessage(err, 'O Bling recusou a exclusão.') + '\n\n' +
+          'O produto continua no Bling e na ANAROSA. Nenhuma remoção local foi realizada.'
         );
-        if (onlyStore) {
-          try {
-            const result = await window.GestaoApi.hideProductFromStore({
-              blingId: product.blingId,
-              confirmText: code,
-              confirmation: 'REMOVE_ONLY_FROM_ANAROSA',
-            });
-            showToast(result.message || 'Removido apenas da ANAROSA.');
-            if (productsOffset > 0 && $('[data-products-grid]').children.length === 1) {
-              productsOffset = Math.max(0, productsOffset - PRODUCTS_PAGE_SIZE);
-            }
-            await loadProducts(false);
-            return;
-          } catch (hideError) {
-            window.alert(friendlyErrorMessage(hideError, 'Falha ao remover da gestão. Nenhum dado foi excluído no Bling.'));
-          }
-        }
         btn.disabled = false;
         btn.textContent = originalLabel;
         return;
