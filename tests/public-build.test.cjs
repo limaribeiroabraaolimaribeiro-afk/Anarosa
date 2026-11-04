@@ -205,3 +205,26 @@ test('product deletion reports missing Bling scope and allows only definitive re
  assert.match(frontend,/goToIntegration/);
  assert.match(frontend,/window\.location\.hash = '#\/integracao'/);
 });
+
+
+test('delete product reconciles existing Bling deletion and offers safe local-only fallback', () => {
+ const frontend=fs.readFileSync(path.join(root,'gestao/js/gestao.js'),'utf8');
+ const api=fs.readFileSync(path.join(root,'gestao/js/gestao-api.js'),'utf8');
+ const remote=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-product-delete/index.ts'),'utf8');
+ const local=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-product-hide/index.ts'),'utf8');
+ const repo=fs.readFileSync(path.join(__dirname,'..','supabase/functions/_shared/catalog-repo.ts'),'utf8');
+ const sync=fs.readFileSync(path.join(__dirname,'..','supabase/functions/_shared/sync-service.ts'),'utf8');
+ assert.match(remote,/alreadyDeletedInBling/);
+ assert.match(remote,/bling_delete_rejected/);
+ assert.match(remote,/blingStatus: 400/);
+ assert.match(frontend,/blingRejected/);
+ assert.match(frontend,/hideProductFromStore/);
+ assert.match(frontend,/REMOVE_ONLY_FROM_ANAROSA/);
+ assert.match(api,/admin-product-hide/);
+ assert.match(local,/hidden_from_gestao_at/);
+ assert.match(local,/deletedInBling: false/);
+ assert.match(local,/requireAdminUser/);
+ assert.match(repo,/\.is\('hidden_from_gestao_at', null\)/);
+ assert.match(repo,/markDeletedByBlingId/);
+ assert.match(sync,/raw\?\.situacao/);
+});
