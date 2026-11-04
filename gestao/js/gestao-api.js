@@ -63,6 +63,11 @@
     getOrder: (id) => call('admin-orders', { params: { id } }),
     listProducts: (params) => call('admin-products', { params }),
     listMarketplaceListings: () => call('admin-marketplace-listings'),
+    metaAdsStatus: () => call('admin-meta-ads', { params: { action: 'status' } }),
+    metaAdsList: () => call('admin-meta-ads', { params: { action: 'list' } }),
+    metaAdsAdsets: () => call('admin-meta-ads', { params: { action: 'adsets' } }),
+    metaAdsAction: (body) => call('admin-meta-ads', { body }),
+
     linkMarketplaceListing: (body) => call('admin-marketplace-listings', {method:'POST',body:{...body,action:'link'}}),
     inspectMarketplaceChannels: () => call('admin-marketplace-channels'),
     saveMarketplaceListing: (body) => call('admin-marketplace-listings', { body }),
