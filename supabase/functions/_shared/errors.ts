@@ -66,11 +66,12 @@ export class BlingApiError extends IntegrationError {
   readonly blingType?: string;
   readonly blingMessage?: string;
   readonly blingDescription?: string;
+  readonly blingFields?: Array<{ code?: string; msg: string; element?: string }>;
 
   constructor(
     status: number,
     message: string,
-    extra: { blingType?: string; blingMessage?: string; blingDescription?: string; operation?: string } = {},
+    extra: { blingType?: string; blingMessage?: string; blingDescription?: string; blingFields?: Array<{ code?: string; msg: string; element?: string }>; operation?: string } = {},
   ) {
     super('bling_api_error', message, 502, {
       blingStatus: status,
@@ -81,6 +82,7 @@ export class BlingApiError extends IntegrationError {
     this.blingType = extra.blingType;
     this.blingMessage = extra.blingMessage;
     this.blingDescription = extra.blingDescription;
+    this.blingFields = extra.blingFields;
   }
 }
 
