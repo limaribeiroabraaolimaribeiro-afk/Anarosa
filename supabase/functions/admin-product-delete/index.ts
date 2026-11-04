@@ -74,22 +74,42 @@ serve(async (req, ctx) => {
         String(remote.codigo ?? '').trim() !== String(cached.sku ?? '').trim()) {
       throw new ValidationError('O produto foi alterado no Bling. Atualize o catálogo antes de excluir.');
     }
-    await submitted();
-    try {
-      await ctx.client().deleteProduct(blingId);
-    } catch (error) {
-      // A API confirmou rejeição HTTP 403: nenhuma exclusão foi realizada.
-      // O token foi emitido sem a permissão de exclusão do aplicativo Bling.
-      if (error instanceof BlingApiError && error.status === 403 &&
-          error.blingType === 'insufficient_scope') {
-        throw new ValidationError(
-          'O Bling recusou a exclusão: o aplicativo ANAROSA não tem permissão para excluir produtos. ' +
-          'No Bling, habilite a permissão de exclusão de produtos no aplicativo da ANAROSA e depois ' +
-          'entre em Gestão > Integração > Reconectar Bling. Nenhum produto foi excluído.',
-          { reason: 'bling_delete_permission_missing' },
-        );
+    // Se o usuário excluiu antes no painel Bling, basta reconciliar o catálogo.
+    // Nunca envie uma nova exclusão de um produto já com situação E.
+    const alreadyDeletedInBling = String(remote.situacao ?? '').toUpperCase() === 'E';
+    if (!alreadyDeletedInBling) {
+      await submitted();
+      try {
+        await ctx.client().deleteProduct(blingId);
+      } catch (error) {
+        if (error instanceof BlingApiError && error.status === 403 &&
+            error.blingType === 'insufficient_scope') {
+          throw new ValidationError(
+            'O aplicativo ANAROSA ainda não possui permissão para excluir produtos no Bling.',
+            { reason: 'bling_delete_permission_missing', blingStatus: 403 },
+          );
+        }
+        if (error instanceof BlingApiError && error.status === 400) {
+          // Algumas exclusões são aceitas no painel, mas rejeitadas pelo
+          // endpoint DELETE. Só reconciliar como excluído após obter E.
+          let externallyDeleted = false;
+          try {
+            const rechecked = (await ctx.client().getProductById(blingId)).data as Record<string, unknown> | undefined;
+            externallyDeleted = String(rechecked?.situacao ?? '').toUpperCase() === 'E';
+          } catch {
+            // Não inferir exclusão a partir de falha de consulta.
+          }
+          if (!externallyDeleted) {
+            throw new ValidationError(
+              'O Bling recusou a exclusão pela API (HTTP 400). ' +
+              'Você pode retirar este produto apenas da loja/gestão ANAROSA ou tentar excluí-lo pelo painel do Bling.',
+              { reason: 'bling_delete_rejected', blingStatus: 400 },
+            );
+          }
+        } else {
+          throw error;
+        }
       }
-      throw error;
     }
     ctx.logger.info('admin.product_delete', 'Exclusão confirmada no Bling', {
       entityType: 'product', entityId: blingId, adminUserId: admin.id,
@@ -112,7 +132,10 @@ serve(async (req, ctx) => {
         message: 'Excluído no Bling, mas a retirada do catálogo ainda precisa de conferência. Não repita a exclusão.',
       };
     }
-    return { ok: true, blingId, message: 'Produto excluído no Bling e retirado do catálogo ANAROSA.' };
+    return { ok: true, blingId, deletedInBling: true,
+      message: alreadyDeletedInBling
+        ? 'Produto já estava excluído no Bling e foi retirado da gestão ANAROSA.'
+        : 'Produto excluído no Bling e retirado do catálogo ANAROSA.' };
   });
   return json(req, result, result.syncPending ? 202 : 200);
 });
