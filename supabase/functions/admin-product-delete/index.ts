@@ -102,8 +102,9 @@ serve(async (req, ctx) => {
           if (!externallyDeleted) {
             throw new ValidationError(
               'O Bling recusou a exclusão pela API (HTTP 400). ' +
-              'Você pode retirar este produto apenas da loja/gestão ANAROSA ou tentar excluí-lo pelo painel do Bling.',
-              { reason: 'bling_delete_rejected', blingStatus: 400 },
+              (error.blingMessage ? 'Resposta do Bling: ' + error.blingMessage.slice(0, 180) + '. ' : '') +
+              'A exclusão no Bling não foi realizada. É possível remover apenas da loja/gestão ANAROSA, se desejar.',
+              { reason: 'bling_delete_rejected', blingStatus: 400, blingType: error.blingType ?? null },
             );
           }
         } else {
