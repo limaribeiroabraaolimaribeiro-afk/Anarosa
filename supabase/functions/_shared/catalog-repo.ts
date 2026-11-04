@@ -393,6 +393,29 @@ export class CatalogRepository {
     return Array.isArray(data) && data.length > 0;
   }
 
+  /** Bling confirmou situação E: tombstone preserva histórico e bloqueia ressuscitação via sync. */
+  async markDeletedByBlingId(blingId: string): Promise<'product' | 'variant' | 'none'> {
+    const now = new Date().toISOString();
+    const product = await this.findProductByBlingId(blingId);
+    if (product) {
+      const [parent, children, variants] = await Promise.all([
+        this.db.from('store_products').update({ active: false, deleted_from_bling_at: now, synced_at: now }).eq('id', product.id),
+        this.db.from('store_products').update({ active: false, deleted_from_bling_at: now, synced_at: now }).eq('parent_bling_id', blingId),
+        this.db.from('store_product_variants').update({ active: false, synced_at: now }).eq('product_id', product.id),
+      ]);
+      if (parent.error || children.error || variants.error) throw new Error('product_mark_deleted_failed');
+      return 'product';
+    }
+    const variant = await this.findVariantByBlingId(blingId);
+    if (variant) {
+      const { error } = await this.db.from('store_product_variants')
+        .update({ active: false, synced_at: now }).eq('id', variant.id);
+      if (error) throw new Error('variant_mark_deleted_failed');
+      return 'variant';
+    }
+    return 'none';
+  }
+
   /** Soft-disable: nunca apaga histórico. */
   async deactivateByBlingId(blingId: string): Promise<'product' | 'variant' | 'none'> {
     const now = new Date().toISOString();
@@ -660,6 +683,7 @@ export class CatalogRepository {
       .select('*', { count: 'exact' })
       .is('parent_bling_id', null)
       .is('deleted_from_bling_at', null)
+      .is('hidden_from_gestao_at', null)
       .order('updated_at', { ascending: false });
 
     query = needsInMemoryPaging ? query.range(0, SAFETY_CAP - 1) : query.range(offset, offset + limit - 1);
@@ -758,8 +782,8 @@ export class CatalogRepository {
    */
   async countProducts(): Promise<{ total: number; active: number }> {
     const [{ count: total, error: e1 }, { count: active, error: e2 }] = await Promise.all([
-      this.db.from('store_products').select('id', { count: 'exact' }).is('deleted_from_bling_at', null).limit(1),
-      this.db.from('store_products').select('id', { count: 'exact' }).eq('active', true).is('deleted_from_bling_at', null).limit(1),
+      this.db.from('store_products').select('id', { count: 'exact' }).is('deleted_from_bling_at', null).is('hidden_from_gestao_at', null).limit(1),
+      this.db.from('store_products').select('id', { count: 'exact' }).eq('active', true).is('deleted_from_bling_at', null).is('hidden_from_gestao_at', null).limit(1),
     ]);
     if (e1) fail('products_count_total_failed', e1);
     if (e2) fail('products_count_active_failed', e2);
