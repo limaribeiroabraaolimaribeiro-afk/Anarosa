@@ -198,7 +198,8 @@ export class BlingClient {
     return new BlingApiError(status, `Bling respondeu ${status} em ${operation}.`, {
       operation,
       blingType: typeof e.type === 'string' ? e.type : undefined,
-      blingMessage: typeof e.message === 'string' ? e.message : (typeof e.description === 'string' ? e.description : undefined),
+      blingMessage: typeof e.message === 'string' ? e.message : undefined,
+      blingDescription: typeof e.description === 'string' ? e.description : undefined,
     });
   }
 
