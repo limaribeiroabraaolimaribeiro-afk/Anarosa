@@ -245,3 +245,26 @@ test('delete confirmation on mobile uses line breaks, not literal backslash n se
  assert.match(backend,/Detalhes do Bling/);
  assert.match(backend,/bling_delete_rejected/);
 });
+
+
+test('Bling deletion retries via documented one-ID bulk endpoint and verifies remote E', () => {
+ const client=fs.readFileSync(path.join(__dirname,'..','supabase/functions/_shared/bling-client.ts'),'utf8');
+ const backend=fs.readFileSync(path.join(__dirname,'..','supabase/functions/admin-product-delete/index.ts'),'utf8');
+ assert.match(client,/async deleteProductViaBatch\(id: string \| number\)/);
+ assert.match(client,/query: \{ idsProdutos: \[String\(id\)\] \}/);
+ assert.match(client,/Array\.isArray\(alerts\) && alerts\.length/);
+ assert.match(client,/throw BlingClient\.blingError\(400, issue/);
+ assert.match(backend,/error instanceof BlingApiError && error\.status === 400/);
+ assert.match(backend,/deleteProductViaBatch\(blingId\)/);
+ assert.match(backend,/alreadyMarkedDeleted/);
+ assert.match(backend,/batchConfirmed/);
+ assert.match(backend,/String\(verified\?\.situacao \?\? ''\)\.toUpperCase\(\) === 'E'/);
+ assert.match(backend,/bling_delete_unverified/);
+ assert.match(backend,/bling_delete_rejected/);
+ assert.match(backend,/Detalhes do Bling/);
+ assert.match(backend,/deletedInBling: true/);
+ const first=backend.indexOf('await ctx.client().deleteProduct(blingId)');
+ const second=backend.indexOf('await ctx.client().deleteProductViaBatch(blingId)');
+ const cache=backend.indexOf("ctx.db.from('store_products').update({");
+ assert(first!==-1 && second>first && cache>second,'Single then one-ID batch then catalog update');
+});
