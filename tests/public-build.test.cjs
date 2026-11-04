@@ -83,7 +83,7 @@ test('Gestão contains marketplace announcements route and explicit publication 
  assert.match(html,/data-nav="anuncios"/);
  assert.match(html,/data-page="anuncios"/);
  assert.match(html,/js\/marketplace-listings\.js/);
- assert.match(js,/anuncios: \(\) => window\.MarketplaceListings/);
+ assert.match(js,/anuncios: \(\) => \{ window\.MarketplaceListings\?\.load\(\); window\.AnarosaMetaAds\?\.load\(\); \}/);
  assert.match(client,/listMarketplaceListings/);
  assert.match(client,/saveMarketplaceListing/);
  assert.match(client,/inspectMarketplaceChannels/);
