@@ -330,6 +330,16 @@
             <a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="https://gpmbkptimjipqsayrvce.supabase.co/functions/v1/meta-product-feed">Conferir feed CSV</a>
           </div>
           <p class="gestao-note">Na Meta, crie um catálogo de e-commerce e adicione o URL acima como fonte de dados programada, de preferência com atualização diária. Vincule o catálogo à Página do Facebook e ao Instagram profissional da ANAROSA, se elegíveis. As compras serão direcionadas para as páginas da loja.</p>
+          <div class="gestao-divider"></div>
+          <h3>Publicação de anúncios patrocinados Meta</h3>
+          <p class="gestao-note" data-meta-ads-integration-status role="status">Verificando a conta de anúncios Meta…</p>
+          <p class="gestao-note">Para permitir criação de anúncios pelo ChatGPT e pela Gestão, a titular da ANAROSA deve autorizar um aplicativo Meta com <strong>ads_management</strong>, fornecer acesso à conta de anúncios e à Página do Facebook e preparar um conjunto de anúncios com o orçamento desejado. As credenciais devem ser guardadas somente nos <strong>segredos do servidor Supabase</strong>, nunca enviadas por mensagem.</p>
+          <p class="gestao-note">Configuração técnica no Supabase: <code>META_AD_ACCOUNT_ID</code>, <code>META_PAGE_ID</code>, <code>META_ACCESS_TOKEN</code>; opcionalmente <code>META_IG_ACTOR_ID</code>. O painel usa esses dados apenas no backend. A Meta pode exigir aprovação do aplicativo e permissões adicionais para contas de terceiros.</p>
+          <div class="gestao-actions">
+            <a class="btn btn-outline" href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer">Configurações empresariais Meta</a>
+            <a class="btn btn-outline" href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer">Aplicativos Meta</a>
+            <a class="btn btn-primary" href="#/anuncios">Abrir Meta Ads Studio</a>
+          </div>
         </div>
         <div class="gestao-card" data-meli-card>
           <h2>Mercado Livre — API direta</h2>
