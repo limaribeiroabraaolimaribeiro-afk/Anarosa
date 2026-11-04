@@ -247,7 +247,7 @@
     clientes: 'Clientes', integracao: 'Integração', configuracoes: 'Configurações',
   };
   const LOADERS = {
-    dashboard: loadDashboard, pedidos: loadOrders, produtos: loadProducts, anuncios: () => window.MarketplaceListings?.load(),
+    dashboard: loadDashboard, pedidos: loadOrders, produtos: loadProducts, anuncios: () => { window.MarketplaceListings?.load(); window.AnarosaMetaAds?.load(); },
     clientes: loadCustomers, integracao: loadIntegration, configuracoes: loadSettings,
   };
 
