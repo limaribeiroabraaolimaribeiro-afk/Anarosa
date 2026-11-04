@@ -130,7 +130,7 @@ serve(async (req, ctx) => {
     ]);
     if (parentUpdate.error || childUpdate.error || variantsUpdate.error) {
       return {
-        ok: true, blingId, syncPending: true,
+        ok: true, blingId, deletedInBling: true, syncPending: true,
         message: 'Excluído no Bling, mas a retirada do catálogo ainda precisa de conferência. Não repita a exclusão.',
       };
     }
