@@ -42,7 +42,7 @@ export async function handleProductEvent(evt: ParsedWebhookEvent, deps: HandlerD
   }
 
   if (evt.event === 'product.deleted') {
-    const what = await deps.repo.deactivateByBlingId(blingId);
+    const what = await deps.repo.markDeletedByBlingId(blingId);
     deps.logger.info('webhook.product', `soft-disable (${what})`, { entityType: 'product', entityId: blingId });
     return what === 'none' ? 'ignored' : 'processed';
   }
