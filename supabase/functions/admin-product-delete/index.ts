@@ -77,44 +77,80 @@ serve(async (req, ctx) => {
     // Se o usuário excluiu antes no painel Bling, basta reconciliar o catálogo.
     // Nunca envie uma nova exclusão de um produto já com situação E.
     const alreadyDeletedInBling = String(remote.situacao ?? '').toUpperCase() === 'E';
+    let deletionMethod: 'already_deleted' | 'individual' | 'batch_single_id' = 'already_deleted';
     if (!alreadyDeletedInBling) {
       await submitted();
+      let singleError: BlingApiError | null = null;
       try {
         await ctx.client().deleteProduct(blingId);
+        deletionMethod = 'individual';
       } catch (error) {
         if (error instanceof BlingApiError && error.status === 403 &&
             error.blingType === 'insufficient_scope') {
           throw new ValidationError(
-            'O aplicativo ANAROSA ainda não possui permissão para excluir produtos no Bling.',
+            'O aplicativo ANAROSA não tem permissão para excluir produtos no Bling.',
             { reason: 'bling_delete_permission_missing', blingStatus: 403 },
           );
         }
-        if (error instanceof BlingApiError && error.status === 400) {
-          // Algumas exclusões são aceitas no painel, mas rejeitadas pelo
-          // endpoint DELETE. Só reconciliar como excluído após obter E.
-          let externallyDeleted = false;
+        if (!(error instanceof BlingApiError && error.status === 400)) throw error;
+        singleError = error;
+
+        // Apenas 400 (rejeição definitiva). Se o Bling já marcou E,
+        // reconciliar o cache sem mandar novo DELETE.
+        let alreadyMarkedDeleted = false;
+        try {
+          const inspected = (await ctx.client().getProductById(blingId)).data as Record<string, unknown> | undefined;
+          alreadyMarkedDeleted = String(inspected?.situacao ?? '').toUpperCase() === 'E';
+        } catch {
+          // Uma consulta inconclusiva não comprova sucesso ou exclusão.
+        }
+        if (!alreadyMarkedDeleted) {
+          // Endpoint documentado DELETE /produtos?idsProdutos[]=ID.
+          // Exatamente um ID confirmado pelo usuário, sem alterar outras linhas.
           try {
-            const rechecked = (await ctx.client().getProductById(blingId)).data as Record<string, unknown> | undefined;
-            externallyDeleted = String(rechecked?.situacao ?? '').toUpperCase() === 'E';
-          } catch {
-            // Não inferir exclusão a partir de falha de consulta.
-          }
-          if (!externallyDeleted) {
+            await ctx.client().deleteProductViaBatch(blingId);
+          } catch (batchError) {
+            if (!(batchError instanceof BlingApiError && batchError.status === 400)) throw batchError;
+            // Endpoint em lote pode retornar HTTP 200 com alerta por produto.
+            const details = (batchError.blingFields?.length ? batchError.blingFields : singleError.blingFields ?? [])
+              .slice(0, 3)
+              .map(field => [field.code ? 'Código ' + field.code : '', field.element || '', field.msg]
+                .filter(Boolean).join(' — ')).join('; ');
             throw new ValidationError(
-              'O Bling recusou a exclusão pela API (HTTP 400). ' +
-              (error.blingDescription ? 'Detalhes do Bling: ' + error.blingDescription.slice(0, 180) + '. ' : '') +
-              (error.blingMessage ? 'Mensagem: ' + error.blingMessage.slice(0, 150) + '. ' : '') +
-              'Nenhuma exclusão foi confirmada. O produto permanecerá na ANAROSA e no Bling.',
-              { reason: 'bling_delete_rejected', blingStatus: 400, blingType: error.blingType ?? null },
+              'O Bling recusou a exclusão individual e a exclusão em lote (HTTP 400). ' +
+              (details ? 'Detalhes do Bling: ' + details.slice(0, 480) + '. ' :
+                (batchError.blingDescription ? 'Detalhes do Bling: ' + batchError.blingDescription.slice(0, 180) + '. ' : '')) +
+              'O produto foi mantido na ANAROSA e no Bling.',
+              { reason: 'bling_delete_rejected', blingStatus: 400,
+                blingType: batchError.blingType ?? singleError.blingType ?? null },
             );
           }
+          deletionMethod = 'batch_single_id';
         } else {
-          throw error;
+          deletionMethod = 'individual';
         }
+      }
+
+      // O retorno 2xx do DELETE em lote pode conter "alertas" e não
+      // implica exclusão efetiva. Exige consultar o ERP antes de ocultar.
+      let confirmed = false;
+      try {
+        const verified = (await ctx.client().getProductById(blingId)).data as Record<string, unknown> | undefined;
+        confirmed = String(verified?.id) === blingId &&
+          String(verified?.situacao ?? '').toUpperCase() === 'E';
+      } catch {
+        // Não considerar um timeout, 404 ou erro como confirmação.
+      }
+      if (!confirmed) {
+        throw new ValidationError(
+          'O Bling recebeu a solicitação, mas ainda não confirmou a situação Excluído (E). ' +
+          'O produto continua na ANAROSA. Atualize depois de conferir o Bling; não repita a operação sem verificar.',
+          { reason: 'bling_delete_unverified' },
+        );
       }
     }
     ctx.logger.info('admin.product_delete', 'Exclusão confirmada no Bling', {
-      entityType: 'product', entityId: blingId, adminUserId: admin.id,
+      entityType: 'product', entityId: blingId, adminUserId: admin.id, deletionMethod,
     });
 
     // Tombstone: remoção da vitrine e da listagem da Gestão sem apagar histórico.
