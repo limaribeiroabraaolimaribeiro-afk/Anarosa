@@ -78,6 +78,7 @@
     saveProductMerchandising: (body) => call('admin-product-merchandising', { body }),
     changeProductSituation: (body) => call('admin-product-situacao', { body }),
     deleteProduct: (body) => call('admin-product-delete', { body }),
+    hideProductFromStore: (body) => call('admin-product-hide', { body }),
     adjustStock: (body) => call('admin-stock-adjust', { body }),
     listDeposits: () => call('admin-deposits'),
     listCategories: (refresh = false) => call('admin-categories', { params: refresh ? { refresh: 1 } : {} }),
