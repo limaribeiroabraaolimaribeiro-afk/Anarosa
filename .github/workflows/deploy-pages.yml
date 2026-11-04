@@ -73,6 +73,9 @@ jobs:
       - name: Validar artefato público e compatibilidade
         run: node --test tests/public-build.test.cjs
 
+      - name: Testar exportação de catálogo Meta (CSV)
+        run: node --experimental-strip-types --test tests/meta-catalog.test.cjs
+
       # ---------------------------------------------------------------
       # Barreira de segurança: se qualquer arquivo/pasta interno (admin,
       # backend, docs, scripts, segredos) aparecer no artefato — hoje ou
