@@ -195,11 +195,22 @@ export class BlingClient {
   private static blingError(status: number, payload: unknown, operation: string): BlingApiError {
     const p = (payload ?? {}) as Record<string, unknown>;
     const e = (p.error ?? {}) as Record<string, unknown>;
+    const fields = Array.isArray(e.fields) ? e.fields.slice(0, 6).flatMap((entry: unknown) => {
+      if (!entry || typeof entry !== 'object') return [];
+      const f = entry as Record<string, unknown>;
+      if (typeof f.msg !== 'string' || !f.msg.trim()) return [];
+      return [{
+        msg: f.msg.slice(0, 200),
+        ...(typeof f.code === 'number' || typeof f.code === 'string' ? { code: String(f.code).slice(0, 20) } : {}),
+        ...(typeof f.element === 'string' ? { element: f.element.slice(0, 60) } : {}),
+      }];
+    }) : [];
     return new BlingApiError(status, `Bling respondeu ${status} em ${operation}.`, {
       operation,
       blingType: typeof e.type === 'string' ? e.type : undefined,
       blingMessage: typeof e.message === 'string' ? e.message : undefined,
       blingDescription: typeof e.description === 'string' ? e.description : undefined,
+      blingFields: fields,
     });
   }
 
@@ -369,6 +380,29 @@ export class BlingClient {
       method: 'DELETE',
       operation: 'products.delete',
     });
+  }
+
+  /**
+   * DELETE /produtos?idsProdutos[]=ID — rota OFICIAL de exclusão múltipla,
+   * usada aqui exclusivamente com UM ID e somente após falha definitiva 400
+   * da rota individual. A resposta pode ser HTTP 200 com alertas por item!
+   * Não supor sucesso sem confirmar situação E em uma consulta subsequente.
+   */
+  async deleteProductViaBatch(id: string | number): Promise<void> {
+    const response = await this.request<{ data?: { alertas?: unknown[] } }>('produtos', {
+      method: 'DELETE',
+      query: { idsProdutos: [String(id)] },
+      operation: 'products.delete_batch_one',
+    });
+    const alerts = response?.data?.alertas;
+    if (Array.isArray(alerts) && alerts.length) {
+      const first = alerts[0] as Record<string, unknown> | undefined;
+      const issue = first?.error && typeof first.error === 'object'
+        ? { error: first.error } : { error: { type: 'VALIDATION_ERROR',
+            message: 'O Bling emitiu alertas na exclusão em lote.',
+            description: typeof first?.message === 'string' ? first.message : undefined } };
+      throw BlingClient.blingError(400, issue, 'products.delete_batch_one');
+    }
   }
 
   // -------------------------------------------------------------------
