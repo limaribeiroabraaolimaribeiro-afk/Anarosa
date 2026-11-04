@@ -270,6 +270,22 @@
           </div>
           <p class="gestao-note" data-bling-reconnect-note>Se a exclusão de produtos apresentar <strong>Permissão insuficiente</strong>, acesse o Bling com a conta responsável, abra Central de Extensões → Área do integrador e revise os acessos do aplicativo da ANAROSA, habilitando exclusão de produtos, caso essa opção esteja disponível. Atenção: ao salvar uma alteração de escopos, o Bling revoga as autorizações anteriores do aplicativo; por isso, reconecte imediatamente para restaurar a sincronização. Depois toque em <strong>Reconectar Bling</strong> aqui e autorize os novos acessos. Sem essa autorização, utilize <strong>Desativar</strong> no cadastro. A reconexão abre o Bling oficial e não altera as conexões do Mercado Livre ou da Shopee. <a href="https://ajuda.bling.com.br/hc/pt-br/articles/35475121603351-Como-criar-um-aplicativo-para-integra%C3%A7%C3%A3o-via-API-no-Bling" target="_blank" rel="noopener noreferrer">Ajuda oficial do Bling</a>.</p>
         </div>
+        <div class="gestao-card" data-meta-catalog-card>
+          <h2>Meta — Facebook e Instagram</h2>
+          <p class="gestao-note">Exportação automática dos produtos elegíveis da ANAROSA para um catálogo Meta: fotos, marca, preços, tamanhos e disponibilidade. Produtos sem foto, marca ou preço válido não são exportados. Estoque desconhecido aparece como indisponível.</p>
+          <p class="gestao-note"><strong>Situação:</strong> arquivo de catálogo preparado; ainda não conectado a uma conta Meta. A aprovação do Instagram Shopping e dos recursos de Loja depende da Meta. Nenhum anúncio é publicado por este recurso.</p>
+          <label class="gestao-note" for="anarosa-meta-feed-url">Endereço do feed para o Gerenciador de Comércio</label>
+          <div class="gestao-actions">
+            <input id="anarosa-meta-feed-url" type="url" readonly aria-label="Endereço do catálogo Meta da ANAROSA" value="https://gpmbkptimjipqsayrvce.supabase.co/functions/v1/meta-product-feed" style="flex:1;min-width:180px;max-width:100%">
+            <button type="button" class="btn btn-outline" data-copy-meta-feed-url>Copiar URL</button>
+          </div>
+          <p class="gestao-note" data-meta-feed-copy-status role="status" aria-live="polite"></p>
+          <div class="gestao-actions">
+            <a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="https://business.facebook.com/commerce_manager/">Abrir Gerenciador de Comércio</a>
+            <a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="https://gpmbkptimjipqsayrvce.supabase.co/functions/v1/meta-product-feed">Conferir feed CSV</a>
+          </div>
+          <p class="gestao-note">Na Meta, crie um catálogo de e-commerce e adicione o URL acima como fonte de dados programada, de preferência com atualização diária. Vincule o catálogo à Página do Facebook e ao Instagram profissional da ANAROSA, se elegíveis. As compras serão direcionadas para as páginas da loja.</p>
+        </div>
         <div class="gestao-card" data-meli-card>
           <h2>Mercado Livre — API direta</h2>
           <p class="gestao-note">Autorize a conta vendedora pelo login oficial do Mercado Livre. O ChatGPT poderá consultar anúncios e a qualidade das publicações diretamente pela Gestão ANAROSA (MCP), sem depender do Bling. Não são feitas alterações automáticas.</p>
