@@ -1132,6 +1132,20 @@
     }
   }
 
+  $('[data-copy-meta-feed-url]')?.addEventListener('click', async () => {
+    const input = $('#anarosa-meta-feed-url');
+    const feedback = $('[data-meta-feed-copy-status]');
+    if (!input || !feedback) return;
+    try {
+      await navigator.clipboard.writeText(input.value);
+      feedback.textContent = 'URL copiada. No Gerenciador de Comércio da Meta, adicione como feed programado do catálogo.';
+    } catch {
+      input.focus();
+      input.select();
+      feedback.textContent = 'Selecione e copie a URL do catálogo exibida no campo.';
+    }
+  });
+
   $('[data-copy-mcp-url]')?.addEventListener('click', async () => {
     const input = $('[id="anarosa-mcp-url"]');
     const feedback = $('[data-mcp-copy-status]');
