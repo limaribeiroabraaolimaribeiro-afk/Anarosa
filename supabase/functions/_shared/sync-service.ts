@@ -94,6 +94,13 @@ export async function syncProductById(
 
   const { productId, variantIds } = await deps.repo.upsertProduct(mapped, categoryId);
   const variantBlingIds = [...variantIds.keys()];
+  if (String(raw?.situacao ?? '').toUpperCase() === 'E') {
+    await deps.repo.markDeletedByBlingId(mapped.product.bling_id);
+    deps.logger.info('sync.product', 'produto já excluído no Bling', {
+      entityType: 'product', entityId: mapped.product.bling_id,
+    });
+    return { productId, blingId: mapped.product.bling_id, variantBlingIds, syncedParentInstead };
+  }
 
   deps.logger.info('sync.product', 'produto sincronizado', {
     entityType: 'product',
