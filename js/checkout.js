@@ -12,14 +12,12 @@
  *     tudo e rejeita item inativo/sem estoque/variação inexistente.
  *
  * Pagamento:
- *   - "pix" → paga de verdade, online, via Checkout Integrado da
+ *   - "infinitepay" → paga de verdade, online, via Checkout Integrado da
  *     InfinitePay (infinitepay-create-payment cria o link; o cliente é
- *     redirecionado para o domínio da InfinitePay, que também oferece
- *     cartão dentro do checkout dela). Nenhum dado de cartão passa
- *     pelo nosso site — a InfinitePay é quem coleta isso.
- *   - "card_on_pickup" (cartão na retirada/entrega) e "whatsapp" → só
- *     uma PREFERÊNCIA registrada, sem cobrança online; vai direto para
- *     a tela de confirmação local, como antes.
+ *     redirecionado para escolher Pix ou cartão no domínio da InfinitePay).
+ *     Nenhum dado de cartão passa pelo nosso site.
+ *   - "whatsapp" → atendimento sem cobrança online; vai direto para
+ *     a tela de confirmação local.
  * A criação do pedido no Bling continua desativada
  * (BLING_ORDER_SYNC_ENABLED=false) — nenhum endpoint deste fluxo chama
  * o Bling.
@@ -55,9 +53,15 @@
   }
 
   const draft = Object.assign(
-    { customer: {}, shipping: { method: 'pickup', address: null }, payment: { method: 'pix' } },
+    { customer: {}, shipping: { method: 'pickup', address: null }, payment: { method: 'infinitepay' } },
     loadDraft(),
   );
+
+  // Rascunhos antigos podiam armazenar "pix" ou "card_on_pickup".
+  // Ambas as opções agora devem abrir o checkout da InfinitePay.
+  if (!['infinitepay', 'whatsapp'].includes(draft.payment?.method)) {
+    draft.payment = { method: 'infinitepay' };
+  }
 
   const panels = {};
   document.querySelectorAll('[data-panel]').forEach((el) => { panels[el.dataset.panel] = el; });
@@ -209,7 +213,7 @@
   }
 
   /* -----------------------------------------------------------
-     Etapa 4 — Pagamento (preferência; nenhuma cobrança real aqui)
+     Etapa 4 — Pagamento (método online ou atendimento pelo WhatsApp)
      ----------------------------------------------------------- */
   document.querySelectorAll('input[name="paymentMethod"]').forEach((r) => {
     if (draft.payment.method === r.value) r.checked = true;
@@ -252,7 +256,7 @@
     return json && json.product ? json.product : null;
   }
 
-  const PAYMENT_LABELS = { pix: 'Pix', card_on_pickup: 'Cartão na retirada/entrega', whatsapp: 'Combinar pelo WhatsApp' };
+  const PAYMENT_LABELS = { infinitepay: 'Online pela InfinitePay (Pix ou cartão)', whatsapp: 'Combinar pelo WhatsApp' };
 
   async function runReview() {
     const items = cart.getItems();
@@ -401,10 +405,9 @@
         return;
       }
 
-      // Só "Pix" (pago online via InfinitePay) passa por pagamento real.
-      // "Cartão na retirada/entrega" e "Combinar pelo WhatsApp" são só
-      // preferência registrada — vão direto para a confirmação local.
-      if (draft.payment.method !== 'pix') {
+      // A InfinitePay oferece Pix ou cartão no checkout externo.
+      // Somente "whatsapp" não inicia uma cobrança online.
+      if (draft.payment.method !== 'infinitepay') {
         cart.clear();
         try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
         const orderIdEl = document.querySelector('[data-confirmation-order-id]');

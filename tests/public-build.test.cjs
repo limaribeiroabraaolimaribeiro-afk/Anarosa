@@ -42,6 +42,20 @@ test('public checkout contract is preserved and new APIs are limited to product 
  assert(fs.readFileSync(path.join(root,'gestao/js/gestao-auth.js'),'utf8').includes('signInWithPassword'));
  assert(!fs.readFileSync(path.join(root,'js/products.js'),'utf8').includes("price:"));
 });
+test('checkout offers one online InfinitePay choice for Pix or card',()=>{
+ const html=fs.readFileSync(path.join(root,'checkout.html'),'utf8');
+ const checkout=fs.readFileSync(path.join(root,'js/checkout.js'),'utf8');
+ assert.match(html,/name="paymentMethod" value="infinitepay" checked/);
+ assert.match(html,/Pix ou cartão/);
+ assert.match(html,/name="paymentMethod" value="whatsapp"/);
+ assert.doesNotMatch(html,/name="paymentMethod" value="pix"/);
+ assert.doesNotMatch(html,/name="paymentMethod" value="card_on_pickup"/);
+ assert.match(checkout,/\['infinitepay', 'whatsapp'\]\.includes\(draft\.payment\?\.method\)/);
+ assert.match(checkout,/PAYMENT_LABELS = \{ infinitepay:/);
+ assert.match(checkout,/draft\.payment\.method !== 'infinitepay'/);
+ assert.match(checkout,/infinitepay-create-payment/);
+});
+
 test('each local script and stylesheet has a content-specific cache version',()=>{
  for(const file of files.filter(f=>f.endsWith('.html'))){
   const html=fs.readFileSync(file,'utf8');
