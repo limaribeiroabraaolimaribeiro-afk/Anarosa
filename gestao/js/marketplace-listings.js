@@ -9,7 +9,7 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const label = { mercado_livre: 'Mercado Livre', shopee:'Shopee' };
-  const state = { listings:[], products:[], connections:[], editing:null, loaded:false, channelInspectionAt:0 };
+  const state = { listings:[], products:[], connections:[], editing:null, loaded:false, channelInspectionAt:0, meliSchema:null, chartPreview:null };
   const node = $('[data-marketplace-root]');
   const message = (s, kind='') => {
     const el=$('[data-marketplace-message]');
@@ -23,12 +23,15 @@
   const connectionFor = (marketplace) => state.connections.find(c=>c.marketplace===marketplace);
   function variantRows(variations) {
     const current = new Map((variations||[]).map(v=>[String(v.blingId),v]));
+    const ml=$('[data-marketplace-form]')?.marketplace?.value==='mercado_livre';
+    const first=ownedVariants(selectedProduct()).find(v=>v.active!==false);
     return ownedVariants(selectedProduct()).map(v=>{
       const saved=current.get(String(v.blingId));
-      const enabled=saved ? saved.enabled !== false : v.active !== false;
+      const enabled=Array.isArray(variations) ? !!saved && saved.enabled!==false && v.active!==false :
+        v.active!==false && (!ml || String(first?.blingId)===String(v.blingId));
       const color=v.color || '—', size=v.size || '—';
       return `<div class="listing-variant-row" data-variation-id="${esc(v.blingId)}">
-        <label><input type="checkbox" data-listing-variant-enabled ${enabled?'checked':''}> ${esc(color)} / ${esc(size)}</label>
+        <label><input type="checkbox" data-listing-variant-enabled ${enabled?'checked':''} ${v.active===false?'disabled':''}> ${esc(color)} / ${esc(size)}</label>
         <small>SKU: ${esc(v.sku)} · ${fmt(v.price ?? selectedProduct().price)}</small>
         <label>Foto específica (HTTPS)
           <input type="url" data-listing-variant-photo value="${esc(saved?.image || '')}" placeholder="https://…">
@@ -41,6 +44,8 @@
   }
   function renderForm(item = null) {
     state.editing = item?.id || null;
+    state.meliSchema=null;
+    state.chartPreview=null;
     const productOptions=state.products.filter(p=>!p.parentBlingId).map(p=>
       `<option value="${esc(p.blingId)}">${esc(p.name)} (SKU ${esc(p.sku)})</option>`).join('');
     const form=$('[data-marketplace-form]');
@@ -106,13 +111,30 @@
           <div class="listing-form-grid">
             <div class="listing-span">
               <strong>Variações a anunciar</strong>
-              <p class="gestao-note">Cada SKU mantém seu estoque no Bling. Selecione as opções e fotos desejadas.</p>
+              <p class="gestao-note">Cada SKU mantém seu estoque no Bling. Mercado Livre User Products: uma variação por anúncio, com família comum. Na Shopee, selecione múltiplas opções.</p>
               <div data-listing-variants class="listing-variant-grid"></div>
             </div>
-            <label class="listing-span">Atributos exigidos pelo marketplace (JSON)
-              <textarea name="listing-attributes" rows="3" placeholder='{"BRAND":"Ogochi","GENDER":"Masculino"}'></textarea>
-              <small>Informe somente características confirmadas da categoria, sem alterar o produto no Bling.</small>
-            </label>
+            <div class="listing-span" data-meli-panel>
+              <button type="button" class="btn btn-outline" data-meli-category>Consultar atributos oficiais</button>
+              <p class="gestao-note" data-meli-category-note aria-live="polite">Consulte a categoria para carregar os campos oficiais do Mercado Livre.</p>
+              <div class="listing-form-grid" data-meli-fields></div>
+              <details class="listing-step" data-meli-chart-panel>
+                <summary>Tabela de medidas</summary>
+                <div class="listing-step-body listing-form-grid">
+                  <button type="button" class="btn btn-outline" data-meli-charts>Buscar tabelas compatíveis</button>
+                  <button type="button" class="btn btn-outline" data-meli-chart-rows>Preparar tabela de calçados</button>
+                  <p class="listing-span gestao-note" data-meli-chart-note aria-live="polite">Confirme marca, gênero e medidas reais de cada numeração.</p>
+                  <div class="listing-span" data-meli-chart-results></div>
+                  <div class="listing-span" data-meli-chart-editor></div>
+                </div>
+              </details>
+            </div>
+            <details class="listing-span" data-meli-json>
+              <summary>Atributos avançados (JSON)</summary>
+              <label>Características confirmadas do canal
+                <textarea name="listing-attributes" rows="3" placeholder='{"BRAND":"Ogochi","GENDER":"Meninos"}'></textarea>
+              </label>
+            </details>
           </div>
         </div>
       </details>
@@ -137,6 +159,7 @@
     if (item) form.querySelectorAll('.listing-step[open], .listing-step[data-listing-step]')
       .forEach(step=>{ if (step.tagName==='DETAILS') step.open=true; });
     updateConnectionMessage();
+    if(item?.marketplace==='mercado_livre' && item.category_external_id) void loadMeliSchema();
   }
 
   function drawVideoPicker(product, preferred = '') {
@@ -232,6 +255,8 @@
     const channel=f.marketplace.value, c=connectionFor(channel);
     const status=c?.status === 'connected' ? 'Conexão de publicação autorizada' : 'Publicação pela Gestão ainda não validada';
     const note=$('[data-listing-publication-note]');
+    const panel=f.querySelector('[data-meli-panel]');
+    if(panel)panel.hidden=channel!=='mercado_livre';
     note.textContent=`${label[channel]}: ${status}. Salvar e verificar estão disponíveis. A publicação exige a conexão oficial do canal e confirmação pela API; um rascunho não é anúncio publicado.`;
   }
   async function inspectBlingChannels() {
@@ -352,12 +377,155 @@
     state.loaded = true;
     message('Rascunhos e produtos carregados.');
   }
+  function formAttributes() {
+    const input=$('[name="listing-attributes"]'); let a;
+    try{a=JSON.parse(input.value||'{}');}catch{throw Error('Atributos avançados contêm JSON inválido.');}
+    if(!a||typeof a!=='object'||Array.isArray(a))throw Error('Atributos inválidos.');
+    return a;
+  }
+  function storeAttributes(a){
+    $('[name="listing-attributes"]').value=JSON.stringify(a,null,2);
+  }
+  function clearChart(){
+    state.chartPreview=null;
+    const result=$('[data-meli-chart-results]'),editor=$('[data-meli-chart-editor]');
+    if(result)result.replaceChildren();if(editor)editor.replaceChildren();
+  }
+  function selectedMeliVariant(f=$('[data-marketplace-form]')){
+    const rows=[...f.querySelectorAll('[data-variation-id]')].filter(row=>row.querySelector('[data-listing-variant-enabled]').checked);
+    if(rows.length!==1)throw Error('Selecione exatamente uma variação para este anúncio Mercado Livre.');
+    const v=ownedVariants(selectedProduct()).find(x=>String(x.blingId)===rows[0].dataset.variationId);
+    if(!v||v.active===false)throw Error('Variação Bling indisponível.');
+    return v;
+  }
+  async function loadMeliSchema(){
+    const f=$('[data-marketplace-form]'),target=f.querySelector('[data-meli-fields]'),note=f.querySelector('[data-meli-category-note]');
+    if(f.marketplace.value!=='mercado_livre'||!target)return;
+    const categoryId=f['listing-category'].value.trim();
+    if(!/^MLB\d+$/.test(categoryId)){note.textContent='Informe o código oficial MLB da categoria.';return;}
+    note.textContent='Consultando atributos na API oficial…';
+    try{
+      const data=await window.GestaoApi.mercadoLivreControl('category_schema',{categoryId});
+      if(!f.isConnected||$('[data-marketplace-form]')!==f||f['listing-category'].value.trim()!==categoryId||f.marketplace.value!=='mercado_livre')return;
+      if(!data.ok||!Array.isArray(data.attributes))throw Error(data.message||'Ficha técnica indisponível.');
+      state.meliSchema=data;
+      const attrs=formAttributes(), product=selectedProduct();
+      if(!attrs.BRAND&&product?.brand)attrs.BRAND=product.brand;
+      target.replaceChildren();
+      const derived=new Set(['COLOR','SIZE','SELLER_SKU','SIZE_GRID_ID','SIZE_GRID_ROW_ID']);
+      const definitions=data.attributes.filter(d=>!derived.has(d.id)&&!d.tags?.read_only&&!d.tags?.hidden&&(d.tags?.required||d.tags?.catalog_required||Object.hasOwn(attrs,d.id)||['GTIN','EMPTY_GTIN_REASON','ITEM_CONDITION'].includes(d.id)));
+      for(const d of definitions){
+        const labelEl=document.createElement('label');
+        labelEl.textContent=d.name+(d.tags?.required?' *':'');
+        let control;
+        const values=d.values||[];
+        if(d.value_type==='list'&&values.length){
+          control=document.createElement('select');
+          const empty=document.createElement('option');empty.value='';empty.textContent='Selecione';control.append(empty);
+          for(const v of values){const opt=document.createElement('option');opt.value=String(v.name);opt.textContent=v.name;control.append(opt);}
+          const selected=values.find(v=>String(v.id)===String(attrs[d.id])||String(v.name).toLowerCase()===String(attrs[d.id]||'').toLowerCase());
+          control.value=selected?.name||'';
+        }else{
+          control=document.createElement('input');control.type='text';control.value=attrs[d.id]??'';control.maxLength=255;
+        }
+        control.dataset.meliAttribute=d.id;
+        control.addEventListener('change',()=>{
+          const current=formAttributes(),previous=current[d.id];
+          if(control.value.trim())current[d.id]=control.value.trim();else delete current[d.id];
+          if(['BRAND','GENDER'].includes(d.id)&&String(previous||'')!==control.value.trim()){
+            delete current.SIZE_GRID_ID;delete current.SIZE_GRID_ROW_ID;clearChart();
+          }
+          storeAttributes(current);
+        });
+        labelEl.append(control);target.append(labelEl);
+      }
+      storeAttributes(attrs);
+      note.textContent=(data.name||categoryId)+' · '+definitions.length+' campos oficiais carregados. Cor, tamanho e SKU vêm do Bling.';
+      f.querySelector('[data-meli-chart-panel]').hidden=!data.attributes.some(d=>d.id==='SIZE_GRID_ID'||d.id==='SIZE_GRID_ROW_ID');
+    }catch(err){note.textContent=err.message||'Falha ao consultar atributos oficiais.';}
+  }
+  function chartFilter(){
+    const f=$('[data-marketplace-form]'),a=formAttributes();
+    if(!a.BRAND||!a.GENDER)throw Error('Preencha a marca e o gênero oficiais primeiro.');
+    return {categoryId:f['listing-category'].value.trim(),brand:String(a.BRAND),gender:String(a.GENDER)};
+  }
+  function chartRowFor(chart,variant){
+    const norm=s=>String(s??'').toLowerCase().replace(/[^a-z0-9]/g,'').replace(/br$/,'');
+    return (chart.rows||[]).find(row=>(row.attributes||[]).some(x=>['SIZE','BR_SIZE','MANUFACTURER_SIZE',chart.main_attribute_id].includes(x.id)&&(x.values||[]).some(v=>norm(v.name)===norm(variant.size))));
+  }
+  function renderCharts(charts){
+    const target=$('[data-meli-chart-results]');target.replaceChildren();
+    if(!charts.length){target.textContent='Nenhuma tabela compatível encontrada.';return;}
+    for(const chart of charts){
+      const row=document.createElement('div');row.className='listing-record';
+      const info=document.createElement('span');info.textContent=(chart.names?.MLB||'Tabela')+' · ID '+chart.id;
+      const btn=document.createElement('button');btn.type='button';btn.className='btn btn-outline';btn.textContent='Vincular à variação';
+      btn.addEventListener('click',async()=>{
+        try{
+          const variant=selectedMeliVariant();
+          const result=await window.GestaoApi.mercadoLivreControl('chart_detail',{chartId:String(chart.id)});
+          const full=result.chart;if(!result.ok||!full)throw Error('Tabela oficial indisponível.');
+          const match=chartRowFor(full,variant);
+          if(!match)throw Error('A tabela não possui a numeração '+variant.size+'.');
+          const a=formAttributes();a.SIZE_GRID_ID=String(full.id);a.SIZE_GRID_ROW_ID=String(match.id);storeAttributes(a);
+          message('Tabela '+full.id+' vinculada ao tamanho '+variant.size+'. Salve o rascunho.','success');
+        }catch(err){message(err.message,'error');}
+      });
+      row.append(info,btn);target.append(row);
+    }
+  }
+  async function searchMeliCharts(){
+    const note=$('[data-meli-chart-note]');note.textContent='Buscando tabelas oficiais…';
+    try{
+      const q=chartFilter(),result=await window.GestaoApi.mercadoLivreControl('chart_search',q);
+      if(!result.ok)throw Error(result.message||'Consulta indisponível.');
+      renderCharts(result.charts||[]);note.textContent='Consulta concluída. Vincule somente uma tabela que represente as medidas reais.';
+    }catch(err){note.textContent=err.message;}
+  }
+  function openChartEditor(){
+    clearChart();
+    const target=$('[data-meli-chart-editor]'),p=selectedProduct();
+    try{
+      chartFilter();if(!p)throw Error('Escolha o produto.');
+      const sizes=[...new Set(ownedVariants(p).filter(v=>v.active!==false).map(v=>String(v.size||'').trim()).filter(Boolean))];
+      if(!sizes.length)throw Error('Nenhum tamanho ativo no Bling.');
+      const name=document.createElement('input');name.type='text';name.maxLength=60;name.placeholder='Nome da tabela (letras, números e espaços)';
+      name.value=(String(p.name||'').replace(/[^\p{L}\p{N} ]/gu,' ')+' medidas').slice(0,60).trim();
+      const h=document.createElement('p');h.className='gestao-note';h.textContent='Informe somente medidas do pé confirmadas em centímetros. A criação definitiva exige aprovação separada.';
+      target.append(h,name);
+      const controls=[];
+      sizes.forEach(size=>{const lab=document.createElement('label');lab.textContent=size+' · Comprimento do pé (cm)';
+        const input=document.createElement('input');input.type='number';input.min='1';input.max='60';input.step='0.1';lab.append(input);target.append(lab);controls.push({size,input});});
+      const prepare=document.createElement('button');prepare.type='button';prepare.className='btn btn-outline';prepare.textContent='Gerar prévia da tabela';
+      prepare.addEventListener('click',async()=>{
+        prepare.disabled=true;
+        try{
+          if(!state.editing)throw Error('Salve primeiro o rascunho do anúncio.');
+          if(controls.some(x=>!x.input.value||!Number.isFinite(Number(x.input.value))))throw Error('Preencha todas as medidas confirmadas.');
+          const rows=controls.map(x=>({size:x.size,footLengthCm:Number(x.input.value)}));
+          const response=await window.GestaoApi.mercadoLivreControl('chart_prepare',{listingId:state.editing,name:name.value.trim(),rows});
+          if(!response.ok||!response.intentId)throw Error(response.message||'Prévia não criada.');
+          state.chartPreview=response;const summary=rows.map(x=>x.size+': '+x.footLengthCm+' cm').join('\n');
+          if(!window.confirm('Revise a tabela '+response.payload.names.MLB+' ('+chartFilter().gender+'):\n'+summary+'\n\nCriar tabela definitiva no Mercado Livre? Esta operação não publica anúncios e não pode ser desfeita.'))return;
+          const done=await window.GestaoApi.mercadoLivreControl('chart_create',{intentId:response.intentId,confirmar:true});
+          if(!done.ok||!done.chartId)throw Error(done.message||'Não houve confirmação da criação.');
+          message(done.message||'Tabela criada. Pesquise e vincule à variação.','success');await searchMeliCharts();
+        }catch(err){message(formatMeliError(err),'error');}
+        finally{prepare.disabled=false;}
+      });
+      target.append(prepare);
+    }catch(err){message(err.message,'error');}
+  }
+  function formatMeliError(err){
+    const payload=err.payload||{}, reasons=[...(payload.missing||[]),...(payload.invalid||[]).map(x=>x.name||x.id),...(payload.validation?.causes||payload.causes||[]).map(x=>x.message)].filter(Boolean);
+    return (err.message||'Operação não concluída')+(reasons.length?' — '+reasons.join('; '):'')+(payload.uncertain?' Não repetir sem conferir o marketplace.':'');
+  }
+
   function collect() {
     const f=$('[data-marketplace-form]');
     const product=selectedProduct();
     if (!product) throw Error('Selecione o produto principal cadastrado no Bling.');
-    let attributes={};
-    try { attributes=JSON.parse(f['listing-attributes'].value || '{}'); } catch { throw Error('Os atributos precisam estar em JSON válido.'); }
+    const attributes=formAttributes();
     const variations=[...f.querySelectorAll('[data-variation-id]')].map(row=>({
       blingId:row.dataset.variationId,
       enabled:row.querySelector('[data-listing-variant-enabled]').checked,
@@ -380,16 +548,35 @@
     buttons.forEach(b=>b.disabled=true);
     message(action==='publish'?'Verificando autorização e requisitos do canal…':'Salvando e validando anúncio…');
     try {
-      const response=await window.GestaoApi.saveMarketplaceListing({...collect(),action});
-      if (response.item?.id) state.editing=response.item.id;
-      const missing=response.missing||[];
+      const data=collect(),ml=data.marketplace==='mercado_livre';
+      if(ml&&action!=='save')selectedMeliVariant();
+      if(action==='publish'&&!ml)throw Error('Publicação automática da Shopee ainda não homologada. Salve o rascunho.');
+      // Always save the reviewed data before validation/publication; the server uses only the saved draft.
+      const prepared=await window.GestaoApi.saveMarketplaceListing({...data,action:action==='save'?'save':'prepare'});
+      if(prepared.item?.id)state.editing=prepared.item.id;
+      if(!prepared.ok)throw Error(prepared.message||'Rascunho não salvo.');
+      if(ml&&action!=='save'){
+        if(!state.editing)throw Error('Rascunho sem identificador.');
+        const preview=await window.GestaoApi.mercadoLivreControl('validate_listing',{listingId:state.editing});
+        if(!preview.ok||!preview.validated)throw Error(preview.message||'Validação oficial não confirmou o anúncio.');
+        if(action==='prepare'){
+          await load();message('Validação oficial concluída. Nenhum anúncio publicado.','success');return;
+        }
+        if(!window.confirm('Publicar em produção no Mercado Livre?\n'+data.title+'\nSKU: '+preview.sku+'\nEstoque: '+preview.quantity+'\nPreço: '+fmt(data.price)))return;
+        const published=await window.GestaoApi.mercadoLivreControl('publish_listing',{listingId:state.editing,confirmar:true});
+        await load();
+        if(published.externalListingId)message((published.active?'Anúncio ativo: ':'Anúncio criado, conferir status: ')+published.externalListingId,published.active?'success':'');
+        else message(published.message||'Publicação não confirmada; confira antes de repetir.','error');
+        return;
+      }
+      const missing=prepared.missing||[];
       await load();
-      message(response.message+(missing.length?' Pendências: '+missing.join('; '):''),'success');
+      message(prepared.message+(missing.length?' Pendências: '+missing.join('; '):''),'success');
     }catch(err){
-      const missing=Array.isArray(err.payload?.missing)?err.payload.missing:[];
-      if (missing.length) $('[data-marketplace-form]').querySelectorAll('details.listing-step').forEach(step=>step.open=true);
-      message((err.message||'Não foi possível salvar.')+(missing.length?' Pendências: '+missing.join('; '):''),'error');
-    } finally { buttons.forEach(b=>b.disabled=false); }
+      message(formatMeliError(err),'error');
+      const form=$('[data-marketplace-form]');
+      if(form)form.querySelectorAll('details.listing-step').forEach(step=>step.open=true);
+    }finally{buttons.forEach(b=>b.disabled=false);}
   }
   async function uploadFile(file) {
     if (!file) return '';
@@ -402,8 +589,13 @@
   }
   node.addEventListener('change',async e=>{
     const f=$('[data-marketplace-form]');
-    if (e.target.name==='listing-product'){state.editing=null;drawProductDetails();return;}
-    if (e.target.name==='marketplace'){updateConnectionMessage();updateVideoPreview();return;}
+    if (e.target.name==='listing-product'){state.editing=null;state.meliSchema=null;clearChart();storeAttributes({});f.querySelector('[data-meli-fields]').replaceChildren();drawProductDetails();return;}
+    if (e.target.name==='marketplace'){state.meliSchema=null;clearChart();f.querySelector('[data-meli-fields]').replaceChildren();drawProductDetails();updateConnectionMessage();updateVideoPreview();return;}
+    if (e.target.name==='listing-category'){state.meliSchema=null;clearChart();f.querySelector('[data-meli-fields]').replaceChildren();void loadMeliSchema();return;}
+    if(e.target.matches('[data-listing-variant-enabled]')&&f.marketplace.value==='mercado_livre'&&e.target.checked){
+      f.querySelectorAll('[data-listing-variant-enabled]').forEach(x=>{if(x!==e.target)x.checked=false;});
+      try{const a=formAttributes();delete a.SIZE_GRID_ROW_ID;storeAttributes(a);}catch{}
+    }
     if (e.target.name==='listing-video'){updateVideoPreview();return;}
     if (e.target.matches('[data-listing-main-files]')) {
       const files=[...e.target.files];
@@ -434,6 +626,9 @@
     if(button.matches('[data-listing-new]')){renderForm();message('Novo rascunho. Escolha um produto do Bling.');}
     if(button.matches('[data-listing-inspect]'))inspectBlingChannels();
     if(button.matches('[data-listing-refresh]'))load();
+    if(button.matches('[data-meli-category]'))void loadMeliSchema();
+    if(button.matches('[data-meli-charts]'))void searchMeliCharts();
+    if(button.matches('[data-meli-chart-rows]'))openChartEditor();
     if(button.matches('[data-listing-save]'))save('save');
     if(button.matches('[data-listing-prepare]'))save('prepare');
     if(button.matches('[data-listing-publish]'))save('publish');
