@@ -346,6 +346,108 @@ async function premiumWorkflow(req:Request,adminId:string,body:any,action:string
     return json(req,result,result.ok?200:207);
   }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha na revisão de modalidade.').slice(0,300)},(e as any)?.status||400);}
 }
+// Rename a complete User Products family in one official operation.
+function familyNameKey(v:any){return String(v??'').trim().replace(/\s+/g,' ').toLowerCase();}
+async function familyRenameState(familyId:string,ids:string[],sellerId:number,access:string){
+  if(!/^\d{1,25}$/.test(familyId)||ids.length<2||ids.length>10||
+     new Set(ids).size!==ids.length||ids.some(id=>!/^MLB\d{8,16}$/.test(id)))
+    throw auditError('Informe a família e todos os anúncios MLB distintos.');
+  const [info,members]=await Promise.all([
+    readMeli('/user-products-families/'+familyId,access),
+    readMeli('/user-products-families/'+familyId+'/user-products',access)
+  ]);
+  if(!info.ok||String(info.data?.family_id)!==familyId||Number(info.data?.user_id)!==sellerId||
+     typeof info.data?.family_name!=='string'||!members.ok||!Array.isArray(members.data?.user_products_ids))
+    throw auditError('Não foi possível confirmar a família e sua titularidade.',409);
+  const ups=members.data.user_products_ids.map(String).sort();
+  if(ups.length!==ids.length||new Set(ups).size!==ups.length||ups.some((u:string)=>!/^MLBU\d+$/.test(u)))
+    throw auditError('A família possui membros não incluídos na revisão.',409);
+  const found=await readMeli('/users/'+sellerId+'/items/search?'+new URLSearchParams({user_product_id:ups.join(','),limit:'100',offset:'0'}).toString(),access);
+  if(!found.ok||!Array.isArray(found.data?.results)||Number(found.data?.paging?.total)!==ids.length||
+     JSON.stringify(found.data.results.map(String).sort())!==JSON.stringify([...ids].sort()))
+    throw auditError('Não foi possível conferir todas as condições de venda da família.',409);
+  const records=await Promise.all([...ids].sort().map(async id=>{
+    const r=await readMeli('/items/'+id,access),item=r.data;
+    if(!r.ok||item?.id!==id||Number(item.seller_id)!==sellerId||!ups.includes(String(item.user_product_id))||
+       !['active','paused'].includes(item.status)||item.sold_quantity!==0||item.currency_id!=='BRL')
+      throw auditError('Anúncio com venda, não elegível ou fora da família: '+id,409);
+    const up=await readMeli('/user-products/'+item.user_product_id,access);
+    if(!up.ok||String(up.data?.family_id)!==familyId||String(up.data?.id)!==String(item.user_product_id))
+      throw auditError('Não foi possível confirmar o User Product de '+id,409);
+    const attr=(key:string)=>item.attributes?.find((a:any)=>a.id===key)?.value_name??null;
+    return {id,upId:String(item.user_product_id),familyName:item.family_name,price:item.price,stock:item.available_quantity,
+      sold:item.sold_quantity,listingType:item.listing_type_id,category:item.category_id,condition:item.condition,
+      shipping:{mode:item.shipping?.mode??null,logisticType:item.shipping?.logistic_type??null,free:item.shipping?.free_shipping??null},
+      pictures:(item.pictures||[]).map((p:any)=>p.id),sku:attr('SELLER_SKU'),size:attr('SIZE'),color:attr('COLOR'),
+      grid:attr('SIZE_GRID_ID'),row:attr('SIZE_GRID_ROW_ID'),attributes:(item.attributes||[]).map((a:any)=>[a.id,a.value_id??null,a.value_name??null]).sort((a:any,b:any)=>String(a[0]).localeCompare(String(b[0])))};
+  }));
+  if(new Set(records.map(r=>r.upId)).size!==ups.length)
+    throw auditError('Os IDs não representam todos os User Products da família.',409);
+  const protectedState={familyId,domain:info.data.domain_id,attributes:info.data.attributes,childIds:info.data.child_attributes_ids,
+    customNames:info.data.custom_attributes_names,records:records.map(({familyName,...r})=>r)};
+  const digest=await sha(JSON.stringify({protectedState,name:info.data.family_name,items:records.map(r=>r.familyName)}));
+  return {name:info.data.family_name,records,protectedState,digest};
+}
+async function familyRenameWorkflow(req:Request,adminId:string,body:any,action:string){
+  const prepare=action==='family_rename_prepare';
+  const rate=await db.rpc('rl_check_and_increment',{p_bucket:'meli-'+action+':'+adminId,p_limit:prepare?10:3,p_window_seconds:3600});
+  if(rate.error||rate.data!==true)return json(req,{ok:false,message:'Limite de revisão de família atingido.'},429);
+  const row=await connection();
+  if(!row)return json(req,{ok:false,message:'Conta Mercado Livre não conectada.'},409);
+  let access:string;
+  try{access=await usableToken(row);}catch{return json(req,{ok:false,message:'Autorização indisponível.'},503);}
+  try{
+    if(prepare){
+      const familyId=String(body.familyId||''),ids=Array.isArray(body.ids)?body.ids.map((x:any)=>String(x).toUpperCase()):[];
+      const name=String(body.newName||'').trim().replace(/\s+/g,' ');
+      if(name.length<3||name.length>60||/[\x00-\x1f\x7f]/.test(name))throw auditError('Nome de família inválido.');
+      const state=await familyRenameState(familyId,ids,Number(row.seller_id),access);
+      if(familyNameKey(state.name)===familyNameKey(name))throw auditError('Família já tem o nome solicitado.',409);
+      if(state.records.some(r=>familyNameKey(r.familyName)!==familyNameKey(state.name)))
+        throw auditError('Nome ainda não sincronizado entre membros. Não alterar.',409);
+      const preview={familyId,before:state.name,after:name,items:state.records.map(({attributes,...r})=>r),
+        notice:'Somente family_name será enviado ao endpoint oficial da família. Títulos dos itens podem ser recalculados de forma assíncrona. Nenhum anúncio criado, excluído ou alterado nesta prévia.'};
+      const {data,error}=await db.from('meli_edit_intents').insert({seller_id:row.seller_id,item_id:ids[0],
+        admin_user_id:adminId,snapshot_hash:state.digest,changes:{operation:'family_rename',familyId,ids,newName:name},
+        preview,expires_at:new Date(Date.now()+15*60*1000).toISOString()}).select('id,expires_at').single();
+      if(error||!data)throw auditError('Não foi possível registrar a prévia.',503);
+      return json(req,{ok:true,applied:false,previewId:data.id,expiresAt:data.expires_at,preview});
+    }
+    const id=String(body.previewId||'');
+    if(body.confirmar!==true||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+      throw auditError('Confirmação e UUID da prévia obrigatórios.');
+    const {data:intent,error}=await db.from('meli_edit_intents').select('*').eq('id',id)
+      .eq('seller_id',row.seller_id).eq('admin_user_id',adminId).maybeSingle();
+    if(error||!intent||intent.changes?.operation!=='family_rename')throw auditError('Prévia de família não encontrada.',404);
+    if(intent.consumed_at||Date.parse(intent.expires_at)<=Date.now())throw auditError('Prévia utilizada ou expirada. Não repetir sem reconciliação.',409);
+    const c=intent.changes,state=await familyRenameState(c.familyId,c.ids,Number(row.seller_id),access);
+    if(state.digest!==intent.snapshot_hash)throw auditError('A família ou dados comerciais mudaram. Nova prévia obrigatória.',409);
+    const {data:claimed,error:claimError}=await db.from('meli_edit_intents').update({consumed_at:new Date().toISOString()})
+      .eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).is('consumed_at',null)
+      .gt('expires_at',new Date().toISOString()).select('id').maybeSingle();
+    if(claimError||!claimed)throw auditError('Prévia já utilizada ou em processamento.',409);
+    const result:any={ok:false,applied:false,previewId:id,familyId:c.familyId};
+    try{
+      const written=await writeMeli('/user-products-families/'+c.familyId,access,{family_name:c.newName},'PUT');
+      result.api=written;
+      if(!written.ok){result.uncertain=written.httpStatus>=500;result.message='API não confirmou a alteração. Consulte a família antes de qualquer tentativa.';}
+      else{
+        result.accepted=true;
+        try{
+          const current=await familyRenameState(c.familyId,c.ids,Number(row.seller_id),access);
+          result.applied=familyNameKey(current.name)===familyNameKey(c.newName);
+          result.itemsSynchronized=current.records.every(r=>familyNameKey(r.familyName)===familyNameKey(c.newName));
+          result.protectedVerified=JSON.stringify(current.protectedState)===JSON.stringify(state.protectedState);
+          result.ok=result.applied&&result.itemsSynchronized&&result.protectedVerified;
+          result.message=result.ok?'Família renomeada; anúncios e dados preservados.':'API aceitou; confira propagação e dados antes de publicar novos itens.';
+        }catch{result.verificationPending=true;result.message='API aceitou a alteração; verificação pendente. Não repetir.';}
+      }
+    }catch{result.uncertain=true;result.message='Resposta interrompida. Confira a família; não repetir.';}
+    const saved=await db.from('meli_edit_intents').update({outcome:result}).eq('id',id).eq('admin_user_id',adminId);
+    if(saved.error)result.auditPending=true;
+    return json(req,result,result.ok?200:207);
+  }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha de revisão de família.').slice(0,300)},(e as any)?.status||400);}
+}
 async function editWorkflow(req:Request,adminId:string,body:any){
   const requested=String(body.action||'');
   const {data:allowed,error:rateError}=await db.rpc('rl_check_and_increment',{
@@ -2299,6 +2401,11 @@ Deno.serve(async(req:Request)=>{
     return json(req,{ok:true,authorizationUrl:u.toString(),expiresInMinutes:10});
   }
   if(action==='premium_prepare'||action==='premium_apply')return premiumWorkflow(req,adminId,body,action);
+  if(action==='family_rename_prepare'||action==='family_rename_apply')return familyRenameWorkflow(req,adminId,body,action);
+  if(action==='edit_preview'&&body.changes?.familyRename){
+    if(Object.keys(body.changes).length!==1)return json(req,{ok:false,message:'Renomeação de família deve ser revisada isoladamente.'},400);
+    return familyRenameWorkflow(req,adminId,body.changes.familyRename,'family_rename_prepare');
+  }
   // Backward-compatible preview only, on the generic correction object. No remote write.
   if(action==='edit_preview'&&body.changes?.listingType==='gold_pro'){
     if(Object.keys(body.changes).some(k=>!['listingType','expectedPrice'].includes(k)))return json(req,{ok:false,message:'Migração Premium deve ser revisada isoladamente.'},400);
