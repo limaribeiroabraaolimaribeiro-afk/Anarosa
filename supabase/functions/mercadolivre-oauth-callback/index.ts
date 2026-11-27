@@ -236,6 +236,116 @@ async function writeMeli(path:string,access:string,body:any,method:'PUT'|'POST'=
     causes:Array.isArray(payload?.cause)?payload.cause.slice(0,8).map((v:any)=>({code:v.code,type:v.type,cause_id:v.cause_id,references:v.references,message:String(v.message||'').slice(0,150)})):[]};
   return {ok:true,httpStatus:r.status,warnings:Array.isArray(payload?.warnings)?payload.warnings.slice(0,5):[]};
 }
+// Dedicated, single-item Classic -> Premium workflow. Never send price, stock or shipping.
+function premiumProtected(item:any,family:any){
+  return {id:item.id,sellerId:String(item.seller_id),title:item.title,categoryId:item.category_id,currency:item.currency_id,
+    price:Number(item.price),stock:Number(item.available_quantity),sold:Number(item.sold_quantity),status:item.status,
+    shipping:{mode:item.shipping?.mode??null,logisticType:item.shipping?.logistic_type??null,free:item.shipping?.free_shipping??null},
+    pictures:(item.pictures||[]).map((p:any)=>p.id),
+    sku:(item.attributes||[]).find((a:any)=>a.id==='SELLER_SKU')?.value_name??null,
+    grid:(item.attributes||[]).find((a:any)=>a.id==='SIZE_GRID_ID')?.value_name??null,
+    gridRow:(item.attributes||[]).find((a:any)=>a.id==='SIZE_GRID_ROW_ID')?.value_name??null,
+    variations:(item.variations||[]).map((v:any)=>[v.id,v.available_quantity,v.price,v.attribute_combinations]),
+    family:{userProductId:family.userProductId,familyId:family.familyId,verified:family.verified,members:[...(family.members||[])].sort()}};
+}
+async function premiumState(id:string,sellerId:number,access:string,expectedPrice:number){
+  const r=await readMeli('/items/'+id,access);
+  const item=r.data;
+  if(!r.ok||item?.id!==id||Number(item.seller_id)!==sellerId)throw auditError('Anúncio não pertence à conta conectada.',403);
+  if(item.status!=='active'||item.listing_type_id!=='gold_special'||item.currency_id!=='BRL'||Number(item.price)!==expectedPrice)
+    throw auditError('Anúncio não está ativo em Clássico com o preço confirmado. Nova conferência obrigatória.',409);
+  const query=(type:string)=>new URLSearchParams({price:String(item.price),category_id:String(item.category_id),
+    listing_type_id:type,currency_id:'BRL',shipping_mode:String(item.shipping?.mode||'me2'),
+    ...(item.shipping?.logistic_type?{logistic_type:String(item.shipping.logistic_type)}:{})}).toString();
+  const [types,classic,premium,family]=await Promise.all([
+    readMeli('/items/'+id+'/available_listing_types',access),
+    readMeli('/sites/MLB/listing_prices?'+query('gold_special'),access),
+    readMeli('/sites/MLB/listing_prices?'+query('gold_pro'),access),
+    verifyListingFamily(item,access)
+  ]);
+  if(!types.ok||!Array.isArray(types.data)||!types.data.some((x:any)=>x.id==='gold_pro'))
+    throw auditError('A API não confirmou a disponibilidade de Premium para este anúncio.',409);
+  if(item.user_product_id&&!family.verified)throw auditError('Não foi possível confirmar a família atual.',502);
+  function quote(r:any,type:string){
+    const v=Array.isArray(r.data)?r.data.find((x:any)=>x.listing_type_id===type):r.data;
+    if(!r.ok||v?.listing_type_id!==type||v.sale_fee_amount===null||v.sale_fee_amount===undefined||
+       !Number.isFinite(Number(v.sale_fee_amount))||Number(v.sale_fee_amount)<0)
+      throw auditError('Não foi possível cotar as duas modalidades na API.',502);
+    return {type,saleFee:Number(v.sale_fee_amount),percentageFee:v.sale_fee_details?.percentage_fee??null,
+      fixedFee:v.sale_fee_details?.fixed_fee??null,financingFee:v.sale_fee_details?.financing_add_on_fee??null};
+  }
+  const quotes=[quote(classic,'gold_special'),quote(premium,'gold_pro')];
+  const protectedState=premiumProtected(item,family);
+  const digest=await sha(JSON.stringify({protectedState,listingType:item.listing_type_id,lastUpdated:item.last_updated??null,quotes}));
+  return {item,quotes,protectedState,digest};
+}
+async function premiumWorkflow(req:Request,adminId:string,body:any,action:string){
+  const prepare=action==='premium_prepare';
+  const rate=await db.rpc('rl_check_and_increment',{p_bucket:'meli-'+action+':'+adminId,p_limit:prepare?12:5,p_window_seconds:3600});
+  if(rate.error||rate.data!==true)return json(req,{ok:false,message:'Limite de migrações atingido.'},429);
+  const row=await connection();
+  if(!row)return json(req,{ok:false,message:'Conta Mercado Livre não conectada.'},409);
+  let access:string;
+  try{access=await usableToken(row);}catch{return json(req,{ok:false,message:'Autorização indisponível.'},503);}
+  try{
+    if(prepare){
+      const id=String(body.id||'').trim().toUpperCase(),price=body.expectedPrice;
+      if(!/^MLB\d{8,16}$/.test(id)||typeof price!=='number'||!Number.isFinite(price)||price<=0)
+        throw auditError('Informe código MLB e preço atual confirmado.');
+      const state=await premiumState(id,Number(row.seller_id),access,price);
+      const [classic,premium]=state.quotes;
+      const cents=(n:number)=>Math.round(n*100)/100;
+      const preview={id,title:state.item.title,operation:'classic_to_premium',price,currency:'BRL',
+        before:classic,after:premium,additionalFee:cents(premium.saleFee-classic.saleFee),
+        netBefore:cents(price-classic.saleFee),netAfter:cents(price-premium.saleFee),
+        eligible:true,notChanged:['price','available_quantity','shipping','pictures','variations','family','status'],
+        familyId:state.protectedState.family.familyId,
+        warning:'Tarifa por venda cotada; frete, impostos e outras despesas não incluídos. Parcelamento efetivo sujeito às condições do Mercado Livre. Nenhuma mudança feita.'};
+      const {data,error}=await db.from('meli_edit_intents').insert({
+        seller_id:row.seller_id,item_id:id,admin_user_id:adminId,snapshot_hash:state.digest,
+        changes:{operation:'classic_to_premium',expectedPrice:price},preview,expires_at:new Date(Date.now()+15*60*1000).toISOString()
+      }).select('id,expires_at').single();
+      if(error||!data)throw auditError('Não foi possível registrar a prévia.',503);
+      return json(req,{ok:true,applied:false,previewId:data.id,expiresAt:data.expires_at,preview,
+        instructions:'Exiba tarifas e solicite aprovação explícita da prévia antes de mercadolivre_aplicar_premium.'});
+    }
+    const id=String(body.previewId||'');
+    if(body.confirmar!==true||! /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+      throw auditError('Confirmação e UUID da prévia obrigatórios.');
+    const {data:intent,error}=await db.from('meli_edit_intents').select('*').eq('id',id).eq('seller_id',row.seller_id)
+      .eq('admin_user_id',adminId).maybeSingle();
+    if(error||!intent||intent.changes?.operation!=='classic_to_premium')throw auditError('Prévia Premium não encontrada.',404);
+    if(intent.consumed_at||Date.parse(intent.expires_at)<=Date.now())throw auditError('Prévia utilizada ou expirada. Não repetir sem reconciliação.',409);
+    const state=await premiumState(intent.item_id,Number(row.seller_id),access,intent.changes.expectedPrice);
+    if(state.digest!==intent.snapshot_hash)throw auditError('Anúncio, família ou tarifas mudaram após a prévia. Nova aprovação necessária.',409);
+    const {data:claimed,error:claimError}=await db.from('meli_edit_intents').update({consumed_at:new Date().toISOString()})
+      .eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).is('consumed_at',null)
+      .gt('expires_at',new Date().toISOString()).select('id').maybeSingle();
+    if(claimError||!claimed)throw auditError('Prévia já utilizada ou em processamento.',409);
+    const result:any={ok:false,applied:false,previewId:id,itemId:intent.item_id};
+    try{
+      const written=await writeMeli('/items/'+intent.item_id+'/listing_type',access,{id:'gold_pro'},'POST');
+      result.api=written;
+      if(!written.ok){result.uncertain=written.httpStatus>=500;result.message='API não confirmou a migração. Consulte o anúncio antes de qualquer nova tentativa.';}
+      else{
+        const current=await readMeli('/items/'+intent.item_id,access);
+        if(!current.ok||current.data?.id!==intent.item_id||Number(current.data?.seller_id)!==Number(row.seller_id)){
+          result.verificationPending=true;result.message='API aceitou a solicitação, mas releitura indisponível. Não repetir.';
+        }else{
+          const family=await verifyListingFamily(current.data,access);
+          result.listingType=current.data.listing_type_id;
+          result.protectedVerified=JSON.stringify(premiumProtected(current.data,family))===JSON.stringify(state.protectedState);
+          result.applied=result.listingType==='gold_pro';
+          result.ok=result.applied&&result.protectedVerified;
+          result.message=result.ok?'Premium confirmado pela API, com dados comerciais e família preservados.':'Estado final divergente ou não confirmado; não repetir automaticamente.';
+        }
+      }
+    }catch{result.uncertain=true;result.message='Resposta interrompida. Consulte o anúncio antes de nova tentativa.';}
+    const saved=await db.from('meli_edit_intents').update({outcome:result}).eq('id',id).eq('admin_user_id',adminId);
+    if(saved.error)result.auditPending=true;
+    return json(req,result,result.ok?200:207);
+  }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha na revisão de modalidade.').slice(0,300)},(e as any)?.status||400);}
+}
 async function editWorkflow(req:Request,adminId:string,body:any){
   const requested=String(body.action||'');
   const {data:allowed,error:rateError}=await db.rpc('rl_check_and_increment',{
@@ -2168,6 +2278,12 @@ Deno.serve(async(req:Request)=>{
     const u=new URL('https://auth.mercadolivre.com.br/authorization');
     u.search=new URLSearchParams({response_type:'code',client_id:CLIENT_ID,redirect_uri:REDIRECT,state:raw}).toString();
     return json(req,{ok:true,authorizationUrl:u.toString(),expiresInMinutes:10});
+  }
+  if(action==='premium_prepare'||action==='premium_apply')return premiumWorkflow(req,adminId,body,action);
+  // Backward-compatible preview only, on the generic correction object. No remote write.
+  if(action==='edit_preview'&&body.changes?.listingType==='gold_pro'){
+    if(Object.keys(body.changes).some(k=>!['listingType','expectedPrice'].includes(k)))return json(req,{ok:false,message:'Migração Premium deve ser revisada isoladamente.'},400);
+    return premiumWorkflow(req,adminId,{id:body.id,expectedPrice:body.changes.expectedPrice},'premium_prepare');
   }
   if(action==='edit_preview'||action==='edit_apply')return editWorkflow(req,adminId,body);
   if(action==='publish_listing'||action==='validate_listing')return publishAnarosaListing(req,adminId,body);
