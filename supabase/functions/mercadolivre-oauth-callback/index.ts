@@ -1834,6 +1834,7 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   const spec=await readMeli('/categories/'+encodeURIComponent(a.category_external_id)+'/attributes',access);
   if(!cat.ok||cat.data?.settings?.listing_allowed!==true||!spec.ok||!Array.isArray(spec.data))
     return json(req,{ok:false,message:'Categoria ou ficha técnica inválida para publicação.'},422);
+  const freeShipping=a.attributes?.ANAROSA_FREE_SHIPPING===true||a.attributes?.ANAROSA_FREE_SHIPPING==='true';
   const resolved=resolveListingAttributes(spec.data,a.attributes,p,variant);
   const {fields,attributes,missing,invalid}=resolved;
   if(missing.length||invalid.length)return json(req,{ok:false,published:false,message:'Revise os atributos da categoria oficial.',missing,invalid},422);
@@ -1902,7 +1903,7 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   const payload={family_name:familyName,category_id:a.category_external_id,price:Number(a.price),
     currency_id:'BRL',available_quantity:qty,buying_mode:'buy_it_now',listing_type_id:'gold_special',
     condition,pictures:a.images.map((url:string)=>({source:url})),attributes,
-    shipping:{mode:'me2',logistic_type:defaultLogistic.type,free_shipping:false,local_pick_up:false}};
+    shipping:{mode:'me2',logistic_type:defaultLogistic.type,free_shipping:freeShipping,local_pick_up:false}};
   // Consult the official product-specific shipping eligibility before listing validation.
   const domainId=String(cat.data?.settings?.catalog_domain||'');
   const categoryShipping=await readMeli('/categories/'+a.category_external_id+'/shipping_preferences',access);
@@ -1922,18 +1923,28 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   let validation:any;
   try{validation=await writeMeli('/items/validate',access,payload,'POST');}
   catch{return json(req,{ok:false,published:false,message:'Validador oficial indisponível; nenhum anúncio enviado.'},502);}
-  // The marketplace documented warning 4053 means solely that ME1 is not
-  // enabled. It is non-blocking when the exact item is eligible for ME2.
-  // Fail closed for any other cause, missing type, or failed eligibility.
-  const eligibleMe2=eligibility.ok&&Array.isArray(eligibilityData?.channels?.marketplace?.available_modes)&&
-    eligibilityData.channels.marketplace.available_modes.some((m:any)=>m.mode==='me2'&&
-      Array.isArray(m.logistic_types)&&m.logistic_types.some((l:any)=>l.type===defaultLogistic.type&&
-        l.default===true&&l.attributes?.adoption==='not_required'&&l.attributes?.dimensions==='clear'&&
-        l.attributes?.free_shipping!=='mandatory'));
+  // Only known, non-blocking warnings with independent evidence are allowed.
+  // The seller must explicitly approve free shipping in the saved draft.
+  const eligibleMode=eligibility.ok&&Array.isArray(eligibilityData?.channels?.marketplace?.available_modes)
+    ?eligibilityData.channels.marketplace.available_modes.find((m:any)=>m.mode==='me2'):null;
+  const eligibleLogistic=Array.isArray(eligibleMode?.logistic_types)
+    ?eligibleMode.logistic_types.find((l:any)=>l.type===defaultLogistic.type&&l.default===true&&
+      l.attributes?.adoption==='not_required'&&l.attributes?.dimensions==='clear'):null;
+  const mandatoryFree=eligibleLogistic?.attributes?.free_shipping==='mandatory';
+  const eligibleMe2=!!eligibleLogistic&&(!mandatoryFree||freeShipping);
+  const ageDef=spec.data.find((d:any)=>d.id==='AGE_GROUP');
+  const ageValue=ageDef?.values?.find((v:any)=>String(v.id)===fields.AGE_GROUP||
+    String(v.name).toLowerCase()===String(fields.AGE_GROUP||'').toLowerCase());
+  const safeWarning=(w:any)=>{
+    if(w?.type!=='warning')return false;
+    if(w.cause_id===4053&&w.code==='shipping.lost_me1_by_user')return true;
+    if(w.cause_id===350&&w.code==='item.shipping.mandatory_free_shipping')return freeShipping&&mandatoryFree;
+    if(w.cause_id===2511&&w.code==='create.item.attribute.business_conditional')
+      return ageDef?.tags?.read_only===true&&!!ageValue?.id&&String(w.message||'').includes('Attribute [AGE_GROUP] to be added with values [('+ageValue.id+',null)]');
+    return false;
+  };
   const warningOnly=validation.httpStatus===400&&eligibleMe2&&
-    Array.isArray(validation.causes)&&validation.causes.length===1&&
-    validation.causes[0].type==='warning'&&validation.causes[0].cause_id===4053&&
-    validation.causes[0].code==='shipping.lost_me1_by_user';
+    Array.isArray(validation.causes)&&validation.causes.length>0&&validation.causes.every(safeWarning);
   if(!validation.ok&&!warningOnly)return json(req,{ok:false,published:false,stage:'official_validation',message:'Mercado Livre rejeitou a validação prévia.',validation,shippingDiagnostic},422);
   if(warningOnly)validation={...validation,ok:true,warningOnly:true,shippingVerified:true};
   if(preview)return json(req,{ok:true,published:false,validated:true,listingId:id,sku:variant.sku,quantity:qty,payload,validation,message:'Validação concluída; nenhum anúncio foi publicado.'});
