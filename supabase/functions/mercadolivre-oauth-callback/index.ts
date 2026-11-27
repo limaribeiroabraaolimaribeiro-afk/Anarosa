@@ -581,7 +581,7 @@ async function colorSplitWorkflow(req:Request,adminId:string,body:any,action:str
 async function editWorkflow(req:Request,adminId:string,body:any){
   const requested=String(body.action||'');
   const {data:allowed,error:rateError}=await db.rpc('rl_check_and_increment',{
-    p_bucket:'meli-edit-'+requested+':'+adminId,p_limit:requested==='edit_apply'?6:15,p_window_seconds:3600});
+    p_bucket:'meli-edit-'+requested+':'+adminId,p_limit:30,p_window_seconds:3600});
   if(rateError||allowed!==true)return json(req,{ok:false,message:'Limite temporário de edições atingido.'},429);
   const row=await connection();
   if(!row)return json(req,{ok:false,message:'A conta Mercado Livre não está conectada.'},409);
