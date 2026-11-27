@@ -151,6 +151,49 @@ async function uploadImage(args: Args, token: string): Promise<unknown> {
   if (!response.ok) return { ok:false, httpStatus:response.status, message:data.message || 'Falha ao importar foto.' };
   return { ok:true, url:data.url, message:'Imagem recebida no Storage. Inclua esta URL ao salvar o produto ou anúncio; o envio sozinho NÃO altera o Bling.' };
 }
+// Import only uploaded attachments from the existing ANAROSA Pollo account.
+// No arbitrary URL, no redirects, no credentials forwarded; actual bytes go
+// through the same authenticated, format-checking product-image upload.
+async function importAttachmentUrl(args: Args, token: string): Promise<unknown> {
+  yes(args);
+  const raw=requiredText(args,'url',1500);
+  let u:URL;
+  try{u=new URL(raw);}catch{throw new Error('URL de anexo inválida.');}
+  const allowedPath=/^\/web-cdn\/pollo\/production\/cmp0kq6ey09a745o9i18wq0h2\/mcp-file\/[0-9]{10,16}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webp|png|jpg|jpeg)$/i;
+  if(u.origin!=='https://videocdn.pollo.ai'||u.username||u.password||u.search||u.hash||!allowedPath.test(u.pathname))
+    throw new Error('Origem não autorizada. Use o endereço de anexo retornado pelo Pollo conectado à ANAROSA.');
+  const db=getServiceClient();
+  const admin=await requireAdminUser(new Request(APP_URL,{headers:{Authorization:'Bearer '+token}}),db);
+  const rate=await db.rpc('rl_check_and_increment',{p_bucket:'anarosa-mcp-attachment-import:'+admin.id,p_limit:20,p_window_seconds:60});
+  if(rate.error||rate.data!==true)throw new Error('Limite de importação de anexos atingido.');
+  const max=3*1024*1024;
+  let response:Response;
+  try{response=await fetch(u.href,{method:'GET',redirect:'error',signal:AbortSignal.timeout(12000)});}
+  catch{throw new Error('Não foi possível baixar o anexo autorizado.');}
+  const mime=(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
+  const length=Number(response.headers.get('content-length')||0);
+  if(!response.ok||!response.body||!['image/jpeg','image/png','image/webp'].includes(mime)||length>max){
+    await response.body?.cancel().catch(()=>{});
+    throw new Error('Anexo indisponível, formato não aceito ou imagem maior que 3 MB.');
+  }
+  const reader=response.body.getReader();
+  let size=0; const chunks:Uint8Array[]=[];
+  try{
+    while(true){
+      const {done,value}=await reader.read();
+      if(done)break;
+      size+=value.byteLength;
+      if(size>max){await reader.cancel();throw new Error('Imagem maior que 3 MB.');}
+      chunks.push(value);
+    }
+  }finally{reader.releaseLock();}
+  if(size<12)throw new Error('Imagem vazia ou inválida.');
+  const bytes=new Uint8Array(size);let offset=0;
+  for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+  let binary='';
+  for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  return uploadImage({confirmar:true,mime,base64:btoa(binary)},token);
+}
 async function generateImage(args: Args, token: string): Promise<unknown> {
   yes(args);
   const key = Deno.env.get('OPENAI_API_KEY');
@@ -549,6 +592,11 @@ const actions: Record<string,Tool> = {
       base64:S.str('Conteúdo binário base64 da imagem sem prefixo data URI',MAX_INPUT)},['confirmar','mime','base64']),
     action:uploadImage,
   },
+  importar_imagem_anexo: {
+    description:'Importar uma imagem de anexo já transferida pelo Pollo conectado à ANAROSA, usando o accessURL retornado por upload_attachment. Somente origem e caminho autorizados, JPG/PNG/WebP até 3MB. Requer confirmação. Salva no Storage sem alterar produto ou anúncio. Não aceita caminhos locais, IDs de arquivos ou URLs arbitrárias.',
+    schema:properties({confirmar:S.bool('Administrador autorizou armazenar esta imagem'),url:S.str('accessURL exato do anexo retornado pelo Pollo da ANAROSA',1500)},['confirmar','url']),
+    action:importAttachmentUrl,
+  },
   sugerir_titulo_e_briefing: {
     description:'Gerar títulos iniciais e briefing de fotos a partir de atributos comprovados. Você, ChatGPT, pode melhorar a redação e criar a imagem visual antes de enviá-la via importar_imagem_gerada. Não inventar materiais, marcas nem características.',
     schema:properties({produto:S.str('Nome real do produto',120),marca:S.str('Marca confirmada',60),
@@ -614,7 +662,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if(data.method==='initialize')return ok(data.id,{
     protocolVersion:'2025-06-18',
     capabilities:{tools:{listChanged:false}},
-    serverInfo:{name:'Anarosa Gestao MCP',version:'1.2.0'},
+    serverInfo:{name:'Anarosa Gestao MCP',version:'1.3.0'},
     instructions:'Ferramentas comerciais da Gestão ANAROSA para leitura, cadastro de produtos, estoque, rascunhos e anúncios. Nunca acesso a código, GitHub, SQL, secrets ou rede arbitrária. Confirmar explicitamente cada edição no Mercado Livre após exibir prévia e conferir versão; nunca executar modificações sem autorização expressa. Publicações reais somente se o canal autorizado confirmar.',
   });
   if(data.method==='ping')return ok(data.id,{});
