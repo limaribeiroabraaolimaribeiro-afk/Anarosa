@@ -377,6 +377,17 @@ const actions: Record<string,Tool> = {
     schema:properties({id:S.str('ID MLB do anúncio',30)},['id']),readOnly:true,openWorld:true,
     action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'fees',id:requiredText(a,'id',30)}),
   },
+  mercadolivre_preparar_renomeacao_familia: {
+    description:'Prévia sem escrita remota da renomeação integral de família oficial Mercado Livre. Informe todos os MLB da família e novo nome neutro. Confere vendedor, todos os User Products e condições de venda, ausência de vendas, dados comerciais. Exiba prévia exata antes de pedir aprovação.',
+    schema:properties({familyId:S.str('ID numérico da família oficial',30),ids:S.arr('Todos os códigos MLB da família, sem omissões'),newName:S.str('Novo nome neutro da família',60)},['familyId','ids','newName']),
+    readOnly:true,openWorld:true,
+    action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_rename_prepare',familyId:requiredText(a,'familyId',30),ids:a.ids,newName:requiredText(a,'newName',60)}),
+  },
+  mercadolivre_aplicar_renomeacao_familia: {
+    description:'Renomear integralmente uma família Mercado Livre pela API oficial, SOMENTE após aprovação administrativa expressa da prévia exata. Revalida todos os membros, condições comerciais, ausência de vendas e usa prévia de uso único. Não altera preço, estoque, fotos ou variações. Não repetir após resposta incerta.',
+    schema:properties({previewId:S.str('UUID da prévia aprovada',40),confirmar:S.bool('Administrador aprovou expressamente a prévia')},['previewId','confirmar']),openWorld:true,
+    action:(a,t)=>{yes(a);return requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_rename_apply',previewId:requiredText(a,'previewId',40),confirmar:true});},
+  },
   mercadolivre_preparar_premium: {
     description:'Prévia segura de migração de um anúncio Clássico para Premium. Consulta elegibilidade e tarifas atuais, exige preço confirmado, preserva dados comerciais e registra prévia por 15 minutos. Não muda o anúncio. Exiba a prévia completa e solicite aprovação expressa.',
     schema:properties({id:S.str('ID MLB real do anúncio',30),expectedPrice:S.number('Preço atual confirmado que deve ser preservado')},['id','expectedPrice']),
@@ -403,7 +414,7 @@ const actions: Record<string,Tool> = {
     description:'PREVIEW apenas: preparar uma proposta para CORRIGIR anúncio já publicado diretamente na API oficial Mercado Livre (sem Bling). Aceita título, descrição, atributos da categoria e adição de fotos públicas; não mexe em preço/estoque/variações. Mostre o antes/depois integral ao administrador e solicite aprovação explícita ANTES de chamar mercadolivre_aplicar_correcao. Nunca afirmar que a prévia foi publicada.',
     schema:properties({
       id:S.str('ID real MLB do anúncio da ANAROSA',30),
-      changes:S.obj('Alterações comprovadas: {title?:string, description?:string, attributes?:[{id:string,value_name?:string,value_id?:string}], addPictureUrls?:string[]} . Não inventar características, GTIN ou URLs. Foto deve ser pública da loja/Storage ANAROSA. Para prévia isolada de Premium, use {listingType:gold_pro,expectedPrice:preço atual}; aplicar somente via mercadolivre_aplicar_premium.')
+      changes:S.obj('Alterações comprovadas: {title?:string, description?:string, attributes?:[{id:string,value_name?:string,value_id?:string}], addPictureUrls?:string[]} . Não inventar características, GTIN ou URLs. Foto deve ser pública da loja/Storage ANAROSA. Para prévia isolada de Premium, use {listingType:gold_pro,expectedPrice:preço atual}; aplicar somente via mercadolivre_aplicar_premium. Para prévia isolada de renomeação de família, use {familyRename:{familyId,ids,newName}}; aplicar somente via mercadolivre_aplicar_renomeacao_familia.')
     },['id','changes']),
     readOnly:true,openWorld:true,
     action:(a,t)=>{
@@ -674,7 +685,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if(data.method==='initialize')return ok(data.id,{
     protocolVersion:'2025-06-18',
     capabilities:{tools:{listChanged:false}},
-    serverInfo:{name:'Anarosa Gestao MCP',version:'1.4.0'},
+    serverInfo:{name:'Anarosa Gestao MCP',version:'1.5.0'},
     instructions:'Ferramentas comerciais da Gestão ANAROSA para leitura, cadastro de produtos, estoque, rascunhos e anúncios. Nunca acesso a código, GitHub, SQL, secrets ou rede arbitrária. Confirmar explicitamente cada edição no Mercado Livre após exibir prévia e conferir versão; nunca executar modificações sem autorização expressa. Publicações reais somente se o canal autorizado confirmar.',
   });
   if(data.method==='ping')return ok(data.id,{});
