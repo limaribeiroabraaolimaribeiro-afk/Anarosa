@@ -1676,13 +1676,22 @@ async function chartCreation(req:Request,adminId:string,body:any,action:string){
   const defs:any[]=[];
   const visit=(x:any)=>{if(!x||typeof x!=='object')return;if(Array.isArray(x)){x.forEach(visit);return;}if(x.id&&x.value_type)defs.push(x);Object.values(x).forEach(visit);};
   visit(meta.template?.input);
-  const main=defs.find(x=>x.id==='MANUFACTURER_SIZE'&&x.tags?.includes('main_attribute_candidate'));
+  const measurementType=String(body.measurementType||'');
+  const clothing=measurementType==='CLOTHING_MEASURE'||measurementType==='BODY_MEASURE';
+  if(measurementType&&!clothing)return json(req,{ok:false,message:'Tipo de medida inválido.'},422);
+  const tags=(x:any)=>Array.isArray(x?.tags)?x.tags:[];
+  const main=defs.find(x=>x.id===(clothing?'SIZE':'MANUFACTURER_SIZE')&&tags(x).includes('main_attribute_candidate'));
   const foot=defs.find(x=>x.id==='FOOT_LENGTH'&&x.value_type==='number_unit');
   const footTo=defs.find(x=>x.id==='FOOT_LENGTH_TO'&&x.value_type==='number_unit');
-  if(!main||!foot)return json(req,{ok:false,message:'Este assistente de grade está habilitado apenas para domínios com tamanho de marca e comprimento do pé.'},422);
-  const supported=new Set(['BRAND','GENDER','MANUFACTURER_SIZE','FOOT_LENGTH']);
-  const missing=defs.filter(x=>x.tags?.includes('required')&&!x.tags?.includes('read_only')&&!supported.has(x.id)).map(x=>x.id);
+  const selected=defs.filter(x=>tags(x).includes(measurementType)&&x.value_type==='number_unit');
+  const measures=new Map<string,any>(selected.map(x=>[x.id,x]));
+  const otherMode=measurementType==='CLOTHING_MEASURE'?'BODY_MEASURE':'CLOTHING_MEASURE';
+  const equivalence=defs.find(x=>x.id==='FILTRABLE_SIZE'&&x.value_type==='list');
+  if(!main||(!clothing&&!foot)||(clothing&&(!selected.length||!equivalence)))return json(req,{ok:false,message:'Ficha não compatível com o tipo de tabela solicitado.'},422);
+  const supported=new Set(clothing?['BRAND','GENDER','SIZE','FILTRABLE_SIZE',...measures.keys()]:['BRAND','GENDER','MANUFACTURER_SIZE','FOOT_LENGTH']);
+  const missing=defs.filter(x=>tags(x).includes('required')&&!tags(x).includes('read_only')&&!(clothing&&tags(x).includes(otherMode))&&!supported.has(x.id)).map(x=>x.id);
   if(missing.length)return json(req,{ok:false,message:'A ficha exige informações adicionais.',missing},422);
+  if(clothing&&(!String(body.measurementSource||'').trim()||String(body.measurementSource).length>500))return json(req,{ok:false,message:'Informe a origem das medidas reais ou de referência para revisão.'},422);
   const {data:variants,error:ve}=await db.from('store_product_variants').select('size,active').eq('product_id',p.id);
   if(ve||!variants?.length)return json(req,{ok:false,message:'Numerações Bling indisponíveis.'},502);
   const expected=[...new Set(variants.filter(x=>x.active).map(x=>String(x.size||'').trim()).filter(Boolean))];
@@ -1691,6 +1700,30 @@ async function chartCreation(req:Request,adminId:string,body:any,action:string){
     return json(req,{ok:false,message:'Informe uma medida real para cada tamanho ativo do produto.',expectedSizes:expected},422);
   const seen=new Set<string>();
   const preparedRows:any[]=[];
+  if(clothing){
+    const required=selected.filter(x=>tags(x).includes('required')).map(x=>x.id);
+    for(const r of rows){
+      const size=String(r?.size||'').trim();
+      const values=r?.measurements;
+      const option=equivalence.values?.find((x:any)=>String(x.name).toUpperCase()===String(r?.equivalentSize||size).toUpperCase());
+      if(!expected.includes(size)||seen.has(size)||!option?.id||!values||typeof values!=='object'||Array.isArray(values))
+        return json(req,{ok:false,message:'Tamanho ou equivalência inválidos, ou medidas ausentes.',size},422);
+      const missingMeasures=required.filter(k=>!Object.hasOwn(values,k));
+      if(missingMeasures.length)return json(req,{ok:false,message:'Medidas obrigatórias ausentes.',size,missing:missingMeasures},422);
+      const attrs:any[]=[{id:'SIZE',values:[{name:size}]},{id:'FILTRABLE_SIZE',values:[{id:String(option.id),name:option.name}]}];
+      for(const [key,value] of Object.entries(values)){
+        const def=measures.get(key);
+        if(!def||typeof value!=='number'||!Number.isFinite(value)||value<=0||value>350||!(def.units||[]).some((u:any)=>u.id==='cm'))
+          return json(req,{ok:false,message:'Medida inválida ou incompatível com o tipo selecionado.',size,attribute:key},422);
+        if(key.endsWith('_TO')){
+          const from=values[key.slice(0,-3)+'_FROM'];
+          if(typeof from!=='number'||value<from)return json(req,{ok:false,message:'Intervalo de medidas inválido.',size,attribute:key},422);
+        }
+        attrs.push({id:key,values:[{name:value+' cm',struct:{number:value,unit:'cm'}}]});
+      }
+      seen.add(size);preparedRows.push({attributes:attrs});
+    }
+  }else{
   for(const r of rows){
     const size=String(r?.size||'').trim(),length=Number(r?.footLengthCm);
     const hasTo=r?.footLengthToCm!==undefined&&r?.footLengthToCm!==null&&r?.footLengthToCm!=='';
@@ -1705,8 +1738,9 @@ async function chartCreation(req:Request,adminId:string,body:any,action:string){
       ...(to===null?[]:[{id:'FOOT_LENGTH_TO',values:[{name:to+' cm',struct:{number:to,unit:'cm'}}]}])
     ]});
   }
+  }
   const domainId=String(meta.domainId||'').replace(/^MLB-/,'');
-  const payload={names:{MLB:name},domain_id:domainId,site_id:'MLB',main_attribute:{attributes:[{site_id:'MLB',id:'MANUFACTURER_SIZE'}]},
+  const payload={names:{MLB:name},domain_id:domainId,site_id:'MLB',...(clothing?{measure_type:measurementType}:{}),main_attribute:{attributes:[{site_id:'MLB',id:main.id}]},
     attributes:[{id:'GENDER',values:[{id:meta.gender.id,name:meta.gender.name}]},{id:'BRAND',values:[{name:brand}]}],
     rows:preparedRows};
   const hash=await sha(JSON.stringify(payload));
