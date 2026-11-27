@@ -1964,6 +1964,9 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   if(!cat.ok||cat.data?.settings?.listing_allowed!==true||!spec.ok||!Array.isArray(spec.data))
     return json(req,{ok:false,message:'Categoria ou ficha técnica inválida para publicação.'},422);
   const freeShipping=a.attributes?.ANAROSA_FREE_SHIPPING===true||a.attributes?.ANAROSA_FREE_SHIPPING==='true';
+  // Explicit, per-draft selection. Legacy drafts retain Classic.
+  const listingType=a.attributes?.ANAROSA_LISTING_TYPE??'gold_special';
+  if(!['gold_special','gold_pro'].includes(listingType))return json(req,{ok:false,message:'Modalidade inválida; escolha Clássico ou Premium.'},422);
   const resolved=resolveListingAttributes(spec.data,a.attributes,p,variant);
   const {fields,attributes,missing,invalid}=resolved;
   if(missing.length||invalid.length)return json(req,{ok:false,published:false,message:'Revise os atributos da categoria oficial.',missing,invalid},422);
@@ -2002,10 +2005,6 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
       (a.bling_product_id==='16725286274'&&similar.includes('duzizo')&&similar.includes('body')))
       return json(req,{ok:false,message:'Anúncio existente detectado. Nenhuma duplicação será feita.',externalListingId:item.id},409);
   }
-  const fees=await readMeli('/sites/MLB/listing_prices?'+new URLSearchParams({
-    price:String(a.price),category_id:a.category_external_id,
-    listing_type_id:'gold_special',currency_id:'BRL',shipping_mode:'me2'}).toString(),access);
-  if(!fees.ok)return json(req,{ok:false,message:'Modalidade Clássico não pôde ser validada para este produto.',httpStatus:fees.status},422);
   const familyName=a.bling_product_id==='16725286274'
     ?'Conjunto Bebê Duzizo Body Shorts Faixa Canelado'
     :String(a.title||p.name||'').replace(/\s+(?:tam(?:anho)?\.?\s*)[0-9]+(?:[/.][0-9]+)?\s*$/i,'').trim().slice(0,60);
@@ -2029,8 +2028,26 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   const defaultLogistic=(me2Logistics?.types||[]).find((l:any)=>l.default===true);
   if(!defaultLogistic?.type||!['drop_off','cross_docking','xd_drop_off'].includes(defaultLogistic.type))
     return json(req,{ok:false,message:'Modalidade de postagem padrão do vendedor não confirmada.'},422);
+  const fees=await readMeli('/sites/MLB/listing_prices?'+new URLSearchParams({
+    price:String(a.price),category_id:a.category_external_id,listing_type_id:listingType,
+    currency_id:'BRL',shipping_mode:'me2',logistic_type:defaultLogistic.type}).toString(),access);
+  const quoted=Array.isArray(fees.data)?fees.data.find((v:any)=>v.listing_type_id===listingType):fees.data;
+  if(!fees.ok||quoted?.listing_type_id!==listingType||quoted.sale_fee_amount==null||
+     !Number.isFinite(Number(quoted.sale_fee_amount))||Number(quoted.sale_fee_amount)<0)
+    return json(req,{ok:false,message:'Tarifa da modalidade escolhida não confirmada.',httpStatus:fees.status},422);
+  const saleFee=Number(quoted.sale_fee_amount);
+  const feeQuote={listingType,price:Number(a.price),saleFee,
+    fixedFee:quoted.sale_fee_details?.fixed_fee??null,
+    percentageFee:quoted.sale_fee_details?.percentage_fee??null,
+    financingFee:quoted.sale_fee_details?.financing_add_on_fee??null,
+    netBeforeShippingAndTax:Math.round((Number(a.price)-saleFee)*100)/100};
+  if(!preview&&listingType==='gold_pro'){
+    const cap=a.attributes?.ANAROSA_MAX_SALE_FEE;
+    if(typeof cap!=='number'||!Number.isFinite(cap)||cap<0||Math.round(saleFee*100)>Math.round(cap*100))
+      return json(req,{ok:false,published:false,message:'Aprove e registre o teto de tarifa Premium após revisar a cotação. Nenhum anúncio enviado.',feeQuote},409);
+  }
   const payload={family_name:familyName,category_id:a.category_external_id,price:Number(a.price),
-    currency_id:'BRL',available_quantity:qty,buying_mode:'buy_it_now',listing_type_id:'gold_special',
+    currency_id:'BRL',available_quantity:qty,buying_mode:'buy_it_now',listing_type_id:listingType,
     condition,pictures:a.images.map((url:string)=>({source:url})),attributes,
     shipping:{mode:'me2',logistic_type:defaultLogistic.type,free_shipping:freeShipping,local_pick_up:false}};
   // Consult the official product-specific shipping eligibility before listing validation.
@@ -2039,7 +2056,7 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   const shippingAttributes=await readMeli('/catalog_domain/'+encodeURIComponent(domainId)+'/shipping_attributes',access);
   const eligibility=await fetch(BASE+'/users/'+Number(row.seller_id)+'/shipping_modes',{
     method:'POST',headers:{Authorization:'Bearer '+access,'Content-Type':'application/json',Accept:'application/json','x-multichannel':'true','X-Format-New':'true'},
-    body:JSON.stringify({site_id:'MLB',seller_id:Number(row.seller_id),title:familyName,item_price:Number(a.price),item_currency:'BRL',category_id:a.category_external_id,channels:[{id:'marketplace'}],catalog:{domain_id:domainId,attributes},sale_terms:[],listing_type_id:'gold_special',buying_mode:'buy_it_now',condition,new_format:true,verbose:true}),
+    body:JSON.stringify({site_id:'MLB',seller_id:Number(row.seller_id),title:familyName,item_price:Number(a.price),item_currency:'BRL',category_id:a.category_external_id,channels:[{id:'marketplace'}],catalog:{domain_id:domainId,attributes},sale_terms:[],listing_type_id:listingType,buying_mode:'buy_it_now',condition,new_format:true,verbose:true}),
     signal:AbortSignal.timeout(15000)
   });
   const eligibilityData=await eligibility.json().catch(()=>({}));
@@ -2072,11 +2089,12 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
       return ageDef?.tags?.read_only===true&&!!ageValue?.id&&String(w.message||'').includes('Attribute [AGE_GROUP] to be added with values [('+ageValue.id+',null)]');
     return false;
   };
+  if(!eligibleMe2)return json(req,{ok:false,published:false,message:'Logística escolhida não confirmada pela API.',shippingDiagnostic,feeQuote},422);
   const warningOnly=validation.httpStatus===400&&eligibleMe2&&
     Array.isArray(validation.causes)&&validation.causes.length>0&&validation.causes.every(safeWarning);
   if(!validation.ok&&!warningOnly)return json(req,{ok:false,published:false,stage:'official_validation',message:'Mercado Livre rejeitou a validação prévia.',validation,shippingDiagnostic},422);
   if(warningOnly)validation={...validation,ok:true,warningOnly:true,shippingVerified:true};
-  if(preview)return json(req,{ok:true,published:false,validated:true,listingId:id,sku:variant.sku,quantity:qty,payload,validation,message:'Validação concluída; nenhum anúncio foi publicado.'});
+  if(preview)return json(req,{ok:true,published:false,validated:true,listingId:id,sku:variant.sku,quantity:qty,payload,validation,feeQuote,shippingVerified:eligibleMe2,message:'Validação concluída; nenhum anúncio foi publicado.'});
   // Consume the creation quota only after all local and official validation succeeds.
   const {data:creationAllowed,error:creationLimitError}=await db.rpc('rl_check_and_increment',{
     p_bucket:'meli-create:'+adminId,p_limit:30,p_window_seconds:3600
@@ -2131,12 +2149,13 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   const skuVerified=remoteSku===variant.sku;
   const stockVerified=Number(remote.available_quantity)===qty;
   const priceVerified=Number(remote.price)===Number(a.price);
+  const listingTypeVerified=remote.listing_type_id===listingType;
   const {error:se}=await db.from('store_marketplace_listings').update({
     status:'published',external_listing_id:mlb,external_url:remote.permalink||null,
     published_at:new Date().toISOString(),
     last_error:remoteStatus!=='active'?'Situação remota: '+remoteStatus:
       !family.verified?'Família remota ainda não confirmada; não repetir publicação.':
-      !skuVerified||!stockVerified||!priceVerified?'Divergência remota de SKU, estoque ou preço; revisar.':
+      !skuVerified||!stockVerified||!priceVerified||!listingTypeVerified?'Divergência remota de SKU, estoque, preço ou modalidade; revisar.':
       descriptionApplied?null:'Descrição do anúncio deve ser revisada.'
   }).eq('id',a.id).eq('status','blocked');
   if(se)return json(req,{ok:false,published:false,externalListingId:mlb,
@@ -2144,7 +2163,7 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   return json(req,{ok:true,published:true,active:remoteStatus==='active',
     remoteStatus,externalListingId:mlb,externalUrl:remote.permalink||null,
     price:remote.price,availableQuantity:remote.available_quantity,
-    family,skuVerified,stockVerified,priceVerified,
+    family,skuVerified,stockVerified,priceVerified,listingType:remote.listing_type_id,listingTypeVerified,feeQuote,
     descriptionApplied,message:remoteStatus==='active'?
       'Publicado e confirmado ativo no Mercado Livre.':'Criado no Mercado Livre, mas ainda não está ativo.'});
 }
