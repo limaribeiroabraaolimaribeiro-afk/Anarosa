@@ -256,6 +256,16 @@ const actions: Record<string,Tool> = {
     schema:properties({listingId:S.str('UUID do rascunho salvo',40),name:S.str('Nome simples da tabela',60),medidas:S.obj('Objeto com rows: [{size,footLengthCm,footLengthToCm opcional}], medidas reais em cm.')},['listingId','name','medidas']),
     action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'chart_prepare',listingId:requiredText(a,'listingId',40),name:requiredText(a,'name',60),rows:(a.medidas as Args)?.rows}),
   },
+  mercadolivre_preparar_tabela_vestuario: {
+    description:'Prepara tabela de vestuário com medidas da roupa (CLOTHING_MEASURE) ou corporais (BODY_MEASURE), nunca misturadas. Consulte mercadolivre_modelo_tabela para os IDs oficiais. Informe fonte e medidas reais ou de referência claramente identificadas; não invente medidas. Não cria tabela externa. Mostre a prévia exata para aprovação.',
+    schema:properties({listingId:S.str('UUID do rascunho Mercado Livre',40),name:S.str('Nome sem caracteres especiais',60),measurementType:{type:'string',enum:['CLOTHING_MEASURE','BODY_MEASURE']},measurementSource:S.str('Fonte das medidas e eventuais limitações',500),rows:{type:'array',minItems:1,maxItems:75,items:{type:'object',required:['size','measurements'],properties:{size:{type:'string'},equivalentSize:{type:'string'},measurements:{type:'object',additionalProperties:{type:'number'},description:'Chaves oficiais da ficha técnica, valores em cm. Ex.: GARMENT_CHEST_WIDTH_FROM e GARMENT_LENGTH_FROM.'}}}}},['listingId','name','measurementType','measurementSource','rows']),
+    action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'chart_prepare',listingId:requiredText(a,'listingId',40),name:requiredText(a,'name',60),measurementType:requiredText(a,'measurementType',30),measurementSource:requiredText(a,'measurementSource',500),rows:a.rows}),
+  },
+  mercadolivre_criar_tabela_vestuario: {
+    description:'Cria tabela definitiva somente após aprovação expressa da prévia exata de vestuário. Tabelas não podem ser excluídas; não repetir após resposta incerta.',
+    schema:properties({intentId:S.str('UUID da prévia aprovada',40),confirmar:S.bool('Administrador aprovou a prévia exata')},['intentId','confirmar']),openWorld:true,
+    action:(a,t)=>{yes(a);return requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'chart_create',intentId:requiredText(a,'intentId',40),confirmar:true});},
+  },
   mercadolivre_criar_tabela_calcados: {
     description:'Criar tabela definitiva no Mercado Livre APENAS após o usuário revisar e aprovar explicitamente a prévia exata. Tabelas não podem ser excluídas. Nunca repetir em caso de resposta incerta.',
     schema:properties({intentId:S.str('UUID da prévia aprovada',40),confirmar:S.bool('Administrador confirmou a criação definitiva da tabela')},['intentId','confirmar']),openWorld:true,
@@ -604,7 +614,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if(data.method==='initialize')return ok(data.id,{
     protocolVersion:'2025-06-18',
     capabilities:{tools:{listChanged:false}},
-    serverInfo:{name:'Anarosa Gestao MCP',version:'1.1.0'},
+    serverInfo:{name:'Anarosa Gestao MCP',version:'1.2.0'},
     instructions:'Ferramentas comerciais da Gestão ANAROSA para leitura, cadastro de produtos, estoque, rascunhos e anúncios. Nunca acesso a código, GitHub, SQL, secrets ou rede arbitrária. Confirmar explicitamente cada edição no Mercado Livre após exibir prévia e conferir versão; nunca executar modificações sem autorização expressa. Publicações reais somente se o canal autorizado confirmar.',
   });
   if(data.method==='ping')return ok(data.id,{});
