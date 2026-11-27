@@ -64,6 +64,290 @@ serve(async (req, ctx) => {
   if (!/^[1-9]\d{0,18}$/.test(blingId)) throw new ValidationError('Selecione um produto existente no Bling.');
   const channel = text(body.marketplace, 30);
   if (!['mercado_livre','shopee'].includes(channel)) throw new ValidationError('Canal inválido.');
+
+  if (action === 'publish' && channel === 'mercado_livre' && body.familyVariantGreen === true) {
+    if (body.confirmar !== true || blingId !== '16725286274' ||
+        body.redItemId !== 'MLB5529252361') {
+      return json(req,{ok:false,message:'Vínculo da família DUZIZO exige autorização explícita.'},400);
+    }
+    const app=Deno.env.get('SUPABASE_URL')||'';
+    if(!app)return json(req,{ok:false,message:'Conexão Supabase indisponível.'},503);
+    let remote:Response;
+    try {
+      remote=await fetch(app+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',
+        headers:{
+          Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'',
+          'Content-Type':'application/json',
+        },
+        body:JSON.stringify({action:'link_green_family',redItemId:'MLB5529252361',confirmar:true}),
+        signal:AbortSignal.timeout(110000),
+      });
+    }catch{
+      return json(req,{ok:false,uncertain:true,
+        message:'Publicador não respondeu; confira o vínculo antes de qualquer nova tentativa.'},502);
+    }
+    const answer=await remote.json().catch(()=>({
+      ok:false,message:'Publicador retornou resposta não estruturada. Confira antes de repetir.'
+    }));
+    return json(req,answer,remote.status);
+  }
+
+
+  if (action === 'publish' && channel === 'mercado_livre' && body.mergeGreenFamily === true) {
+    if (body.confirmar !== true || blingId !== '16725286274' ||
+        body.redItemId !== 'MLB5529252361' || body.greenItemId !== 'MLB7960343796') {
+      return json(req,{ok:false,message:'Confirme o vínculo entre os dois itens da família DUZIZO.'},400);
+    }
+    const app=Deno.env.get('SUPABASE_URL')||'';
+    if(!app)return json(req,{ok:false,message:'Supabase indisponível.'},503);
+    let remote:Response;
+    try{
+      remote=await fetch(app+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',headers:{
+          Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'',
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({action:'merge_green_family',confirmar:true,
+          redItemId:'MLB5529252361',greenItemId:'MLB7960343796'}),
+        signal:AbortSignal.timeout(110000)
+      });
+    }catch{return json(req,{ok:false,uncertain:true,message:'Resposta de integração interrompida. Não repetir sem verificar famílias.'},502);}
+    const result=await remote.json().catch(()=>({ok:false,message:'Sem confirmação estruturada do marketplace.'}));
+    return json(req,result,remote.status);
+  }
+
+
+  if(action==='publish' && channel==='mercado_livre' && body.finalizeSeparatedColors===true){
+    if(body.confirmar!==true||blingId!=='16725286274'||
+      body.redItemId!=='MLB5529252361'||body.greenItemId!=='MLB7960343796')
+      return json(req,{ok:false,message:'Confirmação do par de anúncios DUZIZO obrigatória.'},400);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Integração Supabase indisponível.'},503);
+    let remote:Response;
+    try{
+      remote=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',
+        headers:{Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'',
+          'Content-Type':'application/json'},
+        body:JSON.stringify({action:'finalize_separate_colors',
+          redItemId:'MLB5529252361',greenItemId:'MLB7960343796',confirmar:true}),
+        signal:AbortSignal.timeout(110000)
+      });
+    }catch{return json(req,{ok:false,uncertain:true,message:'Verificação externa interrompida. Não repetir antes de conferir os anúncios.'},502);}
+    const outcome=await remote.json().catch(()=>({ok:false,message:'Resposta externa não estruturada.'}));
+    return json(req,outcome,remote.status);
+  }
+
+
+  if(action==='publish'&&channel==='mercado_livre'&&body.replaceRedGallery===true){
+    if(body.confirmar!==true||blingId!=='16725286274'||body.redItemId!=='MLB5529252361')
+      return json(req,{ok:false,message:'Confirme a substituição das quatro fotos do conjunto vermelho RN.'},400);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Integração indisponível.'},503);
+    let response:Response;
+    try{
+      response=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',
+        headers:{
+          Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'',
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({action:'replace_red_gallery',itemId:'MLB5529252361',confirmar:true}),
+        signal:AbortSignal.timeout(110000)
+      });
+    }catch{
+      return json(req,{ok:false,uncertain:true,
+        message:'Resposta da troca das fotos interrompida; consulte o anúncio antes de repetir.'},502);
+    }
+    const result=await response.json().catch(()=>({
+      ok:false,message:'Resultado não estruturado; confira a galeria antes de repetir.'
+    }));
+    return json(req,result,response.status);
+  }
+
+
+  if(action==='publish'&&channel==='mercado_livre'&&body.diagnoseRedGallery===true){
+    if(body.confirmar!==true||blingId!=='16725286274'||body.redItemId!=='MLB5529252361')
+      return json(req,{ok:false,message:'Diagnóstico autorizado apenas para o vermelho.'},400);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Integração indisponível.'},503);
+    let res:Response;
+    try{
+      res=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',headers:{
+          Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'',
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({action:'diagnose_red_gallery',itemId:'MLB5529252361',confirmar:true}),
+        signal:AbortSignal.timeout(30000)
+      });
+    }catch{return json(req,{ok:false,message:'Falha na consulta do arquivo.'},502);}
+    const result=await res.json().catch(()=>({ok:false,message:'Sem resposta estruturada.'}));
+    return json(req,result,res.status);
+  }
+
+
+  if(action==='publish'&&channel==='mercado_livre'&&body.diagnoseGreenGallery===true){
+    if(body.confirmar!==true||blingId!=='16725286274'||body.greenItemId!=='MLB7960343796')
+      return json(req,{ok:false,message:'Diagnóstico autorizado apenas para a galeria verde DUZIZO.'},400);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Integração indisponível.'},503);
+    let res:Response;
+    try{
+      res=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',headers:{Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'', 'Content-Type':'application/json'},
+        body:JSON.stringify({action:'diagnose_green_gallery',itemId:'MLB7960343796',confirmar:true}),
+        signal:AbortSignal.timeout(100000)
+      });
+    }catch{return json(req,{ok:false,message:'Falha ao verificar arquivos do verde.'},502);}
+    const result=await res.json().catch(()=>({ok:false,message:'Sem resposta estruturada.'}));
+    return json(req,result,res.status);
+  }
+
+  if(action==='publish'&&channel==='mercado_livre'&&body.replaceGreenGallery===true){
+    if(body.confirmar!==true||blingId!=='16725286274'||body.greenItemId!=='MLB7960343796')
+      return json(req,{ok:false,message:'Confirme a troca das quatro fotos do conjunto verde P.'},400);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Integração indisponível.'},503);
+    let res:Response;
+    try{
+      res=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',headers:{Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'', 'Content-Type':'application/json'},
+        body:JSON.stringify({action:'replace_green_gallery',itemId:'MLB7960343796',confirmar:true}),
+        signal:AbortSignal.timeout(110000)
+      });
+    }catch{return json(req,{ok:false,uncertain:true,
+      message:'Resposta da troca de fotos interrompida: conferir o anúncio antes de repetir.'},502);}
+    const result=await res.json().catch(()=>({ok:false,uncertain:true,message:'Sem confirmação estruturada do Mercado Livre.'}));
+    return json(req,result,res.status);
+  }
+
+
+  if (action==='publish' && channel==='mercado_livre' && body.ogochiGalleryProbe===true) {
+    if(body.confirmar!==true||blingId!=='16720620962')return json(req,{ok:false,message:'Confirmação do produto Ogochi obrigatória.'},403);
+    const app=Deno.env.get('SUPABASE_URL')||'';
+    if(!app)return json(req,{ok:false,message:'Integração indisponível.'},503);
+    try{
+      const res=await fetch(app+'/functions/v1/mercadolivre-oauth-callback',{
+       method:'POST',headers:{Authorization:req.headers.get('authorization')||'',
+         apikey:Deno.env.get('SUPABASE_ANON_KEY')||'','Content-Type':'application/json'},
+       body:JSON.stringify({action:'ogochi_probe',confirmar:true,includeImage:body.includeImage===true,imageIndex:Number(body.imageIndex||0),previewProcessed:body.previewProcessed===true,checkOriginal:body.checkOriginal===true,checkThumbnail:body.checkThumbnail===true,itemId:String(body.ogochiProbeItemId||'MLB5409091633'),imageVariant:String(body.imageVariant||'F')}),
+       signal:AbortSignal.timeout(105000)});
+      const data=await res.json().catch(()=>({ok:false,message:'Resposta inválida da API.'}));
+      return json(req,data,res.status);
+    }catch{return json(req,{ok:false,message:'Não foi possível inspecionar as fotos.'},502);}
+  }
+
+
+  if (action==='publish' && channel==='mercado_livre' && body.ogochiTransformProbe===true) {
+    if(body.confirmar!==true||blingId!=='16720620962')return json(req,{ok:false,message:'Confirmação exigida.'},403);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Função indisponível.'},503);
+    try{
+      const res=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+       method:'POST',headers:{Authorization:req.headers.get('authorization')||'',
+        apikey:Deno.env.get('SUPABASE_ANON_KEY')||'','Content-Type':'application/json'},
+       body:JSON.stringify({action:'ogochi_transform_probe',confirmar:true}),
+       signal:AbortSignal.timeout(110000)});
+      return json(req,await res.json().catch(()=>({ok:false,message:'Sem resposta'})),res.status);
+    }catch{return json(req,{ok:false,message:'Falha no processamento de imagens.'},502);}
+  }
+
+
+  if(action==='publish'&&channel==='mercado_livre'&&body.ogochiGalleryPrepare===true){
+    if(body.confirmar!==true||blingId!=='16720620962')
+      return json(req,{ok:false,message:'Confirmação da preparação Ogochi obrigatória.'},403);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Integração indisponível.'},503);
+    try{
+      const response=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',headers:{
+          Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'','Content-Type':'application/json'},
+        body:JSON.stringify({action:'ogochi_gallery_prepare',confirmar:true}),
+        signal:AbortSignal.timeout(110000)
+      });
+      return json(req,await response.json().catch(()=>({ok:false,message:'Resposta inválida'})),response.status);
+    }catch{return json(req,{ok:false,message:'Preparação de fotos interrompida.'},502);}
+  }
+
+
+  if(action==='publish'&&channel==='mercado_livre'&&body.ogochiGalleryPublish===true){
+    if(body.confirmar!==true||blingId!=='16720620962')
+      return json(req,{ok:false,message:'Confirmação de substituição Ogochi necessária.'},403);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Supabase não configurado.'},503);
+    try{
+      const response=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',
+        headers:{Authorization:req.headers.get('authorization')||'',
+          apikey:Deno.env.get('SUPABASE_ANON_KEY')||'','Content-Type':'application/json'},
+        body:JSON.stringify({action:'ogochi_gallery_publish',confirmar:true,dryRun:body.dryRun===true}),
+        signal:AbortSignal.timeout(110000)
+      });
+      const answer=await response.json().catch(()=>({ok:false,message:'Resposta não estruturada.'}));
+      return json(req,answer,response.status);
+    }catch{
+      return json(req,{ok:false,uncertain:true,message:'Resposta interrompida. Verifique os anúncios antes de repetir.'},502);
+    }
+  }
+
+
+  if(action==='publish'&&channel==='mercado_livre'&&body.ogochiFamilyDiagnose===true){
+    if(body.confirmar!==true||blingId!=='16720620962')
+      return json(req,{ok:false,message:'Diagnóstico autorizado apenas para Ogochi.'},403);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Integração indisponível.'},503);
+    try{
+      const response=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+       method:'POST',headers:{Authorization:req.headers.get('authorization')||'',
+        apikey:Deno.env.get('SUPABASE_ANON_KEY')||'','Content-Type':'application/json'},
+       body:JSON.stringify({action:'ogochi_family_diagnose',confirmar:true}),
+       signal:AbortSignal.timeout(110000)
+      });
+      return json(req,await response.json().catch(()=>({ok:false,message:'Resposta inválida'})),response.status);
+    }catch{return json(req,{ok:false,message:'Diagnóstico da família interrompido.'},502);}
+  }
+
+
+  if(action==='publish'&&channel==='mercado_livre'&&body.anarosaGrowthAudit===true){
+    if(body.confirmar!==true||blingId!=='16725286274')
+      return json(req,{ok:false,message:'Auditoria de crescimento só para ANAROSA autorizada.'},403);
+    const host=Deno.env.get('SUPABASE_URL')||'';
+    if(!host)return json(req,{ok:false,message:'Integração indisponível.'},503);
+    try{
+      const response=await fetch(host+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',headers:{Authorization:req.headers.get('authorization')||'',
+         apikey:Deno.env.get('SUPABASE_ANON_KEY')||'','Content-Type':'application/json'},
+        body:JSON.stringify({action:'anarosa_growth_audit',confirmar:true}),
+        signal:AbortSignal.timeout(105000)
+      });
+      const data=await response.json().catch(()=>({ok:false,message:'Resposta não estruturada.'}));
+      return json(req,data,response.status);
+    }catch{
+      return json(req,{ok:false,message:'Consulta de crescimento indisponível.'},502);
+    }
+  }
+
+
+  if(action==='publish'&&channel==='shopee'&&body.shopeeCredentialProbe===true){
+    if(body.confirmar!==true||blingId!=='16725286274')
+      return json(req,{ok:false,message:'Verificação sem autorização.'},403);
+    const available=['SHOPEE_PARTNER_ID','SHOPEE_PARTNER_KEY','SHOPEE_APP_ID','SHOPEE_APP_SECRET',
+      'SHOPEE_TOKEN_ENCRYPTION_KEY'].reduce((acc:any,name)=>{
+       acc[name]=Boolean(Deno.env.get(name)?.trim());return acc;},{});
+    return json(req,{ok:true,shopeeCredentialsConfigured:available,
+      marketplace:'shopee',readOnly:true,noPublication:true});
+  }
+
   const { data: product, error: productErr } = await ctx.db.from('store_products')
     .select('id,bling_id,sku,name,price,images,metadata,active,parent_bling_id').eq('bling_id',blingId).maybeSingle();
   if (productErr || !product || product.parent_bling_id) throw new ValidationError('Selecione um produto principal do catálogo sincronizado.');
@@ -156,13 +440,45 @@ serve(async (req, ctx) => {
   const { data: connection } = await ctx.db.from('store_marketplace_connections')
     .select('status,external_store_id,verified_at').eq('marketplace',channel).maybeSingle();
   if (action === 'publish') {
-    // A conexão do Bling, por si só, NÃO autoriza publicar no Mercado Livre
-    // nem na Shopee. Não fazer POST especulativo a endpoints de terceiros.
-    const reason = connection?.status === 'connected'
-      ? 'O adaptador de publicação desta Gestão ainda precisa de validação antes de enviar anúncios.'
-      : 'A conta pode estar autorizada no Bling, mas o envio por esta Gestão ainda não foi validado. Use o Bling para publicar enquanto a integração é concluída.';
-    return json(req, { ok: false, status: 'blocked', message: reason,
-      missing: [...errors, reason], externalListingId: null }, 409);
+    if (body.confirmar !== true) return json(req, {
+      ok: false, message: 'Confirmação administrativa obrigatória antes de publicar.'
+    }, 403);
+    if (channel !== 'mercado_livre') return json(req,{
+      ok: false, message: 'Publicação automatizada da Shopee ainda não homologada.'
+    }, 409);
+    if (errors.length) return json(req,{
+      ok:false,message:'Complete os campos obrigatórios do anúncio antes de publicar.',missing:errors
+    },422);
+    const draftId=text(body.id,40);
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(draftId))
+      return json(req,{ok:false,message:'Selecione o ID do rascunho Mercado Livre existente para evitar duplicidade.'},400);
+    const {data:original,error:readError}=await ctx.db.from('store_marketplace_listings')
+      .select('id,bling_product_id,marketplace,status,external_listing_id')
+      .eq('id',draftId).eq('bling_product_id',blingId).eq('marketplace','mercado_livre').maybeSingle();
+    if(readError||!original)return json(req,{ok:false,message:'Rascunho não encontrado ou pertence a outro produto.'},404);
+    if(original.external_listing_id||!['draft','ready'].includes(original.status))
+      return json(req,{ok:false,message:'Anúncio já possui vínculo MLB, ou há publicação pendente. Não duplicar.',externalListingId:original.external_listing_id},409);
+    const app=Deno.env.get('SUPABASE_URL')||'';
+    if(!app)return json(req,{ok:false,message:'Integração de publicação indisponível.'},503);
+    let remote:Response;
+    try {
+      remote=await fetch(app+'/functions/v1/mercadolivre-oauth-callback',{
+        method:'POST',
+        headers:{
+          'Authorization':req.headers.get('authorization')||'',
+          'apikey':Deno.env.get('SUPABASE_ANON_KEY')||'',
+          'Content-Type':'application/json',
+        },
+        body:JSON.stringify({action:body.dryRun===true?'validate_listing':'publish_listing',listingId:draftId,confirmar:body.dryRun!==true}),
+        signal:AbortSignal.timeout(110000),
+      });
+    }catch{
+      return json(req,{ok:false,message:'Publicador externo não respondeu. Confira a situação do rascunho antes de repetir.'},502);
+    }
+    const outcome=await remote.json().catch(()=>({
+      ok:false,message:'O publicador não retornou confirmação estruturada.'
+    }));
+    return json(req,outcome,remote.status);
   }
   if (action === 'prepare' && errors.length) return json(req, {
     ok: false, message: 'Há campos obrigatórios pendentes antes de preparar o anúncio.', missing: errors,
