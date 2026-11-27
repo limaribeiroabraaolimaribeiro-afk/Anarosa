@@ -348,8 +348,8 @@ async function premiumWorkflow(req:Request,adminId:string,body:any,action:string
 }
 // Rename a complete User Products family in one official operation.
 function familyNameKey(v:any){return String(v??'').trim().replace(/\s+/g,' ').toLowerCase();}
-async function familyRenameState(familyId:string,ids:string[],sellerId:number,access:string){
-  if(!/^\d{1,25}$/.test(familyId)||ids.length<2||ids.length>10||
+async function familyRenameState(familyId:string,ids:string[],sellerId:number,access:string,allowSingle=false){
+  if(!/^\d{1,25}$/.test(familyId)||ids.length<(allowSingle?1:2)||ids.length>10||
      new Set(ids).size!==ids.length||ids.some(id=>!/^MLB\d{8,16}$/.test(id)))
     throw auditError('Informe a família e todos os anúncios MLB distintos.');
   const [info,members]=await Promise.all([
@@ -447,6 +447,136 @@ async function familyRenameWorkflow(req:Request,adminId:string,body:any,action:s
     if(saved.error)result.auditPending=true;
     return json(req,result,result.ok?200:207);
   }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha de revisão de família.').slice(0,300)},(e as any)?.status||400);}
+}
+// Split a color subset without creating/deleting sale conditions.
+function splitColorKey(v:any){return familyNameKey(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[-\s]+/g,' ');}
+async function colorSplitState(c:any,sellerId:number,access:string){
+  const ids:string[]=[...c.keepIds,...c.moveIds].sort();
+  const membership=await Promise.all(ids.map(async id=>{
+    const r=await readMeli('/items/'+id,access),item=r.data;
+    if(!r.ok||item?.id!==id||Number(item.seller_id)!==sellerId||!/^MLBU\d+$/.test(String(item.user_product_id)))
+      throw auditError('Anúncio indisponível ou fora da conta: '+id,409);
+    const up=await readMeli('/user-products/'+item.user_product_id,access);
+    const family=String(up.data?.family_id??'');
+    if(!up.ok||String(up.data?.id)!==String(item.user_product_id)||!/^\d{1,25}$/.test(family))
+      throw auditError('Vínculo familiar não confirmado: '+id,409);
+    return {id,family};
+  }));
+  const families=[...new Set(membership.map(x=>x.family))].sort();
+  if(families.length>2||!families.includes(c.familyId))throw auditError('Partição inesperada; não alterar.',409);
+  const dest=families.find(x=>x!==c.familyId)??null;
+  if(c.keepIds.some((id:string)=>membership.find(x=>x.id===id)?.family!==c.familyId))
+    throw auditError('Um anúncio da cor preservada saiu da família original.',409);
+  const groups=await Promise.all(families.map(async family=>{
+    const state=await familyRenameState(family,membership.filter(x=>x.family===family).map(x=>x.id),sellerId,access,true);
+    if(state.records.some(r=>familyNameKey(r.familyName)!==familyNameKey(state.name)))
+      throw auditError('Nome familiar ainda em propagação. Consulte novamente, sem repetir escrita.',409);
+    return {family,name:state.name,records:state.records};
+  }));
+  const records=groups.flatMap(g=>g.records.map(r=>({...r,familyId:g.family}))).sort((a,b)=>a.id.localeCompare(b.id));
+  if(records.some(r=>splitColorKey(r.color)!==splitColorKey(c.keepIds.includes(r.id)?c.keepColor:c.moveColor)))
+    throw auditError('Cor real divergente dos grupos aprovados.',409);
+  if(records.some(r=>r.listingType!=='gold_pro'||Number(r.price)!==c.expectedPrice||!r.pictures.length||
+       r.grid!==c.gridId||r.shipping.mode!=='me2'||r.shipping.free!==false||!r.sku||!r.row))
+    throw auditError('Dados comerciais, fotos, tabela ou logística divergentes.',409);
+  if(new Set(records.map(r=>r.sku)).size!==ids.length)throw auditError('SKUs duplicados.',409);
+  const original=groups.find(g=>g.family===c.familyId)!;
+  const target=groups.find(g=>g.family===dest);
+  if(target&&familyNameKey(target.name)!==familyNameKey(c.moveName))throw auditError('Família de destino possui nome inesperado.',409);
+  if(familyNameKey(original.name)===familyNameKey(c.moveName))throw auditError('Nome de destino coincide com a família original.',409);
+  const protectedRecords=records.map(({familyName,familyId,...r})=>r);
+  const protectedHash=await sha(JSON.stringify(protectedRecords));
+  const digest=await sha(JSON.stringify({protectedRecords,groups:groups.map(g=>({family:g.family,name:g.name,ids:g.records.map(r=>r.id)}))}));
+  return {groups,records,originalName:original.name,dest,protectedHash,digest,
+    pending:c.moveIds.filter((id:string)=>membership.find(x=>x.id===id)?.family===c.familyId)};
+}
+function normalizeColorSplit(body:any){
+  const ids=(v:any)=>Array.isArray(v)?v.map((x:any)=>String(x).trim().toUpperCase()).sort():[];
+  const keepIds=ids(body.keepIds),moveIds=ids(body.moveIds),all=[...keepIds,...moveIds];
+  const familyId=String(body.familyId??'').trim(),gridId=String(body.gridId??'').trim();
+  const keepColor=String(body.keepColor??'').trim(),moveColor=String(body.moveColor??'').trim();
+  const keepName=String(body.keepName??'').trim().replace(/\s+/g,' '),moveName=String(body.moveName??'').trim().replace(/\s+/g,' ');
+  const expectedPrice=Number(body.expectedPrice);
+  if(!/^\d{1,25}$/.test(familyId)||!/^\d{1,25}$/.test(gridId)||!keepIds.length||!moveIds.length||all.length>10||
+    new Set(all).size!==all.length||all.some(id=>!/^MLB\d{8,16}$/.test(id))||!keepColor||!moveColor||
+    splitColorKey(keepColor)===splitColorKey(moveColor)||[keepName,moveName].some(v=>v.length<3||v.length>60||/[\x00-\x1f\x7f]/.test(v))||
+    familyNameKey(keepName)===familyNameKey(moveName)||!Number.isFinite(expectedPrice)||expectedPrice<=0)
+    throw auditError('Informe dois grupos de cores distintos, IDs completos, nomes, tabela e preço confirmados.');
+  return {familyId,gridId,keepIds,moveIds,keepColor,moveColor,keepName,moveName,expectedPrice};
+}
+async function colorSplitWorkflow(req:Request,adminId:string,body:any,action:string){
+  const prepare=action==='family_split_prepare';
+  const rate=await db.rpc('rl_check_and_increment',{p_bucket:'meli-'+action+':'+adminId,p_limit:prepare?10:3,p_window_seconds:3600});
+  if(rate.error||rate.data!==true)return json(req,{ok:false,message:'Limite temporário de revisão atingido.'},429);
+  const row=await connection();
+  if(!row)return json(req,{ok:false,message:'Conta Mercado Livre não conectada.'},409);
+  let access:string;
+  try{access=await usableToken(row);}catch{return json(req,{ok:false,message:'Autorização indisponível.'},503);}
+  const sellerId=Number(row.seller_id);
+  try{
+    if(prepare){
+      const c=normalizeColorSplit(body),state=await colorSplitState(c,sellerId,access);
+      if(!state.pending.length&&familyNameKey(state.originalName)===familyNameKey(c.keepName))
+        throw auditError('Os grupos já estão separados com os nomes solicitados.',409);
+      const preview={familyId:c.familyId,before:state.originalName,keepName:c.keepName,moveName:c.moveName,
+        keep:state.records.filter(r=>c.keepIds.includes(r.id)).map(({attributes,...r})=>r),
+        move:state.records.filter(r=>c.moveIds.includes(r.id)).map(({attributes,...r})=>r),
+        pending:state.pending,destinationFamilyId:state.dest,
+        notice:'PUT individual /items/{id} somente family_name nos itens a transferir; verificar cada transferência. Após todos os movimentos, renomear apenas a família original, se necessário. Sem POST de itens, exclusões ou mudanças em preço, estoque, fotos, atributos, Premium ou frete. Propagação pode ser assíncrona; interromper se não confirmada. O destino é calculado pelo Mercado Livre.'};
+      const {data,error}=await db.from('meli_edit_intents').insert({seller_id:row.seller_id,item_id:c.keepIds[0],admin_user_id:adminId,
+        snapshot_hash:state.digest,changes:{operation:'family_split',...c},preview,
+        expires_at:new Date(Date.now()+15*60*1000).toISOString()}).select('id,expires_at').single();
+      if(error||!data)throw auditError('Falha ao registrar prévia.',503);
+      return json(req,{ok:true,applied:false,previewId:data.id,expiresAt:data.expires_at,preview});
+    }
+    const id=String(body.previewId??'');
+    if(body.confirmar!==true||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+      throw auditError('Confirmação e UUID da prévia obrigatórios.');
+    const {data:intent,error}=await db.from('meli_edit_intents').select('*').eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).maybeSingle();
+    if(error||!intent||intent.changes?.operation!=='family_split')throw auditError('Prévia de separação não encontrada.',404);
+    if(intent.consumed_at||Date.parse(intent.expires_at)<=Date.now())throw auditError('Prévia utilizada ou expirada. Consulte estado atual.',409);
+    const c=normalizeColorSplit(intent.changes);
+    let state=await colorSplitState(c,sellerId,access);
+    if(state.digest!==intent.snapshot_hash)throw auditError('Família ou dados comerciais mudaram. Nova prévia obrigatória.',409);
+    const {data:claimed,error:claimError}=await db.from('meli_edit_intents').update({consumed_at:new Date().toISOString()})
+      .eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).is('consumed_at',null)
+      .gt('expires_at',new Date().toISOString()).select('id').maybeSingle();
+    if(claimError||!claimed)throw auditError('Prévia já utilizada ou em processamento.',409);
+    const baseline=state.protectedHash, pending=[...state.pending];
+    const result:any={ok:false,applied:false,previewId:id,originalFamilyId:c.familyId,steps:[],protectedVerified:false};
+    try{
+      for(const itemId of pending){
+        const before=state;
+        const step:any={itemId};result.steps.push(step);
+        step.api=await writeMeli('/items/'+itemId,access,{family_name:c.moveName},'PUT');
+        if(!step.api.ok)throw Error('API recusou a transferência ou não confirmou. Não repetir.');
+        state=await colorSplitState(c,sellerId,access);
+        result.protectedVerified=state.protectedHash===baseline;
+        if(!result.protectedVerified||!state.dest||(before.dest&&state.dest!==before.dest)||state.pending.includes(itemId)||
+           JSON.stringify(state.pending)!==JSON.stringify(before.pending.filter((x:string)=>x!==itemId))||
+           familyNameKey(state.originalName)!==familyNameKey(before.originalName))
+          throw Error('Transferência ainda não confirmada ou estado divergente. Interrompido sem repetir.');
+        step.verified=true;step.destinationFamilyId=state.dest;
+      }
+      if(state.pending.length||!state.dest)throw Error('Separação ainda incompleta.');
+      if(familyNameKey(state.originalName)!==familyNameKey(c.keepName)){
+        const step:any={familyId:c.familyId};result.steps.push(step);
+        step.api=await writeMeli('/user-products-families/'+c.familyId,access,{family_name:c.keepName},'PUT');
+        if(!step.api.ok)throw Error('Renomeação da família preservada não confirmada. Não repetir.');
+        state=await colorSplitState(c,sellerId,access);
+        step.verified=familyNameKey(state.originalName)===familyNameKey(c.keepName);
+      }
+      result.protectedVerified=state.protectedHash===baseline;
+      result.destinationFamilyId=state.dest;
+      result.applied=!!state.dest&&!state.pending.length&&familyNameKey(state.originalName)===familyNameKey(c.keepName);
+      result.ok=result.applied&&result.protectedVerified;
+      result.groups=state.groups.map(g=>({familyId:g.family,name:g.name,items:g.records.map(r=>r.id)}));
+      result.message=result.ok?'Duas famílias verificadas e todos os anúncios preservados.':'Separação ou sincronização pendente. Consulte antes de novas alterações.';
+    }catch(e){result.verificationPending=true;result.message=String((e as any)?.message||'Resposta incerta; consulte o estado antes de repetir.').slice(0,300);}
+    const saved=await db.from('meli_edit_intents').update({outcome:result}).eq('id',id).eq('admin_user_id',adminId);
+    if(saved.error)result.auditPending=true;
+    return json(req,result,result.ok?200:207);
+  }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha na revisão.').slice(0,300)},(e as any)?.status||400);}
 }
 async function editWorkflow(req:Request,adminId:string,body:any){
   const requested=String(body.action||'');
@@ -2402,6 +2532,11 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==='premium_prepare'||action==='premium_apply')return premiumWorkflow(req,adminId,body,action);
   if(action==='family_rename_prepare'||action==='family_rename_apply')return familyRenameWorkflow(req,adminId,body,action);
+  if(action==='family_split_prepare'||action==='family_split_apply')return colorSplitWorkflow(req,adminId,body,action);
+  if(action==='edit_preview'&&body.changes?.familySplit){
+    if(Object.keys(body.changes).length!==1)return json(req,{ok:false,message:'Separação deve ser revisada isoladamente.'},400);
+    return colorSplitWorkflow(req,adminId,body.changes.familySplit,'family_split_prepare');
+  }
   if(action==='edit_preview'&&body.changes?.familyRename){
     if(Object.keys(body.changes).length!==1)return json(req,{ok:false,message:'Renomeação de família deve ser revisada isoladamente.'},400);
     return familyRenameWorkflow(req,adminId,body.changes.familyRename,'family_rename_prepare');
