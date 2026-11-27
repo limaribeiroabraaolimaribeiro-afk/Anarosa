@@ -2219,6 +2219,25 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
     if((c.type==='SPECIFIC'&&Number(c.seller_id)!==Number(row.seller_id))||
       String(c.domain_id||'').replace(/^MLB-/,'')!==domain||!rowMatches||!genderMatches)
       return json(req,{ok:false,message:'Tabela incompatível com vendedor, domínio, gênero ou tamanho.'},422);
+    // Footwear standard BR grids expose the canonical size (e.g. 27 BR),
+    // while Bling stores the same number without a unit. Use only the
+    // already verified official row; do not trust an arbitrary draft size.
+    if(domain==='SNEAKERS'&&c.main_attribute_id==='BR_SIZE'&&/^\d{1,3}(?:\s*BR)?$/i.test(fields.SIZE)){
+      const selectedRow=c.rows.find((r:any)=>String(r.id)===fields.SIZE_GRID_ROW_ID);
+      const brValues=(selectedRow?.attributes||[]).filter((at:any)=>at.id==='BR_SIZE')
+        .flatMap((at:any)=>at.values||[]).filter((value:any)=>/^\d{1,3}\s+BR$/i.test(String(value.name||''))&&normalize(value.name)===normalize(fields.SIZE));
+      if(brValues.length!==1)
+        return json(req,{ok:false,message:'Linha oficial sem numeração BR inequívoca.'},422);
+      const sizeValues=(selectedRow?.attributes||[]).filter((at:any)=>at.id==='SIZE')
+        .flatMap((at:any)=>at.values||[]).filter((value:any)=>String(value.name)===String(brValues[0].name));
+      if(sizeValues.length!==1)
+        return json(req,{ok:false,message:'Numeração SIZE da linha diverge da numeração BR.'},422);
+      const sizeIndex=attributes.findIndex((at:any)=>at.id==='SIZE');
+      if(sizeIndex<0)return json(req,{ok:false,message:'Atributo SIZE ausente.'},422);
+      // Do not retain the category's bare numeric value_id; it takes
+      // precedence over value_name and causes invalid.fashion_grid.size.values.
+      attributes[sizeIndex]={id:'SIZE',value_name:String(sizeValues[0].name)};
+    }
     for(const key of ['SIZE_GRID_ID','SIZE_GRID_ROW_ID']){
       if(!attributes.some((at:any)=>at.id===key))attributes.push({id:key,value_name:fields[key]});
     }
