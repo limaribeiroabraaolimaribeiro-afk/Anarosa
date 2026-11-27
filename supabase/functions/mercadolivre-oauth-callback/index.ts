@@ -1969,7 +1969,7 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   if(preview)return json(req,{ok:true,published:false,validated:true,listingId:id,sku:variant.sku,quantity:qty,payload,validation,message:'Validação concluída; nenhum anúncio foi publicado.'});
   // Consume the creation quota only after all local and official validation succeeds.
   const {data:creationAllowed,error:creationLimitError}=await db.rpc('rl_check_and_increment',{
-    p_bucket:'meli-create:'+adminId,p_limit:10,p_window_seconds:3600
+    p_bucket:'meli-create:'+adminId,p_limit:30,p_window_seconds:3600
   });
   if(creationLimitError||creationAllowed!==true)return json(req,{ok:false,published:false,
     message:'Limite de segurança para publicações atingido.',retryAfterSeconds:Math.max(1,3600-Math.floor(Date.now()/1000)%3600)},429);
