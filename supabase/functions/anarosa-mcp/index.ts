@@ -527,7 +527,7 @@ const actions: Record<string,Tool> = {
       // Compatibilidade com sessões MCP que ainda possuem o catálogo anterior de ferramentas.
       // As operações de metadados não podem publicar nem criar tabelas.
       if(args.dryRun===true&&['category_schema','chart_schema','chart_detail','chart_template','chart_search','chart_prepare'].includes(String(args.metadata||''))){
-        return requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:args.metadata,categoryId:args.categoryExternalId,chartId:args.chartId,gender:args.gender,brand:args.brand,gridType:args.gridType,listingId:args.id,name:args.name,rows:args.rows});
+        return requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:args.metadata,categoryId:args.categoryExternalId,chartId:args.chartId,gender:args.gender,brand:args.brand,gridType:args.gridType,listingId:args.id,name:args.name,rows:args.rows,measurementType:args.measurementType,measurementSource:args.measurementSource});
       }
       // Compatibilidade com o catálogo MCP anterior: mesma aprovação e mesma prévia imutável.
       if(args.operation==='create_size_chart'){
