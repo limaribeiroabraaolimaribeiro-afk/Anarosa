@@ -477,7 +477,7 @@ async function colorSplitState(c:any,sellerId:number,access:string){
   if(records.some(r=>splitColorKey(r.color)!==splitColorKey(c.keepIds.includes(r.id)?c.keepColor:c.moveColor)))
     throw auditError('Cor real divergente dos grupos aprovados.',409);
   if(records.some(r=>r.listingType!=='gold_pro'||Number(r.price)!==c.expectedPrice||!r.pictures.length||
-       r.grid!==c.gridId||r.shipping.mode!=='me2'||r.shipping.free!==false||!r.sku||!r.row))
+       r.grid!==c.gridId||r.shipping.mode!=='me2'||typeof r.shipping.free!=='boolean'||!r.sku||!r.row))
     throw auditError('Dados comerciais, fotos, tabela ou logística divergentes.',409);
   if(new Set(records.map(r=>r.sku)).size!==ids.length)throw auditError('SKUs duplicados.',409);
   const original=groups.find(g=>g.family===c.familyId)!;
