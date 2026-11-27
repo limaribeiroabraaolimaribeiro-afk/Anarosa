@@ -1791,7 +1791,7 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
     return json(req,{ok:false,message:'Categoria, modalidade Mercado Envios 2 ou fotos ausentes.'},422);
   const variations=(Array.isArray(a.variation_mapping)?a.variation_mapping:[]).filter((v:any)=>v.enabled===true);
   if(variations.length!==1)return json(req,{ok:false,message:'User Products exige exatamente uma variação ativa por item.'},422);
-  const {data:p}=await db.from('store_products').select('id,bling_id,name,brand,price,condition,active,images')
+  const {data:p}=await db.from('store_products').select('id,bling_id,name,brand,price,condition,active,images,metadata')
     .eq('bling_id',a.bling_product_id).maybeSingle();
   if(!p||p.active!==true||Math.abs(Number(p.price)-Number(a.price))>0.001)
     return json(req,{ok:false,message:'Cadastro Bling inativo ou preço divergente.'},409);
@@ -1807,6 +1807,25 @@ async function publishAnarosaListing(req:Request,adminId:string,body:any){
   if(!Number.isInteger(qty)||qty<1||!stock?.synced_at||Date.now()-Date.parse(stock.synced_at)>7*86400000)
     return json(req,{ok:false,message:'Estoque não confirmado ou sincronização do Bling antiga.'},409);
   const known=new Set((Array.isArray(p.images)?p.images:[]).map((x:any)=>typeof x==='string'?x:x?.url));
+  // Permanent Bling image cache is valid only for the same product and source image.
+  // Do not accept arbitrary URLs or a cached image from another product.
+  const cache=p.metadata?.imageCache;
+  if(cache&&typeof cache==='object'&&Array.isArray(p.images)){
+    for(const [index,entry] of Object.entries(cache) as [string,any][]){
+      try{
+        if(!/^\d+$/.test(index)||!entry||typeof entry.publicUrl!=='string'||typeof entry.sourcePath!=='string')continue;
+        const original=p.images[Number(index)];
+        const source=new URL(typeof original==='string'?original:original?.url);
+        const cached=new URL(entry.publicUrl);
+        const prefix='/storage/v1/object/public/anarosa-product-images/bling-permanent/'+String(p.bling_id)+'/';
+        const filename=cached.pathname.slice(prefix.length);
+        if(source.protocol!=='https:'||source.hostname!=='orgbling.s3.amazonaws.com'||source.pathname!==entry.sourcePath||
+          !publicPictureUrl(entry.publicUrl)||cached.hostname!=='gpmbkptimjipqsayrvce.supabase.co'||
+          !cached.pathname.startsWith(prefix)||!/^[a-f0-9]{24}\.(jpe?g|png|webp)$/i.test(filename))continue;
+        known.add(entry.publicUrl);
+      }catch{}
+    }
+  }
   // Permite imagens da conta Pollo desta loja somente se já estiverem na galeria
   // sincronizada do produto. Não amplia a lista de fontes permitidas para edições gerais.
   const trustedPolloProductImage=(imageUrl:string):boolean=>{
