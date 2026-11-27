@@ -377,6 +377,17 @@ const actions: Record<string,Tool> = {
     schema:properties({id:S.str('ID MLB do anúncio',30)},['id']),readOnly:true,openWorld:true,
     action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'fees',id:requiredText(a,'id',30)}),
   },
+  mercadolivre_preparar_separacao_familia: {
+    description:'Prévia sem escrita remota: separar uma cor em outra família oficial mantendo todos os IDs MLB existentes. Informe todos os membros, duas cores reais, nomes distintos, tabela e preço aprovados. Confere titularidade, ausência de vendas, fotos, Premium, logística e SKUs. Mostre a prévia antes de pedir autorização expressa.',
+    schema:properties({familyId:S.str('ID da família original',30),keepIds:S.arr('Todos os MLB que permanecem na família original'),moveIds:S.arr('Todos os MLB a transferir'),keepColor:S.str('Cor real preservada',60),moveColor:S.str('Cor real transferida',60),keepName:S.str('Nome final da família original',60),moveName:S.str('Nome final da família de destino',60),gridId:S.str('Tabela de medidas existente',30),expectedPrice:S.number('Preço unitário aprovado')},['familyId','keepIds','moveIds','keepColor','moveColor','keepName','moveName','gridId','expectedPrice']),
+    readOnly:true,openWorld:true,
+    action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_split_prepare',familyId:a.familyId,keepIds:a.keepIds,moveIds:a.moveIds,keepColor:a.keepColor,moveColor:a.moveColor,keepName:a.keepName,moveName:a.moveName,gridId:a.gridId,expectedPrice:a.expectedPrice}),
+  },
+  mercadolivre_aplicar_separacao_familia: {
+    description:'Escrita real SOMENTE após aprovação expressa da prévia exata de separação. Transfere cada User Product via family_name e verifica antes do próximo; renomeia família original só após todas as transferências. Não cria nem exclui anúncios. Interrompe diante de divergência ou resposta incerta; nunca repetir automaticamente. Consulte estado e prepare nova prévia se parcial.',
+    schema:properties({previewId:S.str('UUID da prévia aprovada',40),confirmar:S.bool('Administrador aprovou expressamente a prévia')},['previewId','confirmar']),openWorld:true,
+    action:(a,t)=>{yes(a);return requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_split_apply',previewId:requiredText(a,'previewId',40),confirmar:true});},
+  },
   mercadolivre_preparar_renomeacao_familia: {
     description:'Prévia sem escrita remota da renomeação integral de família oficial Mercado Livre. Informe todos os MLB da família e novo nome neutro. Confere vendedor, todos os User Products e condições de venda, ausência de vendas, dados comerciais. Exiba prévia exata antes de pedir aprovação.',
     schema:properties({familyId:S.str('ID numérico da família oficial',30),ids:S.arr('Todos os códigos MLB da família, sem omissões'),newName:S.str('Novo nome neutro da família',60)},['familyId','ids','newName']),
@@ -685,7 +696,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if(data.method==='initialize')return ok(data.id,{
     protocolVersion:'2025-06-18',
     capabilities:{tools:{listChanged:false}},
-    serverInfo:{name:'Anarosa Gestao MCP',version:'1.5.0'},
+    serverInfo:{name:'Anarosa Gestao MCP',version:'1.6.0'},
     instructions:'Ferramentas comerciais da Gestão ANAROSA para leitura, cadastro de produtos, estoque, rascunhos e anúncios. Nunca acesso a código, GitHub, SQL, secrets ou rede arbitrária. Confirmar explicitamente cada edição no Mercado Livre após exibir prévia e conferir versão; nunca executar modificações sem autorização expressa. Publicações reais somente se o canal autorizado confirmar.',
   });
   if(data.method==='ping')return ok(data.id,{});
