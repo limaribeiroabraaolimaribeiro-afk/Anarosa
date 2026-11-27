@@ -377,6 +377,18 @@ const actions: Record<string,Tool> = {
     schema:properties({id:S.str('ID MLB do anúncio',30)},['id']),readOnly:true,openWorld:true,
     action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'fees',id:requiredText(a,'id',30)}),
   },
+  mercadolivre_preparar_premium: {
+    description:'Prévia segura de migração de um anúncio Clássico para Premium. Consulta elegibilidade e tarifas atuais, exige preço confirmado, preserva dados comerciais e registra prévia por 15 minutos. Não muda o anúncio. Exiba a prévia completa e solicite aprovação expressa.',
+    schema:properties({id:S.str('ID MLB real do anúncio',30),expectedPrice:S.number('Preço atual confirmado que deve ser preservado')},['id','expectedPrice']),
+    readOnly:true,openWorld:true,
+    action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'premium_prepare',id:requiredText(a,'id',30),expectedPrice:a.expectedPrice}),
+  },
+  mercadolivre_aplicar_premium: {
+    description:'Migração real de Clássico para Premium exclusivamente após aprovação expressa da prévia específica e de suas tarifas. Revalida preço, família, elegibilidade e comissão; não altera preço, estoque, fotos ou envio. Prévia de uso único. Não repetir após resposta incerta.',
+    schema:properties({previewId:S.str('UUID exato da prévia Premium aprovada',40),confirmar:S.bool('Administrador aprovou expressamente a migração e tarifas desta prévia')},['previewId','confirmar']),
+    openWorld:true,
+    action:(a,t)=>{yes(a);return requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'premium_apply',previewId:requiredText(a,'previewId',40),confirmar:true});},
+  },
   mercadolivre_corrigir_condicao_body: {
     description:'Corrigir exclusivamente a condição do conjunto body DUZIZO da ANAROSA para Novo no anúncio MLB5529252361. Requer confirmação expressa, confere vendedor, item ativo, ausência de vendas e preserva preço, fotos, estoque e envio. Não repetir caso a resposta seja incerta.',
     schema:properties({
@@ -391,7 +403,7 @@ const actions: Record<string,Tool> = {
     description:'PREVIEW apenas: preparar uma proposta para CORRIGIR anúncio já publicado diretamente na API oficial Mercado Livre (sem Bling). Aceita título, descrição, atributos da categoria e adição de fotos públicas; não mexe em preço/estoque/variações. Mostre o antes/depois integral ao administrador e solicite aprovação explícita ANTES de chamar mercadolivre_aplicar_correcao. Nunca afirmar que a prévia foi publicada.',
     schema:properties({
       id:S.str('ID real MLB do anúncio da ANAROSA',30),
-      changes:S.obj('Alterações comprovadas: {title?:string, description?:string, attributes?:[{id:string,value_name?:string,value_id?:string}], addPictureUrls?:string[]} . Não inventar características, GTIN ou URLs. Foto deve ser pública da loja/Storage ANAROSA.')
+      changes:S.obj('Alterações comprovadas: {title?:string, description?:string, attributes?:[{id:string,value_name?:string,value_id?:string}], addPictureUrls?:string[]} . Não inventar características, GTIN ou URLs. Foto deve ser pública da loja/Storage ANAROSA. Para prévia isolada de Premium, use {listingType:gold_pro,expectedPrice:preço atual}; aplicar somente via mercadolivre_aplicar_premium.')
     },['id','changes']),
     readOnly:true,openWorld:true,
     action:(a,t)=>{
@@ -662,7 +674,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if(data.method==='initialize')return ok(data.id,{
     protocolVersion:'2025-06-18',
     capabilities:{tools:{listChanged:false}},
-    serverInfo:{name:'Anarosa Gestao MCP',version:'1.3.0'},
+    serverInfo:{name:'Anarosa Gestao MCP',version:'1.4.0'},
     instructions:'Ferramentas comerciais da Gestão ANAROSA para leitura, cadastro de produtos, estoque, rascunhos e anúncios. Nunca acesso a código, GitHub, SQL, secrets ou rede arbitrária. Confirmar explicitamente cada edição no Mercado Livre após exibir prévia e conferir versão; nunca executar modificações sem autorização expressa. Publicações reais somente se o canal autorizado confirmar.',
   });
   if(data.method==='ping')return ok(data.id,{});
