@@ -116,7 +116,7 @@ async function callback(req:Request){
   }
 }
 
-type SafeChange={title?:string;description?:string;attributes?:Array<{id:string;value_name?:string;value_id?:string}>;addPictureUrls?:string[];condition?:'new'};
+type SafeChange={title?:string;description?:string;attributes?:Array<{id:string;value_name?:string;value_id?:string}>;addPictureUrls?:string[];replacePictureUrls?:string[];condition?:'new'};
 function auditError(message:string,status=400){return {message,status};}
 function publicPictureUrl(input:string):boolean{
   try{
@@ -133,7 +133,7 @@ function publicPictureUrl(input:string):boolean{
 function normalizeEdits(input:any):SafeChange{
   if(!input||typeof input!=='object'||Array.isArray(input))throw auditError('Informe um objeto changes com campos permitidos.');
   const keys=Object.keys(input);
-  if(!keys.length||keys.some(k=>!['title','description','attributes','addPictureUrls','condition'].includes(k)))throw auditError('Campos autorizados: title, description, attributes, addPictureUrls, condition (somente Novo e anúncio DUZIZO). Preço, estoque, status e variações não são editados por esta ferramenta.');
+  if(!keys.length||keys.some(k=>!['title','description','attributes','addPictureUrls','replacePictureUrls','condition'].includes(k)))throw auditError('Campos autorizados: title, description, attributes, addPictureUrls, replacePictureUrls, condition (somente Novo e anúncio DUZIZO). Preço, estoque, status e variações não são editados por esta ferramenta.');
   const c:SafeChange={};
   if('condition' in input){
     if(input.condition!=='new')throw auditError('A condição autorizada é exclusivamente Novo.');
@@ -174,12 +174,16 @@ function normalizeEdits(input:any):SafeChange{
       throw auditError('Adicione até 3 URLs HTTPS públicas e distintas de fotos da loja/Storage ANAROSA.');
     c.addPictureUrls=input.addPictureUrls;
   }
+  if('replacePictureUrls' in input){
+    if(keys.length!==1||!Array.isArray(input.replacePictureUrls)||input.replacePictureUrls.length<1||input.replacePictureUrls.length>12||input.replacePictureUrls.some((x:any)=>typeof x!=='string'||!publicPictureUrl(x))||new Set(input.replacePictureUrls).size!==input.replacePictureUrls.length)throw auditError('Substituição isolada: informe 1 a 12 URLs públicas distintas da loja.');
+    c.replacePictureUrls=input.replacePictureUrls;
+  }
   return c;
 }
 function listingSnapshot(item:any,description:any):string {
   return JSON.stringify({
     id:item.id,seller_id:item.seller_id,title:item.title,sold_quantity:item.sold_quantity,
-    status:item.status,last_updated:item.last_updated,
+    status:item.status,sub_status:item.sub_status,last_updated:item.last_updated,price:item.price,stock:item.available_quantity,shipping:item.shipping,listing_type:item.listing_type_id,user_product_id:item.user_product_id,family_id:item.family_id,
     pictures:(item.pictures||[]).map((p:any)=>p.id),
     attrs:(item.attributes||[]).map((a:any)=>[a.id,a.value_id,a.value_name]),
     variations:(item.variations||[]).map((v:any)=>[v.id,v.available_quantity,v.price]),
@@ -200,6 +204,40 @@ async function listingState(id:string,sellerId:number,access:string){
 async function snapshotHash(item:any,description:any):Promise<string>{
   return sha(listingSnapshot(item,description));
 }
+
+async function galleryAssets(urls:string[]){
+  const assets=[];
+  for(const url of urls){
+    if(!publicPictureUrl(url))throw auditError('Origem de foto não autorizada.');
+    const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(10000)});
+    const type=String(r.headers.get('content-type')||'').split(';')[0];
+    if(!r.ok||!['image/jpeg','image/png'].includes(type))throw auditError('Use fotos JPG ou PNG públicas, conforme formato oficial do Mercado Livre.',422);
+    const length=Number(r.headers.get('content-length')||0);
+    if(length>3000000)throw auditError('Foto acima do limite de 3 MB.',422);
+    const buffer=await r.arrayBuffer(),bytes=new Uint8Array(buffer);
+    const valid=type==='image/jpeg'?bytes[0]===255&&bytes[1]===216:bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71;
+    if(!valid||bytes.length<1000||bytes.length>3000000)throw auditError('Arquivo de imagem inválido ou fora do limite.',422);
+    assets.push({url,type,buffer,sha256:hex(new Uint8Array(await crypto.subtle.digest('SHA-256',buffer)))});
+  }
+  if(new Set(assets.map(a=>a.sha256)).size!==assets.length)throw auditError('Galeria contém imagens idênticas.',422);
+  return assets;
+}
+async function uploadGalleryAssets(assets:Awaited<ReturnType<typeof galleryAssets>>,access:string){
+  const ids:string[]=[];
+  for(const asset of assets){
+    const form=new FormData();
+    form.append('file',new Blob([asset.buffer],{type:asset.type}),'photo-'+asset.sha256.slice(0,12)+(asset.type==='image/jpeg'?'.jpg':'.png'));
+    const r=await fetch(BASE+'/pictures/items/upload',{method:'POST',headers:{Authorization:'Bearer '+access,Accept:'application/json'},body:form,signal:AbortSignal.timeout(15000)});
+    const d=await r.json().catch(()=>({}));
+    const dimensions=String(d.max_size||'').split('x').map(Number);
+    if(!r.ok||typeof d.id!=='string'||!/^\d+-ML[A-Z][A-Z0-9]+_\d+$/.test(d.id)||dimensions.length!==2||dimensions.some(n=>!Number.isFinite(n)||n<500))
+      throw auditError('Upload direto ou dimensão mínima de 500x500 não confirmados; nenhuma galeria será vinculada.',422);
+    ids.push(d.id);
+  }
+  if(new Set(ids).size!==ids.length)throw auditError('O Mercado Livre retornou IDs de fotos repetidos.',422);
+  return ids;
+}
+
 async function validateEditAgainstItem(c:SafeChange,item:any,access:string){
   if(['closed','inactive'].includes(String(item.status||'')))throw auditError('Anúncios encerrados/inativos não são alterados por esta ferramenta.');
   if(c.condition){
@@ -210,10 +248,17 @@ async function validateEditAgainstItem(c:SafeChange,item:any,access:string){
   }
   const hasVariations=Array.isArray(item.variations)&&item.variations.length>0;
   if(c.title&&Number(item.sold_quantity)>0)throw auditError('O Mercado Livre impede alterar o título de anúncio com vendas. É necessário analisar alternativa sem perder histórico.');
-  if(hasVariations&&(c.attributes||c.addPictureUrls))
+  if(item.user_product_id&&(c.attributes||c.title||c.condition))throw auditError('User Product: use a revisão de família ou restauração dedicada; edição individual pode desagrupar variações.',409);
+  if(hasVariations&&(c.attributes||c.addPictureUrls||c.replacePictureUrls))
     throw auditError('Este anúncio possui variações; alteração de atributos/fotos exige fluxo específico para preservar tamanho, cor e fotos de cada variação. Apenas título/descrição estão liberados aqui.');
   if(c.addPictureUrls&&((item.pictures||[]).length+c.addPictureUrls.length)>12)
     throw auditError('Limite conservador de 12 imagens: não substituir fotos existentes automaticamente.');
+  if(c.replacePictureUrls){
+    if(!['active','paused'].includes(item.status))throw auditError('Estado não elegível para substituição de fotos.',409);
+    const category=await readMeli('/categories/'+encodeURIComponent(String(item.category_id)),access);
+    if(!category.ok||!Number.isInteger(category.data?.settings?.max_pictures_per_item)||c.replacePictureUrls.length>category.data.settings.max_pictures_per_item)throw auditError('Limite de fotos da categoria não confirmado.',409);
+    if(item.user_product_id){const family=await verifyListingFamily(item,access);if(!family.verified)throw auditError('Família atual não confirmada.',409);}
+  }
   if(c.attributes){
     const meta=await readMeli('/categories/'+encodeURIComponent(String(item.category_id))+'/attributes',access);
     if(!meta.ok||!Array.isArray((meta as any).data))throw auditError('Não foi possível validar os atributos permitidos pela categoria.',502);
@@ -578,6 +623,157 @@ async function colorSplitWorkflow(req:Request,adminId:string,body:any,action:str
     return json(req,result,result.ok?200:207);
   }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha na revisão.').slice(0,300)},(e as any)?.status||400);}
 }
+
+
+/** Restore one accidentally detached UP by removing only optional attributes
+ * absent from every original member. Never changes color, size or SKU. */
+async function restoreFamilyState(c:any,sellerId:number,access:string){
+  if(c.sourceFamilyId===c.targetFamilyId||!/^MLB\d{8,16}$/.test(c.id)||c.targetIds.includes(c.id))throw auditError('Famílias ou IDs inválidos.');
+  const [src,dst]=await Promise.all([familyRenameState(c.sourceFamilyId,[c.id],sellerId,access,true),familyRenameState(c.targetFamilyId,c.targetIds,sellerId,access)]);
+  const r=src.records[0];
+  if(src.name!==dst.name||src.protectedState.domain!==dst.protectedState.domain||dst.records.some(x=>x.category!==r.category||x.condition!==r.condition||x.grid!==r.grid||x.sku===r.sku||x.upId===r.upId||(x.color===r.color&&x.size===r.size)))throw auditError('Famílias incompatíveis ou SKU/cor/tamanho duplicados.',409);
+  const meta=await readMeli('/categories/'+r.category+'/attributes',access);
+  if(!meta.ok||!Array.isArray(meta.data))throw auditError('Metadados da categoria indisponíveis.',502);
+  const defs=new Map<string,any>(meta.data.map((a:any)=>[String(a.id),a]));
+  if(!Array.isArray(c.removeIds)||!c.removeIds.length||c.removeIds.length>5||new Set(c.removeIds).size!==c.removeIds.length)throw auditError('Informe até cinco atributos opcionais para restaurar.');
+  const before=c.removeIds.map((id:string)=>{
+    const d=defs.get(id),a=r.attributes.find((a:any)=>a[0]===id);
+    if(!d||!a||d.tags?.required||d.tags?.conditional_required||d.tags?.catalog_required||d.tags?.read_only||d.tags?.hidden||d.tags?.allow_variations||d.tags?.defines_picture||!['CHILD_PK','FAMILY'].includes(d.hierarchy)||['COLOR','SIZE','SELLER_SKU','GTIN','SIZE_GRID_ID','SIZE_GRID_ROW_ID','ITEM_CONDITION','UNITS_PER_PACK'].includes(id)||dst.records.some(x=>x.attributes.some((v:any)=>v[0]===id&&(v[1]!=null||v[2]!=null))))throw auditError('Atributo não elegível para restauração: '+id,409);
+    return {id,name:d.name,value_id:a[1],value_name:a[2]};
+  });
+  const parent=(rec:any)=>rec.attributes.filter((a:any)=>defs.get(a[0])?.hierarchy==='PARENT_PK'&&!defs.get(a[0])?.tags?.read_only);
+  if(dst.records.some(x=>JSON.stringify(parent(x))!==JSON.stringify(parent(r))))throw auditError('Atributos pai divergentes; restauração interrompida.',409);
+  return {src,dst,before,digest:await sha(JSON.stringify({src:src.digest,dst:dst.digest,removeIds:c.removeIds}))};
+}
+async function restoreFamilyWorkflow(req:Request,adminId:string,body:any,action:string){
+  const prepare=action==='family_restore_prepare';
+  const rate=await db.rpc('rl_check_and_increment',{p_bucket:'meli-'+action+':'+adminId,p_limit:prepare?10:3,p_window_seconds:3600});
+  if(rate.error||rate.data!==true)return json(req,{ok:false,message:'Limite de restaurações atingido.'},429);
+  const row=await connection();if(!row)return json(req,{ok:false,message:'Conta Mercado Livre não conectada.'},409);
+  try{
+    const access=await usableToken(row),sellerId=Number(row.seller_id);
+    if(prepare){
+      const c={operation:'family_restore',id:String(body.id||'').toUpperCase(),sourceFamilyId:String(body.sourceFamilyId||''),targetFamilyId:String(body.targetFamilyId||''),targetIds:Array.isArray(body.targetIds)?body.targetIds.map((x:any)=>String(x).toUpperCase()):[],removeIds:Array.isArray(body.removeIds)?body.removeIds.map((x:any)=>String(x).toUpperCase()):[]};
+      const x=await restoreFamilyState(c,sellerId,access);
+      const preview={id:c.id,sourceFamilyId:c.sourceFamilyId,targetFamilyId:c.targetFamilyId,targetIds:c.targetIds,before:x.before,after:c.removeIds.map(id=>({id,value_id:null,value_name:null})),notChanged:['sku','color','size','price','stock','shipping','pictures'],notice:'Remove valores opcionais para tentar recalcular a família original. A API não garante a fusão; confirmar pela leitura dos membros.'};
+      const {data,error}=await db.from('meli_edit_intents').insert({seller_id:row.seller_id,item_id:c.id,admin_user_id:adminId,snapshot_hash:x.digest,changes:c,preview,expires_at:new Date(Date.now()+15*60*1000).toISOString()}).select('id,expires_at').single();
+      if(error||!data)throw auditError('Não foi possível registrar a prévia.',503);
+      return json(req,{ok:true,applied:false,previewId:data.id,expiresAt:data.expires_at,preview});
+    }
+    const id=String(body.previewId||'');
+    if(body.confirmar!==true||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))throw auditError('Confirmação explícita e UUID necessários.');
+    const {data:intent,error}=await db.from('meli_edit_intents').select('*').eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).maybeSingle();
+    if(error||!intent||intent.changes?.operation!=='family_restore')throw auditError('Prévia não encontrada.',404);
+    if(intent.consumed_at||Date.parse(intent.expires_at)<=Date.now())throw auditError('Prévia consumida ou expirada.',409);
+    const c=intent.changes,x=await restoreFamilyState(c,sellerId,access);
+    if(x.digest!==intent.snapshot_hash)throw auditError('Famílias alteradas após prévia.',409);
+    const {data:claimed,error:claimError}=await db.from('meli_edit_intents').update({consumed_at:new Date().toISOString()}).eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).is('consumed_at',null).gt('expires_at',new Date().toISOString()).select('id').maybeSingle();
+    if(claimError||!claimed)throw auditError('Prévia já consumida.',409);
+    const result:any={ok:false,applied:false,previewId:id,targetFamilyId:c.targetFamilyId};
+    try{
+      const w=await writeMeli('/items/'+c.id,access,{attributes:c.removeIds.map((id:string)=>({id,value_id:null,value_name:null}))});
+      result.api=w;result.accepted=w.ok;
+      if(w.ok){
+        try{
+          const final=await familyRenameState(c.targetFamilyId,[...c.targetIds,c.id],sellerId,access);
+          const before=[...x.src.records,...x.dst.records].sort((a,b)=>a.id.localeCompare(b.id));
+          result.protectedVerified=JSON.stringify(familyCommercial(before))===JSON.stringify(familyCommercial(final.records));
+          result.grouped=true;result.applied=result.protectedVerified;result.ok=result.applied;
+        }catch{result.verificationPending=true;}
+      }
+      result.message=result.ok?'Família original recuperada e dados comerciais verificados.':'Reagrupamento não confirmado; não repetir sem reconciliar.';
+    }catch{result.uncertain=true;result.message='Resposta interrompida; não repetir.';}
+    const saved=await db.from('meli_edit_intents').update({outcome:result}).eq('id',id).eq('admin_user_id',adminId);if(saved.error)result.auditPending=true;
+    return json(req,result,result.ok?200:207);
+  }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha na restauração.').slice(0,300)},(e as any)?.status||400);}
+}
+
+/** Collective CHILD_PK editor; never reports acceptance as completed. */
+async function collectiveFamilyState(c:any,sellerId:number,access:string){
+  const state=await familyRenameState(c.familyId,c.ids,sellerId,access);
+  if(new Set(state.records.map(r=>r.category)).size!==1)throw auditError('Categorias divergentes.',409);
+  const meta=await readMeli('/categories/'+state.records[0].category+'/attributes',access);
+  if(!meta.ok||!Array.isArray(meta.data))throw auditError('Metadados da categoria indisponíveis.',502);
+  const defs=new Map<string,any>(meta.data.map((a:any)=>[String(a.id),a]));
+  const attrs=normalizeEdits({attributes:c.attributes}).attributes!;
+  const values=attrs.map(a=>{
+    const d=defs.get(a.id);
+    // The official variant endpoint accepts CHILD_PK, not PARENT_PK.
+    // Keep identity, sizes, color, identifiers and size chart untouched.
+    if(!d||d.hierarchy!=='CHILD_PK'||d.tags?.read_only||d.tags?.hidden||d.tags?.required||d.tags?.allow_variations||d.tags?.defines_picture||['SIZE','COLOR','SELLER_SKU','GTIN','SIZE_GRID_ROW_ID','UNITS_PER_PACK'].includes(a.id))throw auditError('Atributo não liberado para edição coletiva segura: '+a.id,422);
+    const options=Array.isArray(d.values)?d.values:[];
+    const v=a.value_id?options.find((x:any)=>String(x.id)===a.value_id):null;
+    if(a.value_id&&!v)throw auditError('Valor oficial não confirmado: '+a.id,422);
+    if(v&&a.value_name&&familyNameKey(v.name)!==familyNameKey(a.value_name))throw auditError('ID e nome divergentes: '+a.id,422);
+    if(!v&&d.value_type==='list')throw auditError('Informe value_id oficial: '+a.id,422);
+    return {id:a.id,name:d.name,values:[{id:v?String(v.id):null,name:v?String(v.name):a.value_name}]};
+  });
+  if(state.records.every(r=>values.every(v=>r.attributes.some((a:any)=>a[0]===v.id&&(v.values[0].id?a[1]===v.values[0].id:familyNameKey(a[2])===familyNameKey(v.values[0].name))))))throw auditError('Todos os membros já possuem os valores solicitados.',409);
+  const payload={user_products:state.records.map(r=>({id:r.upId,attributes:values}))};
+  return {state,values,payload,digest:await sha(JSON.stringify({state:state.digest,payload}))};
+}
+function familyCommercial(records:any[]){
+  return records.map(({attributes,familyName,...r}:any)=>r);
+}
+async function collectiveFamilyWorkflow(req:Request,adminId:string,body:any,action:string){
+  const prepare=action==='family_attributes_prepare',status=action==='family_attributes_status';
+  const rate=await db.rpc('rl_check_and_increment',{p_bucket:'meli-'+action+':'+adminId,p_limit:prepare?10:status?30:3,p_window_seconds:3600});
+  if(rate.error||rate.data!==true)return json(req,{ok:false,message:'Limite de operações atingido.'},429);
+  const row=await connection();
+  if(!row)return json(req,{ok:false,message:'Conta Mercado Livre não conectada.'},409);
+  try{
+    const access=await usableToken(row),sellerId=Number(row.seller_id);
+    if(prepare){
+      const c={operation:'family_attributes',familyId:String(body.familyId||''),ids:Array.isArray(body.ids)?body.ids.map((v:any)=>String(v).toUpperCase()):[],attributes:normalizeEdits({attributes:body.attributes}).attributes};
+      const x=await collectiveFamilyState(c,sellerId,access);
+      const preview={familyId:c.familyId,items:x.state.records.map(r=>({id:r.id,userProductId:r.upId,sku:r.sku,size:r.size,color:r.color,before:r.attributes.filter((a:any)=>x.values.some(v=>v.id===a[0]))})),after:x.values,notChanged:['price','stock','shipping','pictures','size','color','sku'],notice:'Operação assíncrona, restrita a atributos CHILD_PK opcionais e não identificadores. Não mescla famílias existentes.'};
+      const {data,error}=await db.from('meli_edit_intents').insert({seller_id:row.seller_id,item_id:c.ids[0],admin_user_id:adminId,snapshot_hash:x.digest,changes:c,preview,expires_at:new Date(Date.now()+15*60*1000).toISOString()}).select('id,expires_at').single();
+      if(error||!data)throw auditError('Não foi possível registrar a prévia.',503);
+      return json(req,{ok:true,applied:false,previewId:data.id,expiresAt:data.expires_at,preview});
+    }
+    const id=String(body.previewId||'');
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)||(!status&&body.confirmar!==true))throw auditError('UUID da prévia e confirmação obrigatórios.');
+    const {data:intent,error}=await db.from('meli_edit_intents').select('*').eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).maybeSingle();
+    if(error||!intent||intent.changes?.operation!=='family_attributes')throw auditError('Prévia não encontrada.',404);
+    const c=intent.changes;
+    if(status){
+      const taskId=String(intent.outcome?.taskId||'');
+      if(!/^[a-z0-9_-]{10,100}$/i.test(taskId))return json(req,{ok:false,message:'Tarefa não registrada; reconcilie o estado antes de repetir.',outcome:intent.outcome??null},409);
+      const t=await readMeli('/user-products-families/tasks/'+encodeURIComponent(taskId),access);
+      if(!t.ok)throw auditError('Não foi possível consultar tarefa.',502);
+      const entries=t.data?.['user-products'];
+      const expected=intent.preview.items.map((v:any)=>v.userProductId).sort();
+      const succeeded=t.data?.status==='finished'&&Array.isArray(entries)&&JSON.stringify(entries.map((v:any)=>v.id).sort())===JSON.stringify(expected)&&entries.every((v:any)=>v.status==='succeeded');
+      let verification:any=null;
+      if(succeeded){
+        try{
+          const state=await familyRenameState(c.familyId,c.ids,sellerId,access);
+          const protectedVerified=JSON.stringify(familyCommercial(state.records))===JSON.stringify(intent.outcome.protectedBefore);
+          const attrsVerified=state.records.every(r=>intent.preview.after.every((v:any)=>r.attributes.some((a:any)=>a[0]===v.id&&(v.values[0].id?a[1]===v.values[0].id:familyNameKey(a[2])===familyNameKey(v.values[0].name)))));
+          verification={familyId:c.familyId,allMembers:true,protectedVerified,attrsVerified};
+        }catch{verification={allMembers:false};}
+      }
+      return json(req,{ok:Boolean(succeeded&&verification?.protectedVerified&&verification?.attrsVerified),taskId,status:t.data?.status,results:entries,verification,accepted:true,applied:Boolean(succeeded&&verification?.protectedVerified&&verification?.attrsVerified)});
+    }
+    if(intent.consumed_at||Date.parse(intent.expires_at)<=Date.now())throw auditError('Prévia utilizada ou expirada. Não repetir.',409);
+    const x=await collectiveFamilyState(c,sellerId,access);
+    if(x.digest!==intent.snapshot_hash)throw auditError('Família alterada após prévia.',409);
+    const {data:claimed,error:claimError}=await db.from('meli_edit_intents').update({consumed_at:new Date().toISOString()}).eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).is('consumed_at',null).gt('expires_at',new Date().toISOString()).select('id').maybeSingle();
+    if(claimError||!claimed)throw auditError('Prévia já consumida.',409);
+    const outcome:any={ok:false,applied:false,accepted:false,previewId:id,familyId:c.familyId,protectedBefore:familyCommercial(x.state.records)};
+    try{
+      const r=await fetch(BASE+'/user-products-families/'+c.familyId+'/user-products',{method:'PUT',headers:{Authorization:'Bearer '+access,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(x.payload),signal:AbortSignal.timeout(20000)});
+      const data=await r.json().catch(()=>({}));
+      outcome.httpStatus=r.status;
+      if(r.ok&&typeof data.task_id==='string'){outcome.accepted=true;outcome.taskId=data.task_id;outcome.status=data.status;outcome.message='Tarefa aceita; consulte o resultado antes de outras alterações.';}
+      else{outcome.uncertain=r.ok||r.status>=500;outcome.message='Tarefa não confirmada; não repetir automaticamente.';outcome.causes=Array.isArray(data.cause)?data.cause.slice(0,8):[];}
+    }catch{outcome.uncertain=true;outcome.message='Resposta interrompida; reconcilie antes de tentar novamente.';}
+    const saved=await db.from('meli_edit_intents').update({outcome}).eq('id',id).eq('admin_user_id',adminId);
+    if(saved.error)outcome.auditPending=true;
+    return json(req,outcome,outcome.accepted?202:207);
+  }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha na edição coletiva.').slice(0,300)},(e as any)?.status||400);}
+}
+
 async function editWorkflow(req:Request,adminId:string,body:any){
   const requested=String(body.action||'');
   const {data:allowed,error:rateError}=await db.rpc('rl_check_and_increment',{
@@ -602,6 +798,10 @@ async function editWorkflow(req:Request,adminId:string,body:any){
           .map((a:any)=>({id:a.id,value_name:a.value_name,value_id:a.value_id}));
         after.attributes=changes.attributes;}
       if(changes.addPictureUrls){before.pictureCount=(item.pictures||[]).length;after.pictureCount=before.pictureCount+changes.addPictureUrls.length;after.addPictureUrls=changes.addPictureUrls;}
+      if(changes.replacePictureUrls){
+        before.pictures=(item.pictures||[]).map((p:any)=>({id:p.id,url:p.secure_url||p.url}));
+        after.pictures=(await galleryAssets(changes.replacePictureUrls)).map(({url,type,sha256})=>({url,type,sha256}));
+      }
       if(Object.entries(after).every(([k,v])=>JSON.stringify(v)===JSON.stringify(before[k])))
         return json(req,{ok:false,message:'Nenhuma alteração em relação ao anúncio atual.'},400);
       const preview={id,title:item.title,soldQuantity:item.sold_quantity,status:item.status,
@@ -625,12 +825,17 @@ async function editWorkflow(req:Request,adminId:string,body:any){
   if(foundError||!intent)return json(req,{ok:false,message:'Prévia não encontrada para este administrador.'},404);
   if(intent.consumed_at)return json(req,{ok:false,message:'Prévia já utilizada. Consulte o resultado e não repita a operação automaticamente.',previousOutcome:intent.outcome||null},409);
   if(Date.parse(intent.expires_at)<=Date.now())return json(req,{ok:false,message:'Prévia expirou. Consulte o anúncio e prepare outra correção.'},409);
-  let item:any,description:any;
+  let item:any,description:any,beforeFamily:any=null,assets:Awaited<ReturnType<typeof galleryAssets>>=[];
   try{
     ({item,description}=await listingState(intent.item_id,Number(row.seller_id),access));
     const digest=await snapshotHash(item,description);
     if(digest!==intent.snapshot_hash)return json(req,{ok:false,message:'O anúncio mudou após a prévia. Nova revisão obrigatória; nenhuma escrita foi feita.'},409);
     await validateEditAgainstItem(normalizeEdits(intent.changes),item,access);
+    if(intent.changes.replacePictureUrls){
+      assets=await galleryAssets(intent.changes.replacePictureUrls);
+      if(JSON.stringify(assets.map(({url,type,sha256})=>({url,type,sha256})))!==JSON.stringify(intent.preview?.changes?.after?.pictures))throw auditError('As imagens mudaram após a prévia; nova revisão necessária.',409);
+      if(item.user_product_id){beforeFamily=await verifyListingFamily(item,access);if(!beforeFamily.verified)throw auditError('Família não confirmada antes da edição.',409);}
+    }
   }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Não foi possível conferir anúncio antes de editar.').slice(0,250)},(e as any)?.status||400);}
   const {data:claimed,error:claimError}=await db.from('meli_edit_intents')
     .update({consumed_at:new Date().toISOString()}).eq('id',intentId).eq('admin_user_id',adminId)
@@ -644,9 +849,16 @@ async function editWorkflow(req:Request,adminId:string,body:any){
   if(changes.addPictureUrls)updates.pictures=[
     ...(item.pictures||[]).map((x:any)=>({id:x.id})),...changes.addPictureUrls.map(url=>({source:url}))
   ];
+  // Complete replacement uses pre-uploaded Meli picture IDs, not URL download.
   const result:any={ok:false,applied:false,previewId:intentId,itemId:intent.item_id,
     acceptedByMercadoLivre:{item:false,description:false},partial:false};
   try{
+    if(changes.replacePictureUrls){
+      result.uploadedPictureIds=await uploadGalleryAssets(assets,access);
+      updates.pictures=result.uploadedPictureIds.map((id:string)=>({id}));
+      const checked=await listingState(intent.item_id,Number(row.seller_id),access);
+      if(await snapshotHash(checked.item,checked.description)!==intent.snapshot_hash)throw auditError('Anúncio mudou durante o upload; galeria não vinculada.',409);
+    }
     if(Object.keys(updates).length){
       const r=await writeMeli('/items/'+intent.item_id,access,updates);
       result.itemResult=r;
@@ -670,6 +882,19 @@ async function editWorkflow(req:Request,adminId:string,body:any){
       try{
         const current=await listingState(intent.item_id,Number(row.seller_id),access);
         result.verifiedTitle=changes.title?current.item.title===changes.title:null;
+        if(changes.replacePictureUrls){
+          const afterFamily=current.item.user_product_id?await verifyListingFamily(current.item,access):null;
+          result.familyPreserved=!item.user_product_id||Boolean(beforeFamily?.verified&&afterFamily?.verified&&String(beforeFamily.familyId)===String(afterFamily.familyId)&&item.user_product_id===current.item.user_product_id&&JSON.stringify([...(beforeFamily.members||[])].sort())===JSON.stringify([...(afterFamily.members||[])].sort()));
+          const ids=(current.item.pictures||[]).map((p:any)=>p.id);
+          result.picturesVerified=JSON.stringify(ids)===JSON.stringify(result.uploadedPictureIds);
+          result.itemStatus=current.item.status;
+          result.subStatus=current.item.sub_status||[];
+          result.protectedVerified=result.familyPreserved&&JSON.stringify((current.item.attributes||[]).map((a:any)=>[a.id,a.value_id,a.value_name]).sort())===JSON.stringify((item.attributes||[]).map((a:any)=>[a.id,a.value_id,a.value_name]).sort())&&Number(current.item.price)===Number(item.price)&&Number(current.item.available_quantity)===Number(item.available_quantity)&&current.item.listing_type_id===item.listing_type_id&&current.item.shipping?.mode===item.shipping?.mode&&current.item.shipping?.free_shipping===item.shipping?.free_shipping;
+          result.pictureProcessingPending=(current.item.sub_status||[]).includes('picture_download_pending');
+          result.ok=result.picturesVerified&&result.protectedVerified&&!result.pictureProcessingPending&&current.item.status==='active';
+          result.verificationPending=!result.ok;
+          result.message=result.ok?'Galeria substituída e verificada.':'API aceitou a galeria; processamento ou verificação ainda pendente. Não repetir automaticamente.';
+        }
          if(changes.condition){
            result.verifiedCondition=current.item.condition===changes.condition;
            if(!result.verifiedCondition){
@@ -679,7 +904,7 @@ async function editWorkflow(req:Request,adminId:string,body:any){
          }
         result.verifiedDescription=changes.description?
           (current.description?.plain_text||current.description?.text||'').trim()===changes.description:null;
-      }catch{result.verificationPending=true;}
+      }catch{result.verificationPending=true;if(changes.replacePictureUrls){result.ok=false;result.message='Galeria enviada, verificação pendente; não repetir.';}}
     }
   }catch{
     result.partial=true;result.message='Resposta da API interrompida. Confira o anúncio antes de qualquer nova tentativa; não repetir automaticamente.';
@@ -2565,6 +2790,8 @@ Deno.serve(async(req:Request)=>{
     if(Object.keys(body.changes).some(k=>!['listingType','expectedPrice'].includes(k)))return json(req,{ok:false,message:'Migração Premium deve ser revisada isoladamente.'},400);
     return premiumWorkflow(req,adminId,{id:body.id,expectedPrice:body.changes.expectedPrice},'premium_prepare');
   }
+  if(['family_restore_prepare','family_restore_apply'].includes(action))return restoreFamilyWorkflow(req,adminId,body,action);
+  if(['family_attributes_prepare','family_attributes_apply','family_attributes_status'].includes(action))return collectiveFamilyWorkflow(req,adminId,body,action);
   if(action==='edit_preview'||action==='edit_apply')return editWorkflow(req,adminId,body);
   if(action==='publish_listing'||action==='validate_listing')return publishAnarosaListing(req,adminId,body);
   if(['category_schema','chart_schema','chart_detail','chart_template','chart_search'].includes(action))return meliCatalogMetadata(req,adminId,body,action);
