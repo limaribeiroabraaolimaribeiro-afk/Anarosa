@@ -204,6 +204,40 @@ async function listingState(id:string,sellerId:number,access:string){
 async function snapshotHash(item:any,description:any):Promise<string>{
   return sha(listingSnapshot(item,description));
 }
+
+async function galleryAssets(urls:string[]){
+  const assets=[];
+  for(const url of urls){
+    if(!publicPictureUrl(url))throw auditError('Origem de foto não autorizada.');
+    const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(10000)});
+    const type=String(r.headers.get('content-type')||'').split(';')[0];
+    if(!r.ok||!['image/jpeg','image/png'].includes(type))throw auditError('Use fotos JPG ou PNG públicas, conforme formato oficial do Mercado Livre.',422);
+    const length=Number(r.headers.get('content-length')||0);
+    if(length>3000000)throw auditError('Foto acima do limite de 3 MB.',422);
+    const buffer=await r.arrayBuffer(),bytes=new Uint8Array(buffer);
+    const valid=type==='image/jpeg'?bytes[0]===255&&bytes[1]===216:bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71;
+    if(!valid||bytes.length<1000||bytes.length>3000000)throw auditError('Arquivo de imagem inválido ou fora do limite.',422);
+    assets.push({url,type,buffer,sha256:hex(new Uint8Array(await crypto.subtle.digest('SHA-256',buffer)))});
+  }
+  if(new Set(assets.map(a=>a.sha256)).size!==assets.length)throw auditError('Galeria contém imagens idênticas.',422);
+  return assets;
+}
+async function uploadGalleryAssets(assets:Awaited<ReturnType<typeof galleryAssets>>,access:string){
+  const ids:string[]=[];
+  for(const asset of assets){
+    const form=new FormData();
+    form.append('file',new Blob([asset.buffer],{type:asset.type}),'photo-'+asset.sha256.slice(0,12)+(asset.type==='image/jpeg'?'.jpg':'.png'));
+    const r=await fetch(BASE+'/pictures/items/upload',{method:'POST',headers:{Authorization:'Bearer '+access,Accept:'application/json'},body:form,signal:AbortSignal.timeout(15000)});
+    const d=await r.json().catch(()=>({}));
+    const dimensions=String(d.max_size||'').split('x').map(Number);
+    if(!r.ok||typeof d.id!=='string'||!/^\d+-ML[A-Z]\d+_\d+$/.test(d.id)||dimensions.length!==2||dimensions.some(n=>!Number.isFinite(n)||n<500))
+      throw auditError('Upload direto ou dimensão mínima de 500x500 não confirmados; nenhuma galeria será vinculada.',422);
+    ids.push(d.id);
+  }
+  if(new Set(ids).size!==ids.length)throw auditError('O Mercado Livre retornou IDs de fotos repetidos.',422);
+  return ids;
+}
+
 async function validateEditAgainstItem(c:SafeChange,item:any,access:string){
   if(['closed','inactive'].includes(String(item.status||'')))throw auditError('Anúncios encerrados/inativos não são alterados por esta ferramenta.');
   if(c.condition){
@@ -223,16 +257,6 @@ async function validateEditAgainstItem(c:SafeChange,item:any,access:string){
     if(!['active','paused'].includes(item.status))throw auditError('Estado não elegível para substituição de fotos.',409);
     const category=await readMeli('/categories/'+encodeURIComponent(String(item.category_id)),access);
     if(!category.ok||!Number.isInteger(category.data?.settings?.max_pictures_per_item)||c.replacePictureUrls.length>category.data.settings.max_pictures_per_item)throw auditError('Limite de fotos da categoria não confirmado.',409);
-    for(const url of c.replacePictureUrls){
-      const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(10000)});
-      const type=String(r.headers.get('content-type')||'').split(';')[0];
-      if(!r.ok||!['image/jpeg','image/png','image/webp'].includes(type))throw auditError('Foto inacessível ou formato inválido.',422);
-      const length=Number(r.headers.get('content-length')||0);
-      if(length>3000000)throw auditError('Foto acima do limite de 3 MB.',422);
-      const bytes=new Uint8Array(await r.arrayBuffer());
-      const valid=type==='image/jpeg'?bytes[0]===255&&bytes[1]===216:type==='image/png'?bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71:bytes[0]===82&&bytes[1]===73&&bytes[2]===70&&bytes[3]===70&&bytes[8]===87&&bytes[9]===69&&bytes[10]===66&&bytes[11]===80;
-      if(!valid||bytes.length<1000||bytes.length>3000000)throw auditError('Arquivo de imagem inválido ou fora do limite.',422);
-    }
     if(item.user_product_id){const family=await verifyListingFamily(item,access);if(!family.verified)throw auditError('Família atual não confirmada.',409);}
   }
   if(c.attributes){
@@ -776,7 +800,7 @@ async function editWorkflow(req:Request,adminId:string,body:any){
       if(changes.addPictureUrls){before.pictureCount=(item.pictures||[]).length;after.pictureCount=before.pictureCount+changes.addPictureUrls.length;after.addPictureUrls=changes.addPictureUrls;}
       if(changes.replacePictureUrls){
         before.pictures=(item.pictures||[]).map((p:any)=>({id:p.id,url:p.secure_url||p.url}));
-        after.pictures=changes.replacePictureUrls;
+        after.pictures=(await galleryAssets(changes.replacePictureUrls)).map(({url,type,sha256})=>({url,type,sha256}));
       }
       if(Object.entries(after).every(([k,v])=>JSON.stringify(v)===JSON.stringify(before[k])))
         return json(req,{ok:false,message:'Nenhuma alteração em relação ao anúncio atual.'},400);
@@ -801,13 +825,17 @@ async function editWorkflow(req:Request,adminId:string,body:any){
   if(foundError||!intent)return json(req,{ok:false,message:'Prévia não encontrada para este administrador.'},404);
   if(intent.consumed_at)return json(req,{ok:false,message:'Prévia já utilizada. Consulte o resultado e não repita a operação automaticamente.',previousOutcome:intent.outcome||null},409);
   if(Date.parse(intent.expires_at)<=Date.now())return json(req,{ok:false,message:'Prévia expirou. Consulte o anúncio e prepare outra correção.'},409);
-  let item:any,description:any,beforeFamily:any=null;
+  let item:any,description:any,beforeFamily:any=null,assets:Awaited<ReturnType<typeof galleryAssets>>=[];
   try{
     ({item,description}=await listingState(intent.item_id,Number(row.seller_id),access));
     const digest=await snapshotHash(item,description);
     if(digest!==intent.snapshot_hash)return json(req,{ok:false,message:'O anúncio mudou após a prévia. Nova revisão obrigatória; nenhuma escrita foi feita.'},409);
     await validateEditAgainstItem(normalizeEdits(intent.changes),item,access);
-    if(intent.changes.replacePictureUrls&&item.user_product_id){beforeFamily=await verifyListingFamily(item,access);if(!beforeFamily.verified)throw auditError('Família não confirmada antes da edição.',409);}
+    if(intent.changes.replacePictureUrls){
+      assets=await galleryAssets(intent.changes.replacePictureUrls);
+      if(JSON.stringify(assets.map(({url,type,sha256})=>({url,type,sha256})))!==JSON.stringify(intent.preview?.changes?.after?.pictures))throw auditError('As imagens mudaram após a prévia; nova revisão necessária.',409);
+      if(item.user_product_id){beforeFamily=await verifyListingFamily(item,access);if(!beforeFamily.verified)throw auditError('Família não confirmada antes da edição.',409);}
+    }
   }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Não foi possível conferir anúncio antes de editar.').slice(0,250)},(e as any)?.status||400);}
   const {data:claimed,error:claimError}=await db.from('meli_edit_intents')
     .update({consumed_at:new Date().toISOString()}).eq('id',intentId).eq('admin_user_id',adminId)
@@ -821,10 +849,16 @@ async function editWorkflow(req:Request,adminId:string,body:any){
   if(changes.addPictureUrls)updates.pictures=[
     ...(item.pictures||[]).map((x:any)=>({id:x.id})),...changes.addPictureUrls.map(url=>({source:url}))
   ];
-  if(changes.replacePictureUrls)updates.pictures=changes.replacePictureUrls.map(source=>({source}));
+  // Complete replacement uses pre-uploaded Meli picture IDs, not URL download.
   const result:any={ok:false,applied:false,previewId:intentId,itemId:intent.item_id,
     acceptedByMercadoLivre:{item:false,description:false},partial:false};
   try{
+    if(changes.replacePictureUrls){
+      result.uploadedPictureIds=await uploadGalleryAssets(assets,access);
+      updates.pictures=result.uploadedPictureIds.map((id:string)=>({id}));
+      const checked=await listingState(intent.item_id,Number(row.seller_id),access);
+      if(await snapshotHash(checked.item,checked.description)!==intent.snapshot_hash)throw auditError('Anúncio mudou durante o upload; galeria não vinculada.',409);
+    }
     if(Object.keys(updates).length){
       const r=await writeMeli('/items/'+intent.item_id,access,updates);
       result.itemResult=r;
@@ -851,9 +885,10 @@ async function editWorkflow(req:Request,adminId:string,body:any){
         if(changes.replacePictureUrls){
           const afterFamily=current.item.user_product_id?await verifyListingFamily(current.item,access):null;
           result.familyPreserved=!item.user_product_id||Boolean(beforeFamily?.verified&&afterFamily?.verified&&String(beforeFamily.familyId)===String(afterFamily.familyId)&&item.user_product_id===current.item.user_product_id&&JSON.stringify([...(beforeFamily.members||[])].sort())===JSON.stringify([...(afterFamily.members||[])].sort()));
-          const oldIds=new Set((item.pictures||[]).map((p:any)=>p.id));
           const ids=(current.item.pictures||[]).map((p:any)=>p.id);
-          result.picturesVerified=ids.length===changes.replacePictureUrls.length&&ids.every((id:string)=>!oldIds.has(id));
+          result.picturesVerified=JSON.stringify(ids)===JSON.stringify(result.uploadedPictureIds);
+          result.itemStatus=current.item.status;
+          result.subStatus=current.item.sub_status||[];
           result.protectedVerified=result.familyPreserved&&Number(current.item.price)===Number(item.price)&&Number(current.item.available_quantity)===Number(item.available_quantity)&&current.item.listing_type_id===item.listing_type_id&&current.item.shipping?.mode===item.shipping?.mode&&current.item.shipping?.free_shipping===item.shipping?.free_shipping;
           result.pictureProcessingPending=(current.item.sub_status||[]).includes('picture_download_pending');
           result.ok=result.picturesVerified&&result.protectedVerified&&!result.pictureProcessingPending;
