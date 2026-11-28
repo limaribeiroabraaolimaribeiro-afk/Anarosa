@@ -230,7 +230,7 @@ async function uploadGalleryAssets(assets:Awaited<ReturnType<typeof galleryAsset
     const r=await fetch(BASE+'/pictures/items/upload',{method:'POST',headers:{Authorization:'Bearer '+access,Accept:'application/json'},body:form,signal:AbortSignal.timeout(15000)});
     const d=await r.json().catch(()=>({}));
     const dimensions=String(d.max_size||'').split('x').map(Number);
-    if(!r.ok||typeof d.id!=='string'||!/^\d+-ML[A-Z]\d+_\d+$/.test(d.id)||dimensions.length!==2||dimensions.some(n=>!Number.isFinite(n)||n<500))
+    if(!r.ok||typeof d.id!=='string'||!/^\d+-ML[A-Z][A-Z0-9]+_\d+$/.test(d.id)||dimensions.length!==2||dimensions.some(n=>!Number.isFinite(n)||n<500))
       throw auditError('Upload direto ou dimensão mínima de 500x500 não confirmados; nenhuma galeria será vinculada.',422);
     ids.push(d.id);
   }
@@ -889,9 +889,9 @@ async function editWorkflow(req:Request,adminId:string,body:any){
           result.picturesVerified=JSON.stringify(ids)===JSON.stringify(result.uploadedPictureIds);
           result.itemStatus=current.item.status;
           result.subStatus=current.item.sub_status||[];
-          result.protectedVerified=result.familyPreserved&&Number(current.item.price)===Number(item.price)&&Number(current.item.available_quantity)===Number(item.available_quantity)&&current.item.listing_type_id===item.listing_type_id&&current.item.shipping?.mode===item.shipping?.mode&&current.item.shipping?.free_shipping===item.shipping?.free_shipping;
+          result.protectedVerified=result.familyPreserved&&JSON.stringify((current.item.attributes||[]).map((a:any)=>[a.id,a.value_id,a.value_name]).sort())===JSON.stringify((item.attributes||[]).map((a:any)=>[a.id,a.value_id,a.value_name]).sort())&&Number(current.item.price)===Number(item.price)&&Number(current.item.available_quantity)===Number(item.available_quantity)&&current.item.listing_type_id===item.listing_type_id&&current.item.shipping?.mode===item.shipping?.mode&&current.item.shipping?.free_shipping===item.shipping?.free_shipping;
           result.pictureProcessingPending=(current.item.sub_status||[]).includes('picture_download_pending');
-          result.ok=result.picturesVerified&&result.protectedVerified&&!result.pictureProcessingPending;
+          result.ok=result.picturesVerified&&result.protectedVerified&&!result.pictureProcessingPending&&current.item.status==='active';
           result.verificationPending=!result.ok;
           result.message=result.ok?'Galeria substituída e verificada.':'API aceitou a galeria; processamento ou verificação ainda pendente. Não repetir automaticamente.';
         }
