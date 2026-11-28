@@ -421,11 +421,36 @@ const actions: Record<string,Tool> = {
       action:'correct_new_condition',id:'MLB5529252361',confirmar:true
     });},
   },
+  mercadolivre_preparar_edicao_coletiva: {
+    description:'Prévia da edição coletiva de atributos opcionais CHILD_PK em todos os User Products da família. Informe todos os anúncios MLB. Preserva preço, estoque, SKU, tamanho, cor e fotos. Não mescla famílias nem altera atributos PARENT_PK. Exiba a prévia e solicite aprovação explícita.',
+    schema:properties({familyId:S.str('ID da família',30),ids:S.arr('Todos os códigos MLB da família'),attributes:S.arr('Atributos comprovados: {id,value_id?,value_name?}; somente CHILD_PK opcionais não identificadores')},['familyId','ids','attributes']),readOnly:true,openWorld:true,
+    action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_attributes_prepare',familyId:requiredText(a,'familyId',30),ids:a.ids,attributes:a.attributes}),
+  },
+  mercadolivre_aplicar_edicao_coletiva: {
+    description:'Enviar tarefa oficial de edição coletiva, somente após aprovação expressa da prévia exata. Tarefa aceita não significa alteração concluída; consulte mercadolivre_status_edicao_coletiva. Nunca repetir após resposta incerta.',
+    schema:properties({previewId:S.str('UUID da prévia aprovada',40),confirmar:S.bool('Administrador aprovou a prévia exata')},['previewId','confirmar']),openWorld:true,
+    action:(a,t)=>{yes(a);return requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_attributes_apply',previewId:requiredText(a,'previewId',40),confirmar:true});},
+  },
+  mercadolivre_status_edicao_coletiva: {
+    description:'Consulta a tarefa assíncrona oficial e verifica todos os membros, atributos e dados comerciais. Somente leitura; não reenvia tarefa.',
+    schema:properties({previewId:S.str('UUID da prévia executada',40)},['previewId']),readOnly:true,openWorld:true,
+    action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_attributes_status',previewId:requiredText(a,'previewId',40)}),
+  },
+  mercadolivre_preparar_restauracao_familia: {
+    description:'Prévia de tentativa de recuperar uma variante isolada removendo apenas atributos opcionais ausentes em todos os membros da família original. Valida titularidade, categoria, atributos pai, SKU e tamanhos distintos. Não garante fusão. Exiba a prévia exata para aprovação.',
+    schema:properties({id:S.str('MLB isolado',30),sourceFamilyId:S.str('Família isolada',30),targetFamilyId:S.str('Família original',30),targetIds:S.arr('Todos os MLB da família original'),removeIds:S.arr('IDs dos atributos opcionais a remover')},['id','sourceFamilyId','targetFamilyId','targetIds','removeIds']),readOnly:true,openWorld:true,
+    action:(a,t)=>requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_restore_prepare',id:requiredText(a,'id',30),sourceFamilyId:requiredText(a,'sourceFamilyId',30),targetFamilyId:requiredText(a,'targetFamilyId',30),targetIds:a.targetIds,removeIds:a.removeIds}),
+  },
+  mercadolivre_aplicar_restauracao_familia: {
+    description:'Somente após aprovação expressa da prévia exata, remove atributos opcionais aprovados e confirma se a família original foi recuperada. Não cria ou exclui anúncios. Em resposta incerta ou pendente, consulte a família; nunca repita automaticamente.',
+    schema:properties({previewId:S.str('UUID da prévia aprovada',40),confirmar:S.bool('Administrador aprovou esta prévia')},['previewId','confirmar']),openWorld:true,
+    action:(a,t)=>{yes(a);return requestAdmin('mercadolivre-oauth-callback',t,undefined,{action:'family_restore_apply',previewId:requiredText(a,'previewId',40),confirmar:true});},
+  },
   mercadolivre_preparar_correcao: {
-    description:'PREVIEW apenas: preparar uma proposta para CORRIGIR anúncio já publicado diretamente na API oficial Mercado Livre (sem Bling). Aceita título, descrição, atributos da categoria e adição de fotos públicas; não mexe em preço/estoque/variações. Mostre o antes/depois integral ao administrador e solicite aprovação explícita ANTES de chamar mercadolivre_aplicar_correcao. Nunca afirmar que a prévia foi publicada.',
+    description:'PREVIEW apenas: preparar uma proposta para CORRIGIR anúncio já publicado diretamente na API oficial Mercado Livre (sem Bling). Aceita descrição, fotos públicas e edição de itens legados. Para User Products, edição individual de atributos/título bloqueada: use a revisão de família. Substituição integral da galeria deve ser uma prévia isolada; não mexe em preço/estoque/variações. Mostre o antes/depois integral ao administrador e solicite aprovação explícita ANTES de chamar mercadolivre_aplicar_correcao. Nunca afirmar que a prévia foi publicada.',
     schema:properties({
       id:S.str('ID real MLB do anúncio da ANAROSA',30),
-      changes:S.obj('Alterações comprovadas: {title?:string, description?:string, attributes?:[{id:string,value_name?:string,value_id?:string}], addPictureUrls?:string[]} . Não inventar características, GTIN ou URLs. Foto deve ser pública da loja/Storage ANAROSA. Para prévia isolada de Premium, use {listingType:gold_pro,expectedPrice:preço atual}; aplicar somente via mercadolivre_aplicar_premium. Para prévia isolada de renomeação de família, use {familyRename:{familyId,ids,newName}}; aplicar somente via mercadolivre_aplicar_renomeacao_familia.')
+      changes:S.obj('Alterações comprovadas: {title?:string, description?:string, attributes?:[{id:string,value_name?:string,value_id?:string}], addPictureUrls?:string[], replacePictureUrls?:string[]} . Use replacePictureUrls isoladamente para substituir toda a galeria por URLs públicas comprovadas da peça. Não inventar características, GTIN ou URLs. Foto deve ser pública da loja/Storage ANAROSA. Para prévia isolada de Premium, use {listingType:gold_pro,expectedPrice:preço atual}; aplicar somente via mercadolivre_aplicar_premium. Para prévia isolada de renomeação de família, use {familyRename:{familyId,ids,newName}}; aplicar somente via mercadolivre_aplicar_renomeacao_familia.')
     },['id','changes']),
     readOnly:true,openWorld:true,
     action:(a,t)=>{
@@ -438,7 +463,7 @@ const actions: Record<string,Tool> = {
     },
   },
   mercadolivre_aplicar_correcao: {
-    description:'AÇÃO DE ESCRITA REAL e irreversível no anúncio ativo do Mercado Livre. SOMENTE depois que o administrador revisar a prévia e AUTORIZAR EXPRESSAMENTE a alteração deste anúncio MLB. Precisa do previewId gerado na função anterior, confirmar=true. Recusa estado alterado, revisão expirada e reexecuções; nunca usar automaticamente nem sem aprovação do usuário. Pode alterar título, descrição, atributos ou acrescentar fotos conforme prévia; não altera estoque, preço nem variações. Consulte resultado real e não faça retry cego.',
+    description:'AÇÃO DE ESCRITA REAL e irreversível no anúncio ativo do Mercado Livre. SOMENTE depois que o administrador revisar a prévia e AUTORIZAR EXPRESSAMENTE a alteração deste anúncio MLB. Precisa do previewId gerado na função anterior, confirmar=true. Recusa estado alterado, revisão expirada e reexecuções; nunca usar automaticamente nem sem aprovação do usuário. Pode alterar campos permitidos de itens legados, descrição ou acrescentar/substituir fotos conforme prévia; não altera estoque, preço nem variações. Consulte resultado real e não faça retry cego.',
     schema:properties({
       previewId:S.str('UUID exato da prévia aprovada pelo administrador',40),
       confirmar:S.bool('A pessoa administradora aprovou expressamente as alterações descritas na prévia. Nunca true sem essa aprovação.')
