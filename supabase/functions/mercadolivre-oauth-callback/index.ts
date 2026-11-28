@@ -599,6 +599,93 @@ async function colorSplitWorkflow(req:Request,adminId:string,body:any,action:str
     return json(req,result,result.ok?200:207);
   }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha na revisão.').slice(0,300)},(e as any)?.status||400);}
 }
+
+/** Collective CHILD_PK editor; never reports acceptance as completed. */
+async function collectiveFamilyState(c:any,sellerId:number,access:string){
+  const state=await familyRenameState(c.familyId,c.ids,sellerId,access);
+  if(new Set(state.records.map(r=>r.category)).size!==1)throw auditError('Categorias divergentes.',409);
+  const meta=await readMeli('/categories/'+state.records[0].category+'/attributes',access);
+  if(!meta.ok||!Array.isArray(meta.data))throw auditError('Metadados da categoria indisponíveis.',502);
+  const defs=new Map<string,any>(meta.data.map((a:any)=>[String(a.id),a]));
+  const attrs=normalizeEdits({attributes:c.attributes}).attributes!;
+  const values=attrs.map(a=>{
+    const d=defs.get(a.id);
+    // The official variant endpoint accepts CHILD_PK, not PARENT_PK.
+    // Keep identity, sizes, color, identifiers and size chart untouched.
+    if(!d||d.hierarchy!=='CHILD_PK'||d.tags?.read_only||d.tags?.hidden||d.tags?.required||d.tags?.allow_variations||d.tags?.defines_picture||['SIZE','COLOR','SELLER_SKU','GTIN','SIZE_GRID_ROW_ID','UNITS_PER_PACK'].includes(a.id))throw auditError('Atributo não liberado para edição coletiva segura: '+a.id,422);
+    const options=Array.isArray(d.values)?d.values:[];
+    const v=a.value_id?options.find((x:any)=>String(x.id)===a.value_id):null;
+    if(a.value_id&&!v)throw auditError('Valor oficial não confirmado: '+a.id,422);
+    if(v&&a.value_name&&familyNameKey(v.name)!==familyNameKey(a.value_name))throw auditError('ID e nome divergentes: '+a.id,422);
+    if(!v&&d.value_type==='list')throw auditError('Informe value_id oficial: '+a.id,422);
+    return {id:a.id,name:d.name,values:[{id:v?String(v.id):null,name:v?String(v.name):a.value_name}]};
+  });
+  if(state.records.every(r=>values.every(v=>r.attributes.some((a:any)=>a[0]===v.id&&(v.values[0].id?a[1]===v.values[0].id:familyNameKey(a[2])===familyNameKey(v.values[0].name)))) )throw auditError('Todos os membros já possuem os valores solicitados.',409);
+  const payload={user_products:state.records.map(r=>({id:r.upId,attributes:values}))};
+  return {state,values,payload,digest:await sha(JSON.stringify({state:state.digest,payload}))};
+}
+function familyCommercial(records:any[]){
+  return records.map(({attributes,familyName,...r}:any)=>r);
+}
+async function collectiveFamilyWorkflow(req:Request,adminId:string,body:any,action:string){
+  const prepare=action==='family_attributes_prepare',status=action==='family_attributes_status';
+  const rate=await db.rpc('rl_check_and_increment',{p_bucket:'meli-'+action+':'+adminId,p_limit:prepare?10:status?30:3,p_window_seconds:3600});
+  if(rate.error||rate.data!==true)return json(req,{ok:false,message:'Limite de operações atingido.'},429);
+  const row=await connection();
+  if(!row)return json(req,{ok:false,message:'Conta Mercado Livre não conectada.'},409);
+  try{
+    const access=await usableToken(row),sellerId=Number(row.seller_id);
+    if(prepare){
+      const c={operation:'family_attributes',familyId:String(body.familyId||''),ids:Array.isArray(body.ids)?body.ids.map((v:any)=>String(v).toUpperCase()):[],attributes:normalizeEdits({attributes:body.attributes}).attributes};
+      const x=await collectiveFamilyState(c,sellerId,access);
+      const preview={familyId:c.familyId,items:x.state.records.map(r=>({id:r.id,userProductId:r.upId,sku:r.sku,size:r.size,color:r.color,before:r.attributes.filter((a:any)=>x.values.some(v=>v.id===a[0]))})),after:x.values,notChanged:['price','stock','shipping','pictures','size','color','sku'],notice:'Operação assíncrona, restrita a atributos CHILD_PK opcionais e não identificadores. Não mescla famílias existentes.'};
+      const {data,error}=await db.from('meli_edit_intents').insert({seller_id:row.seller_id,item_id:c.ids[0],admin_user_id:adminId,snapshot_hash:x.digest,changes:c,preview,expires_at:new Date(Date.now()+15*60*1000).toISOString()}).select('id,expires_at').single();
+      if(error||!data)throw auditError('Não foi possível registrar a prévia.',503);
+      return json(req,{ok:true,applied:false,previewId:data.id,expiresAt:data.expires_at,preview});
+    }
+    const id=String(body.previewId||'');
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)||(!status&&body.confirmar!==true))throw auditError('UUID da prévia e confirmação obrigatórios.');
+    const {data:intent,error}=await db.from('meli_edit_intents').select('*').eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).maybeSingle();
+    if(error||!intent||intent.changes?.operation!=='family_attributes')throw auditError('Prévia não encontrada.',404);
+    const c=intent.changes;
+    if(status){
+      const taskId=String(intent.outcome?.taskId||'');
+      if(!/^[a-z0-9_-]{10,100}$/i.test(taskId))return json(req,{ok:false,message:'Tarefa não registrada; reconcilie o estado antes de repetir.',outcome:intent.outcome??null},409);
+      const t=await readMeli('/user-products-families/tasks/'+encodeURIComponent(taskId),access);
+      if(!t.ok)throw auditError('Não foi possível consultar tarefa.',502);
+      const entries=t.data?.['user-products'];
+      const expected=intent.preview.items.map((v:any)=>v.userProductId).sort();
+      const succeeded=t.data?.status==='finished'&&Array.isArray(entries)&&JSON.stringify(entries.map((v:any)=>v.id).sort())===JSON.stringify(expected)&&entries.every((v:any)=>v.status==='succeeded');
+      let verification:any=null;
+      if(succeeded){
+        try{
+          const state=await familyRenameState(c.familyId,c.ids,sellerId,access);
+          const protectedVerified=JSON.stringify(familyCommercial(state.records))===JSON.stringify(intent.outcome.protectedBefore);
+          const attrsVerified=state.records.every(r=>intent.preview.after.every((v:any)=>r.attributes.some((a:any)=>a[0]===v.id&&(v.values[0].id?a[1]===v.values[0].id:familyNameKey(a[2])===familyNameKey(v.values[0].name)))));
+          verification={familyId:c.familyId,allMembers:true,protectedVerified,attrsVerified};
+        }catch{verification={allMembers:false};}
+      }
+      return json(req,{ok:Boolean(succeeded&&verification?.protectedVerified&&verification?.attrsVerified),taskId,status:t.data?.status,results:entries,verification,accepted:true,applied:Boolean(succeeded&&verification?.protectedVerified&&verification?.attrsVerified)});
+    }
+    if(intent.consumed_at||Date.parse(intent.expires_at)<=Date.now())throw auditError('Prévia utilizada ou expirada. Não repetir.',409);
+    const x=await collectiveFamilyState(c,sellerId,access);
+    if(x.digest!==intent.snapshot_hash)throw auditError('Família alterada após prévia.',409);
+    const {data:claimed,error:claimError}=await db.from('meli_edit_intents').update({consumed_at:new Date().toISOString()}).eq('id',id).eq('seller_id',row.seller_id).eq('admin_user_id',adminId).is('consumed_at',null).gt('expires_at',new Date().toISOString()).select('id').maybeSingle();
+    if(claimError||!claimed)throw auditError('Prévia já consumida.',409);
+    const outcome:any={ok:false,applied:false,accepted:false,previewId:id,familyId:c.familyId,protectedBefore:familyCommercial(x.state.records)};
+    try{
+      const r=await fetch(BASE+'/user-products-families/'+c.familyId+'/user-products',{method:'PUT',headers:{Authorization:'Bearer '+access,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(x.payload),signal:AbortSignal.timeout(20000)});
+      const data=await r.json().catch(()=>({}));
+      outcome.httpStatus=r.status;
+      if(r.ok&&typeof data.task_id==='string'){outcome.accepted=true;outcome.taskId=data.task_id;outcome.status=data.status;outcome.message='Tarefa aceita; consulte o resultado antes de outras alterações.';}
+      else{outcome.uncertain=r.ok||r.status>=500;outcome.message='Tarefa não confirmada; não repetir automaticamente.';outcome.causes=Array.isArray(data.cause)?data.cause.slice(0,8):[];}
+    }catch{outcome.uncertain=true;outcome.message='Resposta interrompida; reconcilie antes de tentar novamente.';}
+    const saved=await db.from('meli_edit_intents').update({outcome}).eq('id',id).eq('admin_user_id',adminId);
+    if(saved.error)outcome.auditPending=true;
+    return json(req,outcome,outcome.accepted?202:207);
+  }catch(e){return json(req,{ok:false,message:String((e as any)?.message||'Falha na edição coletiva.').slice(0,300)},(e as any)?.status||400);}
+}
+
 async function editWorkflow(req:Request,adminId:string,body:any){
   const requested=String(body.action||'');
   const {data:allowed,error:rateError}=await db.rpc('rl_check_and_increment',{
@@ -2604,6 +2691,7 @@ Deno.serve(async(req:Request)=>{
     if(Object.keys(body.changes).some(k=>!['listingType','expectedPrice'].includes(k)))return json(req,{ok:false,message:'Migração Premium deve ser revisada isoladamente.'},400);
     return premiumWorkflow(req,adminId,{id:body.id,expectedPrice:body.changes.expectedPrice},'premium_prepare');
   }
+  if(['family_attributes_prepare','family_attributes_apply','family_attributes_status'].includes(action))return collectiveFamilyWorkflow(req,adminId,body,action);
   if(action==='edit_preview'||action==='edit_apply')return editWorkflow(req,adminId,body);
   if(action==='publish_listing'||action==='validate_listing')return publishAnarosaListing(req,adminId,body);
   if(['category_schema','chart_schema','chart_detail','chart_template','chart_search'].includes(action))return meliCatalogMetadata(req,adminId,body,action);
